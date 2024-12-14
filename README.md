@@ -1,8 +1,13 @@
-# obs_scripts_reggie
+# OBS Scripts
 
+**OBS Platform Scripts Repository**! 
+This collection of scripts is designed to enhance and automate workflows within [OBS Studio](https://obsproject.com/), the leading open-source software for live streaming and video recording.
 
-```
-Added error handling when capturing frames. If a frame cannot be read, it will print an error message and break out of the loop.
-Checked if frames are present before concatenating and saving the video. If no frames are captured, it will print a message indicating that no frames were captured.
-Modified the filename to include both the date and time.
-```
+### **Ideias for this project?**
+- **Automation:** Automate routine tasks, reducing manual effort during live streams.
+- **Customization:** Enhance OBS Studio with tailored features and integrations.
+- **Integration:** Connect OBS with external platforms through APIs and WebSocket protocols.
+
+### **At the moment what’s inside?**
+- **Score Management Tools:** Manage real-time sports scores and game overlays via text files.
+- **OBS Automation Scripts:** Automate scene transitions, source visibility, performance settings.
