@@ -1,131 +1,253 @@
+import json
 import os
+import sys
 import customtkinter as ctk
 import tkinter.messagebox
+from multiprocessing import Process
 from typing import Optional
+from team_names import append_team_to_json, load_teams_data
+FOLDER_NAME = "OBS_MARCADOR_FUTEBOL"
+ICON_BALL = "\u26BD"
+ICON_MINUS = "\u268A"
+ICON_WARN = "\u267B"
 
-# Get the desktop path dynamically
-desktop_path: str = os.path.join(os.path.expanduser("~"), "Desktop")
-folder_path: str = os.path.join(desktop_path, "OBS_MARCADOR_FUTEBOL")
+class ScoreApp:
+    def __init__(self, root: ctk.CTk, instance_number: int):
+        self.root = root
+        self.root.title(f"{instance_number} Campo")
+        self.root.geometry("340x420")
+        self.root.minsize(190, 195)
 
-# Create the folder if it doesn't exist
-os.makedirs(folder_path, exist_ok=True)
+        self.instance_number = instance_number
+        self.decrement_buttons_enabled = True
 
-# Paths to the text files on the desktop
-CasaFicheiro: str = os.path.join(folder_path, "golo casa.txt")
-ForaFicheiro: str = os.path.join(folder_path, "golo fora.txt")
+        # Paths
+        self.folder_path = os.path.join(os.path.expanduser("~"), "Desktop", FOLDER_NAME)
+        self.instance_folder = os.path.join(self.folder_path, f"Campo_{instance_number}")
+        os.makedirs(self.instance_folder, exist_ok=True)
 
-def read_number(file_path: str) -> int:
-    try:
-        with open(file_path, 'r') as file:
-            return int(file.read().strip())
-    except (FileNotFoundError, ValueError):
-        write_number(file_path, 0)
-        return 0
+        self.casa_path = os.path.join(self.instance_folder, "golo_casa.txt")
+        self.fora_path = os.path.join(self.instance_folder, "golo_fora.txt")
 
-def write_number(file_path: str, number: int) -> None:
-    with open(file_path, 'w') as file:
-        file.write(str(number))
+        self.casa_abrev = self.load_abbreviation("equipa_casa_abrev.txt", default="Casa")
+        self.fora_abrev = self.load_abbreviation("equipa_fora_abrev.txt", default="Fora")
+        self.teams_data = self.load_teams_json()
 
-def update_label(file_path: str, label: ctk.CTkLabel, prefix: str) -> None:
-    """
-    Updates the label with the current number from the file.
-    """
-    current_number = read_number(file_path)
-    label.configure(text=f"{prefix}{current_number}")
+        self.setup_ui()
 
-def change_number(file_path: str, label: ctk.CTkLabel, prefix: str, delta: int) -> None:
-    """
-    Changes the number in a file by a given delta and updates the label.
-    """
-    current_number = read_number(file_path) + delta
-    current_number = max(current_number, 0)
-    write_number(file_path, current_number)
-    update_label(file_path, label, prefix)
+    def load_abbreviation(self, filename, default=""):
+        try:
+            path = os.path.join(self.instance_folder, filename)
+            with open(path, 'r', encoding='utf-8') as f:
+                return f.read().strip() or default
+        except FileNotFoundError:
+            return default
 
-def reset_numbers(casa: str, fora: str) -> None:
-    """
-    Resets the numbers in all files to zero and updates the labels.
+    def load_teams_json(self):
+        json_path = os.path.join(self.instance_folder, "teams.json")
+        if os.path.exists(json_path):
+            try:
+                with open(json_path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except:
+                pass
+        return {}
+    
+    def setup_ui(self):
+        self.create_team_input_ui()
+        self.create_score_ui()
+        self.create_control_buttons()
 
-    Args:
-        casa (str): The prefix text for the home label.
-        fora (str): The prefix text for the away label.
-    """
-    write_number(CasaFicheiro, 0)
-    write_number(ForaFicheiro, 0)
-    casa_label.configure(text=f"{casa}0")
-    fora_label.configure(text=f"{fora}0")
+    def create_team_input_ui(self):
+        input_frame = ctk.CTkFrame(self.root)
+        input_frame.pack(padx=10, pady=(0, 10))
 
-def confirm_reset(casa: str, fora: str) -> None:
-    """
-    Asks for confirmation to reset the numbers and resets them if confirmed.
-    """
-    if tkinter.messagebox.askokcancel("Zerar", "Zerar Marcador?"):
-        reset_numbers(casa, fora)
+        self.casa_nome_entry = self.create_labeled_entry(input_frame, "Nome Casa", "ex: Sporting", 0, 0)
+        self.casa_abrev_entry = self.create_labeled_entry(input_frame, "Abrev.", "ex: SCP", 0, 0, offset=1)
+        self.fora_nome_entry = self.create_labeled_entry(input_frame, "Nome Fora", "ex: Porto", 0, 1)
+        self.fora_abrev_entry = self.create_labeled_entry(input_frame, "Abrev.", "ex: FCP", 0, 1, offset=1)
 
-def toggle_decrement_buttons() -> None:
-    """
-    Toggles the state of the decrement buttons between enabled and disabled.
-    """
-    global decrement_buttons_enabled
-    decrement_buttons_enabled = not decrement_buttons_enabled
-    state = "normal" if decrement_buttons_enabled else "disabled"
-    decrement_casa_button.configure(state=state)
-    decrement_fora_button.configure(state=state)
+        ctk.CTkButton(self.root, text="Guardar Nomes", fg_color="gray", command=self.save_team_info).pack(pady=(0, 10))
 
-# Create the main window
-root: ctk.CTk = ctk.CTk()
-root.title("Score - One game")
-root.geometry("210x240")
-root.minsize(190, 195)
+    def create_labeled_entry(self, parent, label_text, placeholder, row, column, offset=0):
+        frame = ctk.CTkFrame(parent)
+        frame.grid(row=row + offset, column=column, padx=5, pady=5)
+        ctk.CTkLabel(frame, text=label_text).pack()
+        entry = ctk.CTkEntry(frame, placeholder_text=placeholder)
+        entry.pack()
+        return entry
 
-# Icons and labels text
-minusIcon: str = '\u268A'
-warnIcon: str = "\u267B"
-ballIcon: str = "\u26BD"
-casa_text: str = "Casa:  "
-fora_text: str = "Fora:  "
+    def create_score_ui(self):
+        labels_frame = ctk.CTkFrame(self.root)
+        labels_frame.pack(padx=10, pady=10)
 
-# Create a frame to hold the labels
-labels_frame: ctk.CTkFrame = ctk.CTkFrame(root)
-labels_frame.pack(padx=10, pady=10)
+        self.casa_label = ctk.CTkLabel(labels_frame, font=("Segoe UI", 16))
+        self.casa_label.pack(side="left", padx=10)
 
-# Create labels to display the current numbers
-casa_label: ctk.CTkLabel = ctk.CTkLabel(labels_frame, text=f"{casa_text}{read_number(CasaFicheiro)}", font=("Helvetica", 16))
-casa_label.pack(side="left", padx=10)
+        self.fora_label = ctk.CTkLabel(labels_frame, font=("Segoe UI", 16))
+        self.fora_label.pack(side="left", padx=10)
 
-fora_label: ctk.CTkLabel = ctk.CTkLabel(labels_frame, text=f"{fora_text}{read_number(ForaFicheiro)}", font=("Helvetica", 16))
-fora_label.pack(side="left", padx=10)
+        self.update_labels()
 
-# Create frames for buttons
-casa_frame: ctk.CTkFrame = ctk.CTkFrame(root)
-casa_frame.pack(padx=5, pady=5)
+        self.decrement_casa_button = self.create_score_buttons(
+            self.casa_label, self.casa_path, lambda: self.casa_abrev, self.root, "Casa"
+        )
 
-fora_frame: ctk.CTkFrame = ctk.CTkFrame(root)
-fora_frame.pack(padx=5, pady=5)
+        self.decrement_fora_button = self.create_score_buttons(
+            self.fora_label, self.fora_path, lambda: self.fora_abrev, self.root, "Fora"
+        )
+    
+    def create_control_buttons(self):
+        toggle_frame = ctk.CTkFrame(self.root)
+        toggle_frame.pack(padx=5, pady=5)
+        ctk.CTkButton(toggle_frame, text="Block", command=self.toggle_decrement_buttons, fg_color="orange").pack(padx=2, pady=2, fill='both', expand=True)
 
-# Create increment and decrement buttons for casa and fora
-increment_casa_button: ctk.CTkButton = ctk.CTkButton(casa_frame, text=f"{ballIcon} Casa", command=lambda: change_number(CasaFicheiro, casa_label, casa_text, 1), fg_color="green")
-increment_casa_button.pack(side="left", padx=5, pady=5)
+        ctk.CTkButton(self.root, text=f"{ICON_WARN}  Zerar?", command=self.confirm_reset, fg_color="blue").pack(padx=10, pady=10)
 
-decrement_casa_button: ctk.CTkButton = ctk.CTkButton(casa_frame, text=f"{minusIcon} 1", command=lambda: change_number(CasaFicheiro, casa_label, casa_text, -1), fg_color="red")
-decrement_casa_button.pack(side="left", padx=5, pady=5)
+    def create_score_buttons(self, label, file_path, prefix_func, parent, side):
+        frame = ctk.CTkFrame(parent)
+        frame.pack(padx=5, pady=5)
 
-increment_fora_button: ctk.CTkButton = ctk.CTkButton(fora_frame, text=f"{ballIcon} Fora", command=lambda: change_number(ForaFicheiro, fora_label, fora_text, 1), fg_color="green")
-increment_fora_button.pack(side="left", padx=5, pady=5)
+        ctk.CTkButton(
+            frame,
+            text=f"{ICON_BALL} {side}",
+            fg_color="green",
+            command=lambda: self.change_number(file_path, label, prefix_func(), 1)
+        ).pack(side="left", padx=5)
 
-decrement_fora_button: ctk.CTkButton = ctk.CTkButton(fora_frame, text=f"{minusIcon} 1", command=lambda: change_number(ForaFicheiro, fora_label, fora_text, -1), fg_color="red")
-decrement_fora_button.pack(side="left", padx=5, pady=5)
+        dec_button = ctk.CTkButton(
+            frame,
+            text=f"{ICON_MINUS} 1",
+            fg_color="red",
+            command=lambda: self.change_number(file_path, label, prefix_func(), -1)
+        )
+        dec_button.pack(side="left", padx=5)
 
-# Create toggle button for enabling/disabling decrement buttons
-decrement_buttons_enabled: bool = True
-toggle_frame: ctk.CTkFrame = ctk.CTkFrame(root)
-toggle_frame.pack(padx=5, pady=5)
-toggle_decrement_button: ctk.CTkButton = ctk.CTkButton(toggle_frame, text="Block", command=toggle_decrement_buttons, fg_color="orange")
-toggle_decrement_button.pack(padx=2, pady=2, fill='both', expand=True)
+        return dec_button
 
-# Create button to reset numbers to zero
-reset_button: ctk.CTkButton = ctk.CTkButton(root, text=f"{warnIcon}  Zerar?", command=lambda: confirm_reset(casa_text, fora_text), fg_color="blue")
-reset_button.pack(padx=10, pady=10)
+    def read_number(self, path: str) -> int:
+        try:
+            with open(path, 'r') as f:
+                return max(0, int(f.read().strip()))
+        except Exception:
+            self.write_number(path, 0)
+            return 0
 
-# Run the main loop
-root.mainloop()
+    def write_number(self, path: str, value: int):
+        with open(path, 'w') as f:
+            f.write(str(value))
+
+    def update_labels(self):
+        self.casa_label.configure(text=f"{self.casa_abrev}: {self.read_number(self.casa_path)}")
+        self.fora_label.configure(text=f"{self.fora_abrev}: {self.read_number(self.fora_path)}")
+
+    def change_number(self, path: str, label, prefix: str, delta: int):
+        new_value = max(0, self.read_number(path) + delta)
+        self.write_number(path, new_value)
+        label.configure(text=f"{prefix}: {new_value}")
+
+    def toggle_decrement_buttons(self):
+        self.decrement_buttons_enabled = not self.decrement_buttons_enabled
+        state = "normal" if self.decrement_buttons_enabled else "disabled"
+        self.decrement_casa_button.configure(state=state)
+        self.decrement_fora_button.configure(state=state)
+
+    def confirm_reset(self):
+        if tkinter.messagebox.askokcancel("Zerar", "Zerar Marcador?"):
+            self.write_number(self.casa_path, 0)
+            self.write_number(self.fora_path, 0)
+            self.update_labels()
+
+    def save_team_info(self):
+        nome_casa = self.casa_nome_entry.get().strip().upper()
+        abrev_casa = self.casa_abrev_entry.get().strip().upper()
+        nome_fora = self.fora_nome_entry.get().strip().upper()
+        abrev_fora = self.fora_abrev_entry.get().strip().upper()
+        append_team_to_json(self.folder_path,nome_casa, abrev_casa)
+        append_team_to_json(self.folder_path,nome_fora, abrev_fora)
+        
+        if not all([nome_casa, abrev_casa, nome_fora, abrev_fora]):
+            tkinter.messagebox.showwarning("Warning", "Some fields are empty. Empty files will still be created.")
+
+        try:
+            with open(os.path.join(self.instance_folder, "equipa_casa_nome.txt"), 'w', encoding='utf-8') as f:
+                f.write(nome_casa)
+            with open(os.path.join(self.instance_folder, "equipa_casa_abrev.txt"), 'w', encoding='utf-8') as f:
+                f.write(abrev_casa)
+            with open(os.path.join(self.instance_folder, "equipa_fora_nome.txt"), 'w', encoding='utf-8') as f:
+                f.write(nome_fora)
+            with open(os.path.join(self.instance_folder, "equipa_fora_abrev.txt"), 'w', encoding='utf-8') as f:
+                f.write(abrev_fora)
+
+            # Refresh UI with updated abbreviation values
+            self.casa_abrev = abrev_casa or "Casa"
+            self.fora_abrev = abrev_fora or "Fora"
+            self.update_labels()
+
+            tkinter.messagebox.showinfo("Success", f"Team data saved to:\n{self.instance_folder}")
+        except Exception as e:
+            tkinter.messagebox.showerror("Error", f"Failed to save team info:\n{e}")
+
+def start_instance(instance_number: int):
+    root = ctk.CTk()
+    app = ScoreApp(root, instance_number)
+    root.mainloop()
+
+def ask_instance_count_ui() -> int:
+    result = {"value": None}
+
+    def confirm():
+        result["value"] = int(slider.get())
+        window.destroy()
+
+    window = ctk.CTk()
+    window.title("Campos")
+    window.geometry("320x200")
+    window.resizable(False, False)
+
+    ctk.CTkLabel(window, text="Quantos campos queres abrir?", font=("Segoe UI", 15)).pack(pady=(20, 10))
+
+    slider = ctk.CTkSlider(window, from_=1, to=20, number_of_steps=19, width=220)
+    slider.set(1)
+    slider.pack()
+
+    value_label = ctk.CTkLabel(window, text="1", font=("Segoe UI", 13))
+    value_label.pack(pady=(5, 10))
+
+    def update_label(value):
+        value_label.configure(text=str(int(value)))
+
+    slider.configure(command=update_label)
+
+    ctk.CTkButton(window, text="Abrir", command=confirm).pack(pady=10)
+
+    add_footer_label(window)
+    window.mainloop()
+    return result["value"]
+def add_footer_label(parent, text: str = "© 2025 Vunf1"):
+    footer = ctk.CTkLabel(
+        parent,
+        text=text,
+        font=("Segoe UI", 11),
+        text_color="gray"
+    )
+    footer.pack(side="bottom", pady=(5, 5))
+def main():
+    ctk.set_appearance_mode("system")
+
+    instance_count = ask_instance_count_ui()
+    if not instance_count:
+        sys.exit()
+
+    processes = []
+    for i in range(1, instance_count + 1):
+        p = Process(target=start_instance, args=(i,))
+        p.start()
+        processes.append(p)
+
+    for p in processes:
+        p.join()
+if __name__ == "__main__":
+    from multiprocessing import freeze_support
+    freeze_support()
+    main()
