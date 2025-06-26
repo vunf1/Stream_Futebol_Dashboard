@@ -2,10 +2,10 @@ import json
 import os
 import sys
 import customtkinter as ctk
-import tkinter.messagebox
+import tkinter.messagebox as messagebox
 from multiprocessing import Process
 from typing import Optional
-from team_names import append_team_to_json, load_teams_data
+from team_names import append_team_to_json, load_teams_json
 FOLDER_NAME = "OBS_MARCADOR_FUTEBOL"
 ICON_BALL = "\u26BD"
 ICON_MINUS = "\u268A"
@@ -14,8 +14,9 @@ ICON_WARN = "\u267B"
 class ScoreApp:
     def __init__(self, root: ctk.CTk, instance_number: int):
         self.root = root
+        add_footer_label(self.root)
         self.root.title(f"{instance_number} Campo")
-        self.root.geometry("340x420")
+        self.root.geometry("380x430")
         self.root.minsize(190, 195)
 
         self.instance_number = instance_number
@@ -31,7 +32,7 @@ class ScoreApp:
 
         self.casa_abrev = self.load_abbreviation("equipa_casa_abrev.txt", default="Casa")
         self.fora_abrev = self.load_abbreviation("equipa_fora_abrev.txt", default="Fora")
-        self.teams_data = self.load_teams_json()
+        self.teams_data = load_teams_json(self.folder_path)
 
         self.setup_ui()
 
@@ -43,31 +44,104 @@ class ScoreApp:
         except FileNotFoundError:
             return default
 
-    def load_teams_json(self):
-        json_path = os.path.join(self.instance_folder, "teams.json")
-        if os.path.exists(json_path):
-            try:
-                with open(json_path, "r", encoding="utf-8") as f:
-                    return json.load(f)
-            except:
-                pass
-        return {}
-    
     def setup_ui(self):
         self.create_team_input_ui()
         self.create_score_ui()
         self.create_control_buttons()
 
+    def refresh_teams_data(self):
+        self.teams_data = load_teams_json(self.folder_path)
+        self.teams_list = list(self.teams_data.keys())
+
     def create_team_input_ui(self):
+        self.refresh_teams_data()
+        self.teams_list = list(self.teams_data.keys())  # Apenas nomes
+
+        print(f"Equipas carregadas: {self.teams_list}")
+
         input_frame = ctk.CTkFrame(self.root)
         input_frame.pack(padx=10, pady=(0, 10))
 
-        self.casa_nome_entry = self.create_labeled_entry(input_frame, "Nome Casa", "ex: Sporting", 0, 0)
+        self.casa_nome_entry = self.create_combobox_entry(input_frame, "Nome Casa","ex: SPORTING", 0, 0)
         self.casa_abrev_entry = self.create_labeled_entry(input_frame, "Abrev.", "ex: SCP", 0, 0, offset=1)
-        self.fora_nome_entry = self.create_labeled_entry(input_frame, "Nome Fora", "ex: Porto", 0, 1)
+
+        self.fora_nome_entry = self.create_combobox_entry(input_frame, "Nome Fora","ex: PORTO", 0, 1)
         self.fora_abrev_entry = self.create_labeled_entry(input_frame, "Abrev.", "ex: FCP", 0, 1, offset=1)
 
         ctk.CTkButton(self.root, text="Guardar Nomes", fg_color="gray", command=self.save_team_info).pack(pady=(0, 10))
+
+    def create_combobox_entry(self, parent, label_text, label_placeholder, row, column):
+        frame = ctk.CTkFrame(parent)
+        frame.grid(row=row, column=column, padx=5, pady=5)
+
+        ctk.CTkLabel(frame, text=label_text).pack()
+
+        entry = ctk.CTkEntry(frame, width=160, placeholder_text=label_placeholder)
+        entry.pack()
+
+        # Criação da frame de sugestões com largura definida
+        suggestion_frame = ctk.CTkFrame(self.root, fg_color="#222222", corner_radius=6, width=160)
+        suggestion_frame.place_forget()
+
+        buttons = []
+
+        def clear_suggestions():
+            for btn in buttons:
+                btn.destroy()
+            buttons.clear()
+            suggestion_frame.place_forget()
+
+        def show_suggestions(event=None):
+            clear_suggestions()
+
+            # Reload data dynamically
+            self.refresh_teams_data()
+            self.teams_list = list(self.teams_data.keys())
+
+            typed = entry.get().strip().lower()
+            matches = [name for name in self.teams_list if typed in name.lower()]
+
+            if matches:
+                entry.update_idletasks()
+                abs_x = entry.winfo_rootx() - self.root.winfo_rootx()
+                abs_y = entry.winfo_rooty() - self.root.winfo_rooty() + entry.winfo_height()
+
+                suggestion_frame.place(x=abs_x, y=abs_y)
+                suggestion_frame.lift()
+
+                for name in matches:
+                    def select_name(n=name):
+                        entry.delete(0, "end") # Clear the entry
+                        entry.insert(0, n) # Insert the selected name
+                        abrev = self.teams_data.get(n, "") # Get abbreviation from teams_data
+                        abrev_fields = {
+                            "Casa": self.casa_abrev_entry,
+                            "Fora": self.fora_abrev_entry
+                        }
+                        for key in abrev_fields:
+                            if key in label_text:
+                                abrev_fields[key].delete(0, "end")
+                                abrev_fields[key].insert(0, abrev)
+                        clear_suggestions()
+
+                    btn = ctk.CTkButton(
+                        master=suggestion_frame,
+                        text=name,
+                        width=160,
+                        height=28,
+                        fg_color="#333333",
+                        hover_color="#444444",
+                        text_color="#FFFFFF",
+                        anchor="w",
+                        command=select_name
+                    )
+                    btn.pack(padx=2, pady=1)
+                    buttons.append(btn)
+
+        entry.bind("<KeyRelease>", show_suggestions) # Show suggestions on key release
+        entry.bind("<FocusOut>", lambda e: self.root.after(100, clear_suggestions)) # Hide suggestions after focus out 
+
+        return entry
 
     def create_labeled_entry(self, parent, label_text, placeholder, row, column, offset=0):
         frame = ctk.CTkFrame(parent)
@@ -76,7 +150,6 @@ class ScoreApp:
         entry = ctk.CTkEntry(frame, placeholder_text=placeholder)
         entry.pack()
         return entry
-
     def create_score_ui(self):
         labels_frame = ctk.CTkFrame(self.root)
         labels_frame.pack(padx=10, pady=10)
@@ -153,7 +226,7 @@ class ScoreApp:
         self.decrement_fora_button.configure(state=state)
 
     def confirm_reset(self):
-        if tkinter.messagebox.askokcancel("Zerar", "Zerar Marcador?"):
+        if messagebox.askokcancel("Zerar", "Zerar Marcador?"):
             self.write_number(self.casa_path, 0)
             self.write_number(self.fora_path, 0)
             self.update_labels()
@@ -167,7 +240,7 @@ class ScoreApp:
         append_team_to_json(self.folder_path,nome_fora, abrev_fora)
         
         if not all([nome_casa, abrev_casa, nome_fora, abrev_fora]):
-            tkinter.messagebox.showwarning("Warning", "Some fields are empty. Empty files will still be created.")
+            messagebox.showwarning("Warning", "Some fields are empty. Empty files will still be created.")
 
         try:
             with open(os.path.join(self.instance_folder, "equipa_casa_nome.txt"), 'w', encoding='utf-8') as f:
@@ -184,9 +257,9 @@ class ScoreApp:
             self.fora_abrev = abrev_fora or "Fora"
             self.update_labels()
 
-            tkinter.messagebox.showinfo("Success", f"Team data saved to:\n{self.instance_folder}")
+            messagebox.showinfo("Success", f"Team data saved to:\n{self.instance_folder}")
         except Exception as e:
-            tkinter.messagebox.showerror("Error", f"Failed to save team info:\n{e}")
+            messagebox.showerror("Error", f"Failed to save team info:\n{e}")
 
 def start_instance(instance_number: int):
     root = ctk.CTk()

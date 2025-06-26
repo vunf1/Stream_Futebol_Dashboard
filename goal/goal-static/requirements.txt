@@ -1,2 +1,4 @@
 customtkinter
 ctkmessagebox
+python-dotenv
+pymongo
