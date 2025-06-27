@@ -2,52 +2,59 @@ import os
 import json
 import tkinter.messagebox as messagebox
 import customtkinter as ctk
+from colors import COLOR_INFO, COLOR_STOP, COLOR_SUCCESS, COLOR_WARNING
 from helpers import show_message_notification
 
-def append_team_to_json(instance_folder: str, name: str, abrev: str):
+from mongodb import MongoTeamManager
+def append_team_to_mongo(name: str, abrev: str):
     name = name.strip().upper()
     abrev = abrev.strip().upper()
+
+    mongo = MongoTeamManager()
+
+    current_abrev = mongo.get_abbreviation(name)
     
-    json_path = os.path.join(instance_folder, "teams.json")
-    teams = {}
-
-    # Carrega os dados existentes
-    if os.path.exists(json_path):
-        try:
-            with open(json_path, "r", encoding="utf-8") as f:
-                teams = json.load(f)
-        except Exception:
-            teams = {}
-
-    # Se já existe
-    if name in teams:
-        current_abrev = teams[name]
+    if current_abrev:
         if current_abrev != abrev:
+            # Same name, different abbrev — Ask to update
             root = ctk.CTk()
             root.withdraw()
             result = messagebox.askyesno(
                 title="Equipa já existe",
-                message=f"A equipa '{name}' já existe com a sigla '{current_abrev}'.\nDeseja manter a sigla existente?"
+                message=(
+                    f"A equipa '{name}' já existe com a sigla '{current_abrev}'.\n\n"
+                    f"Deseja atualizar para '{abrev}'?"
+                )
             )
             root.destroy()
-            if not result:
-                messagebox.showinfo("Cancelado", "Operação cancelada.")
-                return
+            if result:
+                try:
+                    mongo.save_team(name, abrev)
+                    show_message_notification("✅ Atualizado", f"Equipa '{name}' atualizada para '{abrev}'.", bg_color=COLOR_SUCCESS)
+
+                except Exception as e:
+                    messagebox.showerror("Erro", f"Erro ao atualizar equipa: {e}")
             else:
-                messagebox.showinfo("Mantido", "Sigla original mantida.")
-                return
+                show_message_notification("❌ Cancelado", f"A sigla de '{name}' não foi alterada.", bg_color=COLOR_STOP)
+            return
+        else:
+            show_message_notification("ℹ️ Mantido", f"A sigla de '{name}' já é '{abrev}'.", bg_color=COLOR_INFO)
+            return
 
-    # Salvar novo ou atualizar
-    teams[name] = abrev
+    # Check if abbreviation is already used by another team (informative, not blocking)
+    all_teams = mongo.load_teams()
+    for other_name, other_abrev in all_teams.items():
+        if other_name != name and other_abrev == abrev:
+            show_message_notification("⚠️ Reutilização", f"A abreviação '{abrev}' já está em uso por '{other_name}', mas será reutilizada.", bg_color=COLOR_WARNING)
+            break  # Just log, don’t stop
 
+    # Save new team
     try:
-        with open(json_path, "w", encoding="utf-8") as f:
-            json.dump(teams, f, indent=4, ensure_ascii=False)
-        show_message_notification("Gravado", f"Equipa '{name}' gravada.", duration=1000)
+        mongo.save_team(name, abrev)
+        show_message_notification("✅ Gravado", f"Equipa '{name}' gravada com sucesso.", duration=1500, bg_color=COLOR_SUCCESS)
 
     except Exception as e:
-        messagebox.showerror("Erro", f"Falha ao guardar JSON: {e}")
-        
+        messagebox.showerror("Erro", f"Erro ao guardar equipa na base de dados: {e}")
 
 def load_teams_json(instance_folder: str):
     json_path = os.path.join(instance_folder, "teams.json")
