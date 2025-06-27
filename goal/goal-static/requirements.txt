@@ -2,3 +2,5 @@ customtkinter
 ctkmessagebox
 python-dotenv
 pymongo
+pyinstaller
+keyboard

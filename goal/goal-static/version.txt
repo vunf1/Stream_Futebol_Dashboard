@@ -1,8 +1,8 @@
 # version.txt
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(2, 3, 0, 0),
-    prodvers=(2, 3, 0, 0),
+    filevers=(5, 0, 0, 0),
+    prodvers=(5, 0, 0, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x4,
@@ -15,13 +15,13 @@ VSVersionInfo(
       StringTable(
         '040904B0',
         [StringStruct('CompanyName', 'Maia'),
-        StringStruct('FileDescription', 'Goal Score Tracking for Streming Services'),
-        StringStruct('FileVersion', '2.3.0'),
-        StringStruct('InternalName', 'goal_score'),
+        StringStruct('FileDescription', ' Sport Tracking for Streming Services'),
+        StringStruct('FileVersion', '5.0.0'),
+        StringStruct('InternalName', 'sport_tracking'),
         StringStruct('LegalCopyright', '© 2025 Vunf1'),
-        StringStruct('OriginalFilename', 'goal_score.exe'),
-        StringStruct('ProductName', 'Goal Score Tracking App'),
-        StringStruct('ProductVersion', '2.3.0')])
+        StringStruct('OriginalFilename', 'sport_tracking.exe'),
+        StringStruct('ProductName', 'Sport Tracking App'),
+        StringStruct('ProductVersion', '5.0.0')])
         ]),
     VarFileInfo([VarStruct('Translation', [2070, 1252])])
   ]
