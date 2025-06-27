@@ -39,4 +39,11 @@ class MongoTeamManager:
 
     def get_all_names(self):
         return [team["name"] for team in self.collection.find()]
+    
+    def delete_team(self, name: str) -> bool:
+        """
+        Remove a team by its name. Returns True if something was deleted.
+        """
+        result = self.collection.delete_one({"name": name.upper().strip()})
+        return result.deleted_count > 0
 

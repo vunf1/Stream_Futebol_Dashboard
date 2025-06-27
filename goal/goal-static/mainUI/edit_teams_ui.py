@@ -6,13 +6,14 @@ from colors  import COLOR_WARNING, COLOR_SUCCESS, COLOR_STOP
 class TeamManagerWindow(ctk.CTkToplevel):
     def __init__(self, parent, mongo, pin):
         super().__init__(parent)
+        self.withdraw()
         self.mongo      = mongo
         self.pin        = str(pin).strip()
 
         if not self._prompt_for_pin():  # ask PIN first
             self.destroy()
             return
-
+        self.deiconify()
         self.title("Team Manager")
         self.geometry("400x400")
         self.lift()
@@ -77,60 +78,101 @@ class TeamManagerWindow(ctk.CTkToplevel):
         )
 
     def _on_change(self):
-        self.refresh_cb()
         self._build_team_list()
 
+import os
+import customtkinter as ctk
+from colors import COLOR_SUCCESS, COLOR_STOP
+from helpers import show_message_notification
 
 class EditTeamPopup(ctk.CTkToplevel):
     def __init__(self, parent, mongo, original_name, original_abrev, on_done):
         super().__init__(parent)
         self.mongo         = mongo
-        self.orig_name     = original_name
+        self.orig_name     = original_name.strip().upper()
         self.on_done       = on_done
 
         self.title("Edit Team")
-        self.geometry("300x220")
+        self.geometry("300x240")
         self.iconbitmap("assets/icons/icon_soft.ico")
         self.grab_set()
         self.attributes("-topmost", True)
 
+        # --- build form ---
         ctk.CTkLabel(self, text="Team Name").pack(pady=(10,0))
         self.name_entry = ctk.CTkEntry(self)
         self.name_entry.insert(0, original_name)
-        self.name_entry.pack(pady=5)
+        self.name_entry.pack(pady=5, padx=20, fill="x")
 
         ctk.CTkLabel(self, text="Abbreviation").pack()
         self.abrev_entry = ctk.CTkEntry(self)
         self.abrev_entry.insert(0, original_abrev)
-        self.abrev_entry.pack(pady=5)
+        self.abrev_entry.pack(pady=5, padx=20, fill="x")
 
+        # Buttons
         btn_frame = ctk.CTkFrame(self)
-        btn_frame.pack(pady=10)
-
+        btn_frame.pack(pady=15)
         ctk.CTkButton(btn_frame, text="Salvar", command=self._save).pack(side="left", padx=5)
         ctk.CTkButton(btn_frame, text="Apagar", fg_color="red", command=self._delete).pack(side="left", padx=5)
         ctk.CTkButton(btn_frame, text="Cancelar", command=self.destroy).pack(side="left", padx=5)
 
+        # force focus on this popup’s entry
+        self.name_entry.focus_set()
+
     def _save(self):
         new_name  = self.name_entry.get().strip().upper()
         new_abrev = self.abrev_entry.get().strip().upper()
-        if new_name and new_abrev:
-            self.mongo.save_team(new_name, new_abrev)
-            show_message_notification("✅ Atualizado",f"Equipa '{new_name}' atualizada.",icon="✅", bg_color=COLOR_SUCCESS)
-            self.destroy()
-            self.on_done()
+        if not (new_name and new_abrev):
+            return  # nothing to do
+
+        # 1) upsert new
+        self.mongo.save_team(new_name, new_abrev)
+
+        # 2) if renamed, delete old
+        if new_name != self.orig_name:
+            self.mongo.delete_team(self.orig_name)
+
+        show_message_notification(
+            "✅ Atualizado",
+            f"Equipa '{new_name}' atualizada.",
+            icon="✅", bg_color=COLOR_SUCCESS
+        )
+
+        self.destroy()
+        self.on_done()
 
     def _delete(self):
-        confirm = ctk.CTkInputDialog(
-            title="Confirmação",
-            text=f"Escreve 'DELETE' para apagar '{self.orig_name}'"
+        # custom confirm dialog so we don't leak focus_set callbacks
+        dlg = ctk.CTkToplevel(self)
+        dlg.title("Confirmação")
+        dlg.geometry("300x140")
+        dlg.grab_set()
+        dlg.attributes("-topmost", True)
+
+        ctk.CTkLabel(dlg, text=f"Type DELETE to remove '{self.orig_name}'").pack(pady=(15,5))
+        entry = ctk.CTkEntry(dlg, placeholder_text="DELETE")
+        entry.pack(pady=5, padx=20, fill="x")
+        entry.focus_set()
+
+        result = {"ok": False}
+        def on_submit(evt=None):
+            if entry.get().strip().upper() == "DELETE":
+                result["ok"] = True
+            dlg.destroy()
+
+        entry.bind("<Return>", on_submit)
+        ctk.CTkButton(dlg, text="OK", command=on_submit).pack(pady=(5,10))
+
+        dlg.wait_window()
+
+        if not result["ok"]:
+            return
+
+        self.mongo.delete_team(self.orig_name)
+        show_message_notification(
+            "❌ Apagado",
+            f"Equipa '{self.orig_name}' apagada.",
+            icon="❌", bg_color=COLOR_STOP
         )
-        if confirm.get_input().strip().upper() == "DELETE":
-            self.mongo.delete_team(self.orig_name)
-            show_message_notification(
-                "❌ Apagado",
-                f"Equipa '{self.orig_name}' apagada.",
-                icon="❌", bg_color=COLOR_STOP
-            )
-            self.destroy()
-            self.on_done()
+        self.destroy()
+        self.on_done()
