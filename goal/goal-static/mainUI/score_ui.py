@@ -1,9 +1,7 @@
-# score_field_ui.py
-
 import os
 import customtkinter as ctk
 import tkinter.messagebox as messagebox
-from colors import COLOR_SUCCESS, COLOR_WARNING
+from colors import COLOR_ERROR, COLOR_SUCCESS, COLOR_WARNING
 from helpers.helpers import save_teams_to_json
 from helpers.notification import prompt_notification, show_message_notification
 
@@ -33,6 +31,8 @@ class ScoreUI:
         self.fora_file = fora_goal_file
 
         self.decrement_enabled = True
+        # register decrement buttons (if added later)
+        self.dec_buttons = {}
 
         # initial data
         self._refresh_teams()
@@ -55,7 +55,6 @@ class ScoreUI:
             except FileNotFoundError:
                 return default
 
-        # these default to the abbreviations you already loaded
         self.casa_name = read_or_default("equipa_casa_nome.txt", "Casa")
         self.fora_name = read_or_default("equipa_fora_nome.txt", "Fora")
 
@@ -80,7 +79,6 @@ class ScoreUI:
         self.fora_abbr = read_or_default("equipa_fora_abrev.txt", "Fora")
 
     # ——— Half-Time Controls —————————————————————————————————————————————
-
     def _build_half_controls(self):
         frame = ctk.CTkFrame(self.parent, fg_color="transparent")
         frame.pack(**BUTTON_PAD)
@@ -98,7 +96,6 @@ class ScoreUI:
             except Exception as e:
                 print(f"❌ Erro parte.txt: {e}")
 
-        # create the two buttons
         self.half_buttons = {}
         for part in ("1ª Parte", "2ª Parte"):
             btn = ctk.CTkButton(
@@ -111,7 +108,6 @@ class ScoreUI:
             btn.pack(side="left", **BUTTON_PAD)
             self.half_buttons[part] = btn
 
-        # now load the saved half and highlight it
         saved = self._load_half()
         if saved in self.half_buttons:
             self._highlight_half(saved)
@@ -122,7 +118,6 @@ class ScoreUI:
             btn.configure(fg_color="green" if part == selected else "gray")
 
     def _load_half(self) -> str:
-        """Read the currently saved half from disk, or return empty string."""
         try:
             with open(self.half_file, "r", encoding="utf-8") as f:
                 return f.read().strip()
@@ -130,48 +125,64 @@ class ScoreUI:
             return ""
 
     # ——— Score Section ——————————————————————————————————————————————————
-
     def _build_score_section(self):
-        container = ctk.CTkFrame(self.parent, fg_color="transparent")
-        container.pack(**BUTTON_PAD)
+        container = ctk.CTkFrame(self.parent, fg_color='transparent')
+        # container itself has no extra padding
+        container.pack(fill='both', expand=True, padx=0, pady=0)
 
-        # Casa stack
-        casa_frame = ctk.CTkFrame(container, fg_color="transparent")
-        casa_frame.pack(side="left", padx=20)
+        # Casa
+        casa_frame = ctk.CTkFrame(container, fg_color='transparent')
+        # no pad between casa and container
+        casa_frame.pack(side='left', fill='both', expand=True, padx=0, pady=0)
         self.casa_name_lbl = ctk.CTkLabel(
-            casa_frame,
-            text=self.casa_name,
-            font=("Segoe UI Emoji", 14, "bold")
+            casa_frame, text=self.casa_name, font=('Segoe UI Emoji', 14, 'bold')
         )
-        self.casa_name_lbl.pack()
+        self.casa_name_lbl.pack(fill='x', pady=(0,5))
         self.casa_lbl = ctk.CTkLabel(
-            casa_frame,
-            text="",
-            font=("Segoe UI Emoji", 24)
+            casa_frame, text='', font=('Segoe UI Emoji', 24)
         )
-        self.casa_lbl.pack()
+        self.casa_lbl.pack(fill='x', pady=(0,10))
 
-        # Fora stack
-        fora_frame = ctk.CTkFrame(container, fg_color="transparent")
-        fora_frame.pack(side="left", padx=20)
+        plus_casa = ctk.CTkButton(
+            casa_frame, text='+1', fg_color=COLOR_SUCCESS, width=80,
+            command=lambda: self._change(self.casa_file, self.casa_lbl, self.casa_abbr, 1)
+        )
+        minus_casa = ctk.CTkButton(
+            casa_frame, text='-1', fg_color=COLOR_ERROR, width=80,
+            command=lambda: self._change(self.casa_file, self.casa_lbl, self.casa_abbr, -1)
+        )
+        plus_casa.pack(padx=0, pady=0)
+        minus_casa.pack(padx=0, pady=0)
+        self.dec_buttons['casa'] = minus_casa
+
+        # Fora
+        fora_frame = ctk.CTkFrame(container, fg_color='transparent')
+        # no pad between casa_frame and fora_frame
+        fora_frame.pack(side='left', fill='both', expand=True, padx=0, pady=0)
         self.fora_name_lbl = ctk.CTkLabel(
-            fora_frame,
-            text=self.fora_name,
-            font=("Segoe UI Emoji", 14, "bold")
+            fora_frame, text=self.fora_name, font=('Segoe UI Emoji', 14, 'bold')
         )
-        self.fora_name_lbl.pack()
+        self.fora_name_lbl.pack(fill='x', pady=(0,5))
         self.fora_lbl = ctk.CTkLabel(
-            fora_frame,
-            text="",
-            font=("Segoe UI Emoji", 24)
+            fora_frame, text='', font=('Segoe UI Emoji', 24)
         )
-        self.fora_lbl.pack()
+        self.fora_lbl.pack(fill='x', pady=(0,10))
 
-        # initial values
+        plus_fora = ctk.CTkButton(
+            fora_frame, text='+1', fg_color=COLOR_SUCCESS, width=80,
+            command=lambda: self._change(self.fora_file, self.fora_lbl, self.fora_abbr, 1)
+        )
+        minus_fora = ctk.CTkButton(
+            fora_frame, text='-1', fg_color=COLOR_ERROR, width=80,
+            command=lambda: self._change(self.fora_file, self.fora_lbl, self.fora_abbr, -1)
+        )
+        plus_fora.pack(padx=0, pady=0)
+        minus_fora.pack(padx=0, pady=0)
+        self.dec_buttons['fora'] = minus_fora
+
         self.update_labels()
 
     def update_labels(self):
-       # reload both abbreviations and full names
         self.load_abbrevs()
         self.load_names()
 
@@ -182,12 +193,10 @@ class ScoreUI:
             text=f"{self.fora_abbr}: {self._read(self.fora_file)}"
         )
 
-        # and in case the full names changed on disk:
         self.casa_name_lbl.configure(text=self.casa_name)
         self.fora_name_lbl.configure(text=self.fora_name)
 
     # ——— Read/Write Score —————————————————————————————————————————————————
-
     def _read(self, path):
         try:
             return max(0, int(open(path).read().strip()))
@@ -204,30 +213,56 @@ class ScoreUI:
         self._write(path, new)
         label.configure(text=f"{prefix}: {new}")
 
+    # ——— Swap Logic —————————————————————————————————————————————————————
+    def _swap_scores(self):
+        """Swap the home and away scores on disk and update the UI."""
+        try:
+            casa_score = self._read(self.casa_file)
+            fora_score = self._read(self.fora_file)
+            self._write(self.casa_file, fora_score)
+            self._write(self.fora_file, casa_score)
+            self.update_labels()
+            show_message_notification(
+                f"✅ Campo {self.instance} – Swap",
+                f"Casa ← {fora_score} | Fora ← {casa_score}",
+                icon="🔄", bg_color=COLOR_SUCCESS
+            )
+        except Exception as e:
+            print(f"❌ Erro ao trocar placares: {e}")
+
     # ——— Bottom Controls ————————————————————————————————————————————————
-
     def _build_bottom_controls(self):
-        frame = ctk.CTkFrame(self.parent, fg_color="transparent")
-        frame.pack(fill="x", **BUTTON_PAD)
+        frame = ctk.CTkFrame(self.parent, fg_color='transparent')
+        frame.pack(fill='x', expand=True, padx=0, pady=0)
+        buttons = [
+            ('🔄 Swap',   'orange', self._swap_scores),
+            ('🔒 Block',  'purple', self._toggle_decrement),
+            ('♻️ Zerar',  'blue',   self._confirm_reset),
+        ]
 
-        ctk.CTkButton(
-            frame, text="🔒 Block", fg_color="purple",
-            command=self._toggle_decrement
-        ).pack(side="left", expand=True, **BUTTON_PAD)
+        # configure three equal-weight columns
+        for i in range(3):
+            frame.grid_columnconfigure(i, weight=1, uniform='btns')
 
-        ctk.CTkButton(
-            frame, text="♻️ Zerar", fg_color="blue",
-            command=self._confirm_reset
-        ).pack(side="left", expand=True, **BUTTON_PAD)
+        for idx, (text, color, cmd) in enumerate(buttons):
+            btn = ctk.CTkButton(frame, text=text, fg_color=color, command=cmd)
+            btn.grid(row=0, column=idx, sticky='nsew', padx=4, pady=0)
+    # ─── Toggle Decrement Stub ────────────────────────────────────────────────────
 
     def _toggle_decrement(self):
-        self.decrement_enabled = not getattr(self, "decrement_enabled", True)
-        state = "normal" if self.decrement_enabled else "disabled"
+        """Toggle disabling of the decrement (–) buttons."""
+        self.decrement_enabled = not self.decrement_enabled
+        state = 'normal' if self.decrement_enabled else 'disabled'
         for btn in self.dec_buttons.values():
             btn.configure(state=state)
 
+    # ─── Reset Confirmation ───────────────────────────────────────────────────────
     def _confirm_reset(self):
-        if prompt_notification(f"Campo {self.instance} - Zerar", "Zerar marcador?", icon="❓"):
+        if prompt_notification(
+            f"Campo {self.instance} - Zerar",
+            "Zerar marcador?",
+            icon="❓"
+        ):
             for p in (self.casa_file, self.fora_file):
                 self._write(p, 0)
             self.update_labels()
