@@ -1,8 +1,26 @@
 from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
+import os, sys
+from cryptography.fernet import Fernet
+from io import StringIO
 
-load_dotenv()
+# 1) Locate the key & encrypted file (works in dev and in PyInstaller _MEIPASS)
+base = getattr(sys, "_MEIPASS", os.path.abspath(os.path.dirname(__file__)))
+key_path     = os.path.join(base, "secret.key")
+enc_env_path = os.path.join(base, ".env.enc")
+
+# 2) Read and decrypt
+with open(key_path, "rb") as f:
+    key = f.read()
+fernet = Fernet(key)
+
+with open(enc_env_path, "rb") as f:
+    encrypted = f.read()
+decrypted = fernet.decrypt(encrypted).decode("utf-8")
+
+# 3) Load into os.environ
+load_dotenv(stream=StringIO(decrypted))
 
 class MongoTeamManager:
     def __init__(self):

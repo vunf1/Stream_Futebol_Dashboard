@@ -1,6 +1,4 @@
-# teams_ui.py
-
-import os
+import os, sys
 import customtkinter as ctk
 from tkinter import messagebox
 from helpers.notification import show_message_notification
@@ -9,6 +7,28 @@ from mongodb import MongoTeamManager
 from team_names import append_team_to_mongo
 from colors import COLOR_WARNING, COLOR_SUCCESS
 from mainUI.edit_teams_ui import TeamManagerWindow
+ 
+from cryptography.fernet import Fernet
+from io import StringIO
+from dotenv import load_dotenv
+
+# 1) Locate the key & encrypted file (works in dev and in PyInstaller _MEIPASS)
+base = getattr(sys, "_MEIPASS", os.path.abspath(os.path.dirname(__file__)))
+key_path     = os.path.join(base, "secret.key")
+enc_env_path = os.path.join(base, ".env.enc")
+
+# 2) Read and decrypt
+with open(key_path, "rb") as f:
+    key = f.read()
+fernet = Fernet(key)
+
+with open(enc_env_path, "rb") as f:
+    encrypted = f.read()
+decrypted = fernet.decrypt(encrypted).decode("utf-8")
+
+# 3) Load into os.environ
+load_dotenv(stream=StringIO(decrypted))
+
 class TeamInputManager(ctk.CTkFrame):
     def __init__(
         self,

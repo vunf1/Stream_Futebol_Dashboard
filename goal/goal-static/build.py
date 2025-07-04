@@ -39,6 +39,8 @@ def run_build(root):
         "--noconsole",
         "--hidden-import", "customtkinter",
         "--hidden-import", "ctkmessagebox",
+        "--add-data", ".env.enc;.",
+        "--add-data", "secret.key;.",
         "--icon", "assets/icons/icon_soft.ico",
         "--version-file", "version.txt", 
         "goal_score.py"

@@ -4,3 +4,4 @@ python-dotenv
 pymongo
 pyinstaller
 keyboard
+cryptography

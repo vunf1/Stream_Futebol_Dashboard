@@ -8,7 +8,6 @@ from typing import Optional   # Type hint for optional values
 # Third-party library imports
 import customtkinter as ctk              # Modern tkinter-based UI toolkit
 import tkinter.messagebox as messagebox  # Standard tkinter message boxes
-from dotenv import load_dotenv           # Load environment variables from .env files
 
 from helpers.notification import (init_notification_queue)  # Notification queue initializer and toast display
 
@@ -36,7 +35,6 @@ class ScoreApp:
         self.root.geometry("380x450")
         self.root.attributes("-topmost", True)
         self.root.minsize(190, 195)
-        load_dotenv()
         self.instance_number = instance_number
         self.decrement_buttons_enabled = True
 
