@@ -1,18 +1,24 @@
-import json
-import os
-import sys
-import customtkinter as ctk
-import tkinter.messagebox as messagebox
-from multiprocessing import Process
-from typing import Optional
-from colors import COLOR_ERROR, COLOR_INFO, COLOR_PAUSE, COLOR_STOP, COLOR_SUCCESS, COLOR_WARNING
-from helpers import _save_teams_to_json, show_message_notification
-from mongodb import MongoTeamManager
-from team_names import append_team_to_mongo, load_teams_json
-from dotenv import load_dotenv
-import re
-from mainUI.teams_ui import TeamInputManager
-from mainUI.timer_ui import TimerWidget
+# Standard library imports
+import os                     # File system operations
+import re                     # Regular expressions
+import sys                    # System-specific parameters and functions
+from multiprocessing import Manager, Process, freeze_support  # Process management and multiprocessing support
+from typing import Optional   # Type hint for optional values
+
+# Third-party library imports
+import customtkinter as ctk              # Modern tkinter-based UI toolkit
+import tkinter.messagebox as messagebox  # Standard tkinter message boxes
+from dotenv import load_dotenv           # Load environment variables from .env files
+
+from helpers.notification import (init_notification_queue)  # Notification queue initializer and toast display
+
+from mainUI.score_ui import ScoreUI          # Main scoring interface class
+from mainUI.teams_ui import TeamInputManager # Team name management UI
+from mainUI.timer_ui import TimerWidget      # Match timer widget
+
+from mongodb import MongoTeamManager        # MongoDB-backed team manager
+from notification_server import server_main # Background notification server entry point
+from team_names import load_teams_json      # Load team names from JSON file
 
 
 
@@ -27,13 +33,13 @@ class ScoreApp:
         self.root.iconbitmap("assets/icons/field.ico")
         add_footer_label(self.root)
         self.root.title(f"{instance_number} Campo")
-        self.root.geometry("380x520")
+        self.root.geometry("380x450")
+        self.root.attributes("-topmost", True)
         self.root.minsize(190, 195)
         load_dotenv()
         self.instance_number = instance_number
         self.decrement_buttons_enabled = True
 
-        self.pin = os.getenv("PIN")
         # Paths
         self.folder_desktop_path = os.path.join(os.path.expanduser("~"), "Desktop", FOLDER_NAME)
         self.field_folder = os.path.join(self.folder_desktop_path, f"Campo_{instance_number}")
@@ -42,8 +48,6 @@ class ScoreApp:
         self.casa_goal_path = os.path.join(self.field_folder, "golo_casa.txt")
         self.fora_goal_path = os.path.join(self.field_folder, "golo_fora.txt")
 
-        self.casa_abrev = self.load_abbreviation("equipa_casa_abrev.txt", default="Casa")
-        self.fora_abrev = self.load_abbreviation("equipa_fora_abrev.txt", default="Fora")
         self.half = os.path.join(self.field_folder, "parte.txt")
 
         self.teams_data = load_teams_json(self.folder_desktop_path)
@@ -55,169 +59,43 @@ class ScoreApp:
 
 
     def setup_ui(self):
-        TeamInputManager(parent=self.root,field_folder=self.field_folder,refresh_labels_cb=self.update_labels)
+        # 1) Timer as before
+        TimerWidget(self.root, self.field_folder, self.instance_number)
 
-        #self.create_team_input_ui()
-        self.create_score_ui()
-        self.create_half_control_buttons() 
-        TimerWidget(self.root, self.field_folder)
-        #TimerWidget(self.root, self.field_folder)
-        #TimerWidget(self.root, self.field_folder).show()
-        self.create_control_buttons()
+        # 2) Reserve the attribute so the lambda won’t NameError
+        self.score_ui = None
 
-    def load_abbreviation(self, filename, default=""):
-        try:
-            path = os.path.join(self.field_folder, filename)
-            with open(path, 'r', encoding='utf-8') as f:
-                return f.read().strip() or default
-        except FileNotFoundError:
-            return default
-
-    def refresh_teams_data(self):
-        self.teams_data = self._fetch_and_backup_teams()
-        self.teams_list = list(self.teams_data.keys())
-
-    def _fetch_and_backup_teams(self):
-        try:
-            teams = self.mongo.load_teams()
-            _save_teams_to_json(self.folder_desktop_path, teams)
-            return teams
-        except Exception as e:
-            print(f"❌ Erro ao carregar equipas do MongoDB: {e}")
-            return {}
-        
-    def create_half_control_buttons(self):
-        frame = ctk.CTkFrame(self.root)
-        frame.pack(padx=10, pady=10)
-
-        self.selected_half = None  # Store current selection
-
-        def write_half(value):
-            try:
-                with open(self.half, "w", encoding="utf-8") as f:
-                    f.write(str(value))
-                show_message_notification("Atualizado", f"parte.txt definido para {value} no campo {self.instance_number}.", icon="✅", bg_color=COLOR_SUCCESS)
-                update_button_colors(value)
-            except Exception as e:
-                print(f"❌ Falha ao escrever em parte.txt:\n{e}")
-
-        # Create buttons with reference
-        self.btn_half1 = ctk.CTkButton(frame, text="⏱ 1ª Parte", fg_color="gray", command=lambda: write_half("1ª Parte"))
-        self.btn_half2 = ctk.CTkButton(frame, text="⏱ 2ª Parte", fg_color="gray", command=lambda: write_half("2ª Parte"))
-
-        self.btn_half1.pack(side="left", padx=5)
-        self.btn_half2.pack(side="left", padx=5)
-
-        def update_button_colors(selected):
-            self.selected_half = selected
-            # Toggle colors
-            if selected == "1ª Parte":
-                self.btn_half1.configure(fg_color="green")
-                self.btn_half2.configure(fg_color="gray")
-            else:
-                self.btn_half1.configure(fg_color="gray")
-                self.btn_half2.configure(fg_color="green")
-
-
-    def create_score_ui(self):
-        labels_frame = ctk.CTkFrame(self.root)
-        labels_frame.pack(padx=10, pady=(10, 5))
-
-        self.casa_label = ctk.CTkLabel(labels_frame, font=("Segoe UI Emoji", 16))
-        self.casa_label.pack(side="left", padx=10)
-
-        self.fora_label = ctk.CTkLabel(labels_frame, font=("Segoe UI Emoji", 16))
-        self.fora_label.pack(side="left", padx=10)
-
-        self.update_labels()
-
-        # Wrap both button groups in a single frame to align them side by side
-        button_row = ctk.CTkFrame(self.root)
-        button_row.pack(padx=10, pady=10)
-
-        self.decrement_casa_button = self.create_score_buttons(
-            self.casa_label, self.casa_goal_path, lambda: self.casa_abrev, button_row, "Casa"
+        # 3) Create TeamInputManager *before* the ScoreUI,
+        #    but give it a lambda that will call update_labels()
+        TeamInputManager(
+            parent=self.root,
+            field_folder=self.field_folder,
+            refresh_labels_cb=lambda: self.score_ui.update_labels(),
+            instance=self.instance_number
         )
 
-        self.decrement_fora_button = self.create_score_buttons(
-            self.fora_label, self.fora_goal_path, lambda: self.fora_abrev, button_row, "Fora"
+        # 4) Now finally build the ScoreUI and assign it
+        self.score_ui = ScoreUI(
+            parent=self.root,
+            instance_number=self.instance_number,
+            mongo=self.mongo,
+            desktop_folder=self.folder_desktop_path,
+            field_folder=self.field_folder,
+            half_file=self.half,
+            casa_goal_file=self.casa_goal_path,
+            fora_goal_file=self.fora_goal_path,
         )
-    
-
-    def create_score_buttons(self, label, file_path, prefix_func, parent, side):
-        frame = ctk.CTkFrame(parent)
-        frame.pack(side="left", padx=5, pady=5)  # 👈 horizontal alignment of buttons
-
-        ctk.CTkButton(
-            frame,
-            text=f"{ICON_BALL} {side}",
-            fg_color="green",
-            command=lambda: self.change_number(file_path, label, prefix_func(), 1)
-        ).pack(padx=5, pady=2)
-
-        dec_button = ctk.CTkButton(
-            frame,
-            text=f"{ICON_MINUS} 1",
-            fg_color="red",
-            command=lambda: self.change_number(file_path, label, prefix_func(), -1)
-        )
-        dec_button.pack(padx=5, pady=2)
-
-        return dec_button
-    
-    def update_labels(self):
-        # reload the latest abbreviations from the files
-        self.casa_abrev = self.load_abbreviation("equipa_casa_abrev.txt", default="Casa")
-        self.fora_abrev = self.load_abbreviation("equipa_fora_abrev.txt", default="Fora")
-
-        # now update the labels
-        self.casa_label.configure(
-            text=f"{self.casa_abrev}: {self.read_number(self.casa_goal_path)}"
-        )
-        self.fora_label.configure(
-            text=f"{self.fora_abrev}: {self.read_number(self.fora_goal_path)}"
-        )
-
-
-    def change_number(self, path: str, label, prefix: str, delta: int):
-        new_value = max(0, self.read_number(path) + delta)
-        self.write_number(path, new_value)
-        label.configure(text=f"{prefix}: {new_value}")
-
-    def create_control_buttons(self):
-        button_frame = ctk.CTkFrame(self.root)
-        button_frame.pack(padx=10, pady=10, fill="x")
-
-        ctk.CTkButton(button_frame, text="Block", command=self.toggle_decrement_buttons, fg_color="purple").pack(side="left", expand=True, padx=5)
-        ctk.CTkButton(button_frame, text=f"{ICON_WARN} Zerar", command=self.confirm_reset, fg_color="blue").pack(side="left", expand=True, padx=5)
-    
-    def read_number(self, path: str) -> int:
-        try:
-            with open(path, 'r') as f:
-                return max(0, int(f.read().strip()))
-        except Exception:
-            self.write_number(path, 0)
-            return 0
-
-    def write_number(self, path: str, value: int):
-        with open(path, 'w') as f:
-            f.write(str(value))
-
-
-    def toggle_decrement_buttons(self):
-        self.decrement_buttons_enabled = not self.decrement_buttons_enabled
-        state = "normal" if self.decrement_buttons_enabled else "disabled"
-        self.decrement_casa_button.configure(state=state)
-        self.decrement_fora_button.configure(state=state)
-
-    def confirm_reset(self):
-        if messagebox.askokcancel("Zerar", "Zerar Marcador?"):
-            self.write_number(self.casa_goal_path, 0)
-            self.write_number(self.fora_goal_path, 0)
-            self.update_labels()
-
 
 def start_instance(instance_number: int):
+    """
+    Starts a new instance of the ScoreApp GUI application.
+
+    Args:
+        instance_number (int): The identifier for the application instance.
+
+    This function creates a new custom Tkinter (CTk) root window, initializes the ScoreApp
+    with the given instance number, and starts the main event loop.
+    """
     root = ctk.CTk()
     app = ScoreApp(root, instance_number)
     root.mainloop()
@@ -264,22 +142,43 @@ def add_footer_label(parent, text: str = "© 2025 Vunf1"):
     )
     footer.pack(side="bottom", pady=(5, 5))
 
+
+def child_entry(instance_number, notification_queue):
+    """
+    Initialize notification queue in this child process, then start the ScoreApp instance.
+    """
+    init_notification_queue(notification_queue)
+    start_instance(instance_number)
+
+
 def main():
     ctk.set_appearance_mode("system")
 
-    instance_count = ask_instance_count_ui()
-    if not instance_count:
+    # Ask how many ScoreApp instances to launch
+    count = ask_instance_count_ui()
+    if not count:
         sys.exit()
 
-    processes = []
-    for i in range(1, instance_count + 1):
-        p = Process(target=start_instance, args=(i,))
-        p.start()
-        processes.append(p)
+    # Initialize the shared notification queue in the main process
+    mgr = Manager()
+    q = mgr.Queue()
+    init_notification_queue(q)
 
-    for p in processes:
+    # Start notification server (runs CTk loop for toasts)
+    p_notify = Process(target=server_main, args=(q,), daemon=True)
+    p_notify.start()
+
+    # Launch each ScoreApp instance in its own process
+    procs = []
+    for i in range(1, count + 1):
+        p = Process(target=child_entry, args=(i, q))
+        p.start()
+        procs.append(p)
+
+    # Wait for all ScoreApp processes to finish
+    for p in procs:
         p.join()
-if __name__ == "__main__":
-    from multiprocessing import freeze_support
+
+if __name__ == '__main__':
     freeze_support()
     main()
