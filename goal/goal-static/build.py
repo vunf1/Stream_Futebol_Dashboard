@@ -3,8 +3,8 @@ import sys
 import tkinter as tk
 import customtkinter as ctk
 import threading
-from goal_score import show_message_notification
 from colors import COLOR_SUCCESS, COLOR_ERROR, COLOR_INFO
+from helpers.notification import display_notification as show_message_notification
 
 def delay_and_exit(root, delay_ms=5000):
     root.after(delay_ms, root.quit)
@@ -30,7 +30,7 @@ def run_build(root):
         return
 
     # Step 3: Iniciar build
-    show_message_notification("⚙️ Build", "A construir o executável...", icon="⚙️", duration=4000, bg_color=COLOR_INFO)
+    show_message_notification("⚙️ Build", "A construir o executável...", icon="⚙️", duration=10000, bg_color=COLOR_INFO)
 
     pyinstaller_command = [
         sys.executable, "-m", "PyInstaller",
