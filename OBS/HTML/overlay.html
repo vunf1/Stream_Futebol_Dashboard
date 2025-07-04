@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Scoreboard Top Bar</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      font-family: sans-serif;
+      color: white;
+    }
+
+    #topbar {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      padding: 10px 20px;
+      box-sizing: border-box;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      pointer-events: none; /* so clicks pass through to OBS */
+    }
+
+    /* Left & Right team blocks */
+    .team-name {
+      font-size: 20px;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    /* Center column: time / score / sponsors */
+    .center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .period {
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .scoreboard {
+      display: flex;
+      align-items: center;
+      background: rgba(0,0,0,0.6);
+      padding: 5px 10px;
+      border-radius: 4px;
+    }
+
+    .score {
+      width: 36px; height: 36px;
+      background: white;
+      color: black;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      margin: 0 6px;
+      border-radius: 3px;
+    }
+
+    .sponsors {
+      display: flex;
+      margin-top: 6px;
+    }
+
+    .sponsors img {
+      height: 24px;
+      margin: 0 4px;
+      opacity: 0.8;
+    }
+
+    /* Right event logo */
+    .event-logo {
+      text-align: right;
+      font-size: 18px;
+      line-height: 1;
+    }
+    .event-logo .year {
+      font-size: 14px;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <div id="topbar">
+    <!-- LEFT TEAM -->
+    <div class="team-name">CPA</div>
+
+    <!-- CENTER BLOCK -->
+    <div class="center">
+      <div class="period">1ª Parte</div>
+      <div class="scoreboard">
+        <div class="score">1</div>
+        <div class="score">1</div>
+      </div>
+      <div class="sponsors">
+        <!-- replace src with your sponsor logos -->
+        <img src="sponsor1.png" alt="Sponsor 1">
+        <img src="sponsor2.png" alt="Sponsor 2">
+        <img src="sponsor3.png" alt="Sponsor 3">
+        <img src="sponsor4.png" alt="Sponsor 4">
+      </div>
+    </div>
+
+    <!-- RIGHT TEAM -->
+    <div style="text-align:center;">
+      <div class="team-name">VN FC</div>
+    </div>
+
+    <!-- EVENT LOGO (can also be an <img>) -->
+    <div class="event-logo">
+      <div>FOOTMANIA 10</div>
+      <div class="year">2025</div>
+    </div>
+  </div>
+</body>
+</html>
