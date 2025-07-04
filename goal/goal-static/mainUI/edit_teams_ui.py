@@ -1,6 +1,7 @@
 # edit_popup.py
 import customtkinter as ctk
-from helpers import show_message_notification
+from helpers.helpers import prompt_for_pin
+from helpers.notification import show_message_notification
 from colors  import COLOR_WARNING, COLOR_SUCCESS, COLOR_STOP
 
 class TeamManagerWindow(ctk.CTkToplevel):
@@ -25,33 +26,7 @@ class TeamManagerWindow(ctk.CTkToplevel):
         self._build_team_list()
 
     def _prompt_for_pin(self):
-        while True:
-            admin_popup_window = ctk.CTkToplevel(self)
-            admin_popup_window.title("Admin Access")
-            admin_popup_window.geometry("300x150")
-            admin_popup_window.attributes("-topmost", True)
-            admin_popup_window.grab_set()
-
-            ctk.CTkLabel(admin_popup_window, text="Enter admin PIN").pack(pady=(20,10))
-            entry = ctk.CTkEntry(admin_popup_window, show="*")
-            entry.pack(pady=5)
-            entry.after(100, lambda: entry.focus())
-
-            result = {"value": None}
-            def submit(event=None):
-                result["value"] = entry.get()
-                admin_popup_window.destroy()
-
-            entry.bind("<Return>", submit)
-            ctk.CTkButton(admin_popup_window, text="Submit", command=submit).pack(pady=(10,5))
-            admin_popup_window.wait_window()
-
-            if result["value"] is None:
-                return False
-            if result["value"].strip() == self.pin:
-                return True
-
-            show_message_notification("🔒 Acesso Negado","PIN incorreto. Tenta novamente.",icon="❌", bg_color=COLOR_WARNING)
+        return prompt_for_pin(self, self.pin)
 
     def _build_team_list(self):
         
@@ -83,7 +58,7 @@ class TeamManagerWindow(ctk.CTkToplevel):
 import os
 import customtkinter as ctk
 from colors import COLOR_SUCCESS, COLOR_STOP
-from helpers import show_message_notification
+from helpers.notification import show_message_notification
 
 class EditTeamPopup(ctk.CTkToplevel):
     def __init__(self, parent, mongo, original_name, original_abrev, on_done):
@@ -132,11 +107,7 @@ class EditTeamPopup(ctk.CTkToplevel):
         if new_name != self.orig_name:
             self.mongo.delete_team(self.orig_name)
 
-        show_message_notification(
-            "✅ Atualizado",
-            f"Equipa '{new_name}' atualizada.",
-            icon="✅", bg_color=COLOR_SUCCESS
-        )
+        show_message_notification("✅ Atualizado",f"Equipa '{new_name}' atualizada.",icon="✅", bg_color=COLOR_SUCCESS)
 
         self.destroy()
         self.on_done()
@@ -169,10 +140,6 @@ class EditTeamPopup(ctk.CTkToplevel):
             return
 
         self.mongo.delete_team(self.orig_name)
-        show_message_notification(
-            "❌ Apagado",
-            f"Equipa '{self.orig_name}' apagada.",
-            icon="❌", bg_color=COLOR_STOP
-        )
+        show_message_notification("❌ Apagado",f"Equipa '{self.orig_name}' apagada.",icon="❌", bg_color=COLOR_STOP)
         self.destroy()
         self.on_done()

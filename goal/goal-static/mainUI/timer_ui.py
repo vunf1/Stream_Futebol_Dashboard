@@ -1,48 +1,19 @@
-# timer_widget.py
 import os
 import re
 import customtkinter as ctk
-from helpers import show_message_notification
+from helpers.notification import show_message_notification
 from colors import COLOR_ERROR, COLOR_INFO, COLOR_PAUSE, COLOR_STOP, COLOR_SUCCESS
-import threading
-import keyboard
 
 class TimerWidget(ctk.CTkFrame):
-    def __init__(self, parent, field_folder):
-        super().__init__(parent)
+    def __init__(self, parent, field_folder, instance_number):
+        super().__init__(parent,fg_color="transparent",corner_radius=0)
         self.field_folder = field_folder
         self.timer_running = False
         self.timer_seconds = 0
+        self.instance_number = instance_number
         self._load_persisted_time()        
         self.pack(padx=10, pady=10, fill="x")
-        #self._register_global_hotkeys()
         self._build_ui()
-
-    # CAREFUL THIS WAY WILL TRIGGER ALL INSTANCES FIELD - NOT RELIABLE
-    # def _register_global_hotkeys(self):
-    #     """
-    #     Use the `keyboard` library to register OS-level hotkeys:
-    #      - 'i' → start
-    #      - 'p' → pause
-    #      - 'o' → stop
-    #     Runs in its own thread so as not to block the UI.
-    #     """
-    #     try:
-    #         import keyboard
-    #     except ImportError:
-    #         print("⚠️  keyboard module not found; global hotkeys disabled")
-    #         return
-
-    #     def _listen():
-    #         # note: no need for a loop; keyboard.add_hotkey installs hooks globally
-    #         keyboard.add_hotkey("i", self.start_timer)
-    #         keyboard.add_hotkey("p", self.pause_timer)
-    #         keyboard.add_hotkey("o", self.reset_timer)
-    #         keyboard.wait()  # block here, keeping the listener thread alive
-
-    #     # run in background daemon thread
-    #     t = threading.Thread(target=_listen, daemon=True)
-    #     t.start()
 
     def _load_persisted_time(self):
         # ensure file exists, and load last value
@@ -61,13 +32,12 @@ class TimerWidget(ctk.CTkFrame):
                 self.timer_seconds = 0
 
     def _build_ui(self):
-        # Make this frame fill horizontally (x) and add padding 
+        
         self.pack(fill="x", padx=10, pady=10)
 
-        # Create an internal container to grid all controls
-        container = ctk.CTkFrame(self)
+        container = ctk.CTkFrame(self, fg_color="transparent")
         container.pack(fill="x")
-        # Configure 5 equally-weighted columns for centering
+        
         for col in range(5):
             container.grid_columnconfigure(col, weight=1)
 
@@ -122,7 +92,7 @@ class TimerWidget(ctk.CTkFrame):
         text = self.timer_entry.get().strip()
         # Accept only MM:SS or MMM:SS but reject MMM < 100
         if not re.match(r"^(?:\d{2}|[1-9]\d{2,}):\d{2}$", text):
-            show_message_notification("❌ Erro",
+            show_message_notification(f"❌Campo {self.instance_number} -  Erro",
                 "Formato inválido. Usa 'MM:SS' ou 'MMM:SS' (>=100).",
                 icon="❌", bg_color=COLOR_ERROR)
             return
@@ -130,11 +100,11 @@ class TimerWidget(ctk.CTkFrame):
         mins_str, secs_str = text.split(":")
         mins, secs = int(mins_str), int(secs_str)
         if len(mins_str)==3 and mins<100:
-            show_message_notification("❌ Erro",
+            show_message_notification(f"❌Campo {self.instance_number} -  Erro",
                 "Minutos 3-dígitos devem ser ≥100.", icon="❌", bg_color=COLOR_ERROR)
             return
         if not (0 <= secs < 60):
-            show_message_notification("❌ Erro",
+            show_message_notification(f"❌Campo {self.instance_number} -  Erro",
                 "Segundos fora do intervalo 00–59.", icon="❌", bg_color=COLOR_ERROR)
             return
 
@@ -142,8 +112,8 @@ class TimerWidget(ctk.CTkFrame):
         timer_path = os.path.join(self.field_folder, "timer.txt")
         with open(timer_path, "w", encoding="utf-8") as f:
             f.write(f"{mins_str}:{secs:02}")
-        show_message_notification("💾 Guardado",
-            "Tempo guardado com sucesso.", icon="💾", bg_color=COLOR_SUCCESS)
+
+        show_message_notification(f"💾Campo {self.instance_number} - Guardado","Tempo guardado com sucesso.", icon="💾", bg_color=COLOR_SUCCESS)
 
     def update_timer(self):
         if self.timer_running:
@@ -159,13 +129,13 @@ class TimerWidget(ctk.CTkFrame):
         if not self.timer_running:
             self.timer_running = True
             self.update_timer()
-            show_message_notification("⏱️ Timer Iniciado",
+            show_message_notification(f"⏱️Campo {self.instance_number} - Timer Iniciado",
                 "O cronómetro foi iniciado.", icon="⏳", bg_color=COLOR_INFO)
 
     def pause_timer(self):
         if self.timer_running:
             self.timer_running = False
-            show_message_notification("⏸️ Pausado",
+            show_message_notification(f"⏸️Campo {self.instance_number} - Pausado",
                 "O cronómetro foi pausado.", icon="⏸", bg_color=COLOR_PAUSE)
 
     def reset_timer(self):
@@ -176,12 +146,7 @@ class TimerWidget(ctk.CTkFrame):
         # Stop the running clock
         self.timer_running = False
         # Fire the notification
-        show_message_notification(
-            "⏹️ Parado",
-            f"O cronómetro foi parado em {self.timer_seconds}.",
-            icon="🛑",
-            bg_color=COLOR_STOP
-        )
+        show_message_notification(f"⏹️Campo {self.instance_number} - Parado ",f"O cronómetro foi parado - {self._format_time(self.timer_seconds)}.",icon="🛑",bg_color=COLOR_STOP)
         # Zero out internal counter
         self.timer_seconds = 0
 

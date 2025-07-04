@@ -3,7 +3,8 @@
 import os
 import customtkinter as ctk
 from tkinter import messagebox
-from helpers import show_message_notification, _save_teams_to_json
+from helpers.notification import show_message_notification
+from helpers.helpers import save_teams_to_json
 from mongodb import MongoTeamManager
 from team_names import append_team_to_mongo
 from colors import COLOR_WARNING, COLOR_SUCCESS
@@ -13,12 +14,14 @@ class TeamInputManager(ctk.CTkFrame):
         self,
         parent,
         field_folder: str,
-        refresh_labels_cb    # callback to run after saving
+        refresh_labels_cb,    # callback to run after saving
+        instance
     ):
-        super().__init__(parent)
+        super().__init__(parent, fg_color="transparent", corner_radius=0)
         self.parent = parent
         self.field_folder = field_folder
         self.refresh_labels = refresh_labels_cb
+        self.instance_number = instance
 
         self.mongo = MongoTeamManager()
         self._build_ui()
@@ -30,7 +33,7 @@ class TeamInputManager(ctk.CTkFrame):
         """
         try:
             teams = self.mongo.load_teams()
-            _save_teams_to_json(self.field_folder, teams)
+            save_teams_to_json(self.field_folder, teams)
             return teams
         except Exception as e:
             print(f"❌ Erro ao carregar equipas do MongoDB: {e}")
@@ -45,7 +48,7 @@ class TeamInputManager(ctk.CTkFrame):
         self.team_names = list(teams.keys())
 
         # Container for grid layout
-        container = ctk.CTkFrame(self)
+        container = ctk.CTkFrame(self, fg_color="transparent")
         container.pack(fill="x")
 
         # Configure two columns
@@ -73,7 +76,7 @@ class TeamInputManager(ctk.CTkFrame):
         self.away_abbrev_entry = self._make_entry(container, row=3, column=1, placeholder="ex: FCP")
 
         # ——— Buttons frame ———
-        btn_frame = ctk.CTkFrame(self)
+        btn_frame = ctk.CTkFrame(self, fg_color="transparent")
         btn_frame.pack(fill="x", pady=(5,10))
 
         save_btn = ctk.CTkButton(
@@ -171,15 +174,11 @@ class TeamInputManager(ctk.CTkFrame):
         away_name  = self.away_name_entry.get().strip().upper()
         away_abrev = self.away_abbrev_entry.get().strip().upper()
 
-        append_team_to_mongo(home_name,  home_abrev)
-        append_team_to_mongo(away_name,  away_abrev)
+        append_team_to_mongo(home_name,  home_abrev, self.instance_number)
+        append_team_to_mongo(away_name,  away_abrev, self.instance_number)
 
         if not all([home_name, home_abrev, away_name, away_abrev]):
-            show_message_notification(
-                "⚠️ Aviso",
-                "Alguns campos estão vazios. Campos vazios serão criados.",
-                icon="⚠️", bg_color=COLOR_WARNING
-            )
+            show_message_notification(f"⚠️ Campo {self.instance_number} -  Aviso","Alguns campos estão vazios. Campos vazios serão criados.",icon="⚠️", bg_color=COLOR_WARNING)
 
         try:
             base = self.field_folder
@@ -190,10 +189,6 @@ class TeamInputManager(ctk.CTkFrame):
 
             # Update any UI labels that depend on these values
             self.refresh_labels()
-            show_message_notification(
-                "✅ Gravado",
-                "Informações da equipa foram guardadas",
-                icon="✅", bg_color=COLOR_SUCCESS
-            )
+            show_message_notification(f"✅Campo {self.instance_number} -  Gravado","Informações da equipa foram guardadas",icon="✅", bg_color=COLOR_SUCCESS)
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save team info:\n{e}")
