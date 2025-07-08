@@ -161,3 +161,5 @@ cython_debug/
 .vscode/
 goal/goal-static/secret.key
 goal/goal-static/.env.enc
+goal/goal-static/helpers/.env.enc
+goal/goal-static/helpers/secret.key

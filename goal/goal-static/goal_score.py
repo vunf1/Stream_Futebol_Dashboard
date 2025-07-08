@@ -12,7 +12,8 @@ import tkinter.messagebox as messagebox  # Standard tkinter message boxes
 from helpers.notification import (init_notification_queue)  # Notification queue initializer and toast display
 
 from mainUI.score_ui import ScoreUI          # Main scoring interface class
-from mainUI.teams_ui import TeamInputManager # Team name management UI
+
+from mainUI.teamsUI.teams_ui import TeamInputManager # Team name management UI
 from mainUI.timer_ui import TimerWidget      # Match timer widget
 
 from mongodb import MongoTeamManager        # MongoDB-backed team manager

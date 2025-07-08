@@ -32,58 +32,87 @@ def show_message_notification(title: str, message: str, duration: int = 5000,
 def display_notification(title: str, message: str, duration: int = 5000,
                          icon: str = "ℹ️", bg_color: str = None):
     """
-    Runs in the notification server process to actually show the toast.
+    Runs in the notification server process to actually show the toast
+    with a black background and white text.
     """
+    # Create toast parented to the hidden root
     toast = ctk.CTkToplevel()
+
+    # Black background on the window itself
+    toast.configure(fg_color="black")
     toast.overrideredirect(True)
     toast.attributes("-topmost", True)
     toast.attributes("-alpha", 0.0)
 
     # Position stacked toasts bottom-right
     width, height, margin, gap = 300, 100, 20, 10
-    toast.update_idletasks()
-    screen_w, screen_h = toast.winfo_screenwidth(), toast.winfo_screenheight()
+    root = toast.master
+    root.update_idletasks()
+    screen_w = root.winfo_screenwidth()
+    screen_h = root.winfo_screenheight()
+
     y = screen_h - height - margin - sum((height + gap) for _ in active_toasts)
     x = screen_w - width - margin
     toast.geometry(f"{width}x{height}+{x}+{y}")
     active_toasts.append(toast)
 
-    # Build content
-    frame = ctk.CTkFrame(toast, corner_radius=10, fg_color=bg_color)
+    # Build content frame (also black, unless overridden)
+    frame = ctk.CTkFrame(toast, corner_radius=10, fg_color=bg_color or "black")
     frame.pack(fill="both", expand=True, padx=10, pady=10)
-    ctk.CTkLabel(frame, text=icon, font=("Segoe UI", 24)).pack(side="left", padx=(5,10))
+
+    # Icon label
+    ctk.CTkLabel(
+        frame,
+        text=icon,
+        font=("Segoe UI", 24),
+        text_color="white",
+        fg_color="transparent"
+    ).pack(side="left", padx=(5,10))
+
+    # Text container
     txt = ctk.CTkFrame(frame, fg_color="transparent")
     txt.pack(side="left", fill="both", expand=True)
-    ctk.CTkLabel(txt, text=title, font=("Segoe UI", 14, "bold")).pack(anchor="w")
-    ctk.CTkLabel(txt, text=message, font=("Segoe UI", 12), wraplength=220).pack(anchor="w")
 
-    # Simple fade in/out logic
+    # Title
+    ctk.CTkLabel(
+        txt,
+        text=title,
+        font=("Segoe UI", 14, "bold"),
+        text_color="white",
+        fg_color="transparent"
+    ).pack(anchor="w")
+
+    # Message
+    ctk.CTkLabel(
+        txt,
+        text=message,
+        font=("Segoe UI", 12),
+        wraplength=220,
+        text_color="white",
+        fg_color="transparent"
+    ).pack(anchor="w")
+
+    # --- fade in/out logic  ---
     tasks = []
-
     def cancel_tasks():
         for t in tasks:
-            try:
-                toast.after_cancel(t)
-            except:
-                pass
+            try: toast.after_cancel(t)
+            except: pass
 
     def fade_in(alpha=0.0):
         if not toast.winfo_exists(): return
         if alpha < 1.0:
             toast.attributes("-alpha", alpha)
-            t = toast.after(20, lambda: fade_in(alpha + 0.1))
-            tasks.append(t)
+            tasks.append(toast.after(20, lambda: fade_in(alpha + 0.1)))
         else:
             toast.attributes("-alpha", 1.0)
-            t = toast.after(duration, fade_out)
-            tasks.append(t)
+            tasks.append(toast.after(duration, fade_out))
 
     def fade_out(alpha=1.0):
         if not toast.winfo_exists(): return
         if alpha > 0:
             toast.attributes("-alpha", alpha)
-            t = toast.after(20, lambda: fade_out(alpha - 0.1))
-            tasks.append(t)
+            tasks.append(toast.after(20, lambda: fade_out(alpha - 0.1)))
         else:
             cancel_tasks()
             if toast in active_toasts:
@@ -92,7 +121,6 @@ def display_notification(title: str, message: str, duration: int = 5000,
 
     toast.bind("<Destroy>", lambda e: cancel_tasks())
     fade_in()
-
 
 def prompt_notification(title: str, message: str, icon: str = "ℹ️", bg_color: str = None) -> bool:
     """
