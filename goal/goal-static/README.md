@@ -4,17 +4,26 @@
 **Goal Score Manager** is a desktop application built with Python and CustomTkinter, designed to simplify live score management for football matches — perfect for OBS streaming, local tournaments, or manual scoreboard control.
 
 ---
+## ✨ What’s New
+
+- **Dynamic Window Layout**: Buttons and score panels resize fluidly with the window.
+- **Real-Time Swap**: Instantly swap home/away scores with a single click.
+- **Lock/Unlock Decrement**: Disable the “–1” buttons to prevent accidental score reductions.
+- **Custom Button Styling**: +1 in green, –1 in red; uniform bottom-control buttons with gaps.
+- **Improved UI Padding**: Frames pack tightly with no unwanted margins.
+
+---
 
 ## ✨ Features
 
 - ✅ Create multiple fields (independent windows)
-- 🏷️ Assign team names and abbreviations
+- 🏷️ Assign full team names and abbreviations  
 - 📦 Save and sync teams with **MongoDB Atlas (Free Tier)**
 - 🎯 Score control (increment and decrement)
 - 🔒 Decrement lock and reset button with confirmation
 - 🧠 Smart team name suggestions from database
 - 🔐 Admin screen with PIN protection to **edit or delete** saved teams
-- 🌙 Modern dark mode interface with smooth **bottom-right toast notifications**
+- 🌙 Dark mode with smooth bottom-right toast notifications 
 - 🎥 OBS integration via `.txt` file export
 
 ---
@@ -31,24 +40,26 @@
 
 ## 📁 Project Structure
 
-| File/Folder         | Description |
-|---------------------|-------------|
-| `goal_score.py`     | Main file containing UI and field logic |
-| `mongodb.py`        | MongoDB operations (save, update, list, delete teams) |
-| `helpers.py`        | Toast notifications, visual effects, and utilities |
-| `team_names.py`     | Legacy JSON functions (still used as fallback) |
-| `assets/icons`      | App icons, e.g., `icon_soft.ico` |
-| `build.py`          | PyInstaller script to create an executable |
-| `.env`              | Environment variables like MongoDB URI |
-| `version.txt`       | Current project version number |
-
----
-
+```
+.
+├── goal_score.py        # Entry point and UI orchestration
+├── mainUI/
+│   ├── score_ui.py      # ScoreUI class (main window)
+│   └── ...              # Other UI modules (teams, timer, etc.)
+├── helpers/
+│   ├── helpers.py       # Utilities: JSON backup, formatting
+│   └── notification.py  # Toast & message dialogs
+├── mongodb.py           # MongoDB connection and operations
+├── team_names.py        # Legacy JSON-based team storage
+├── build.py             # PyInstaller builder script
+├── assets/icons/        # Application icons (ICO, PNG)
+├── version.txt          # Project version
+└── .env                 # Environment variables (MONGO_URI, PIN)
+```
 ## 🔧 Requirements
 
 ```bash
-pip install -r requirements.txt
-
+python build.py
 ```
 Create a .env file with the following variables:
 
@@ -113,7 +124,6 @@ This project is offered under a **dual license model**:
 |------|-------------|
 | **License Type** | Business Source License v1.1 |
 | **Usage Limitation** | You **may not** use this software to provide a paid or hosted service without a commercial license. |
-| **Change Date** | January 1, 2028 |
 | **Change License** | Apache License 2.0 |
 
 ---
@@ -126,7 +136,7 @@ To use this project in a way **not permitted by the BSL**, such as:
 
 You must obtain a **commercial license**.
 
-📩 Contact: **vunf1@example.com** 
+📩 Contact: **epg.joaomaia@gmail.com** 
 
 ---
 
@@ -164,5 +174,8 @@ You’re welcome to contribute under the terms of the BSL. Contributions remain 
 ---
 
 ## 📚 References
-- [Business Source License (BSL) FAQ](https://mariadb.com/bsl-faq-adopting/)
+
+- [CustomTkinter Documentation](https://github.com/TomSchimansky/CustomTkinter)  
+- [MongoDB Atlas Free Tier](https://www.mongodb.com/cloud/atlas)  
+- [Business Source License FAQ](https://mariadb.com/bsl-faq-adopting/)  
 - [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
