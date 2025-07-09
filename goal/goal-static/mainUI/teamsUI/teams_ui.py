@@ -2,19 +2,17 @@ import os, sys
 import customtkinter as ctk
 from tkinter import messagebox
 from helpers.env_loader import EncryptedEnvLoader
-from helpers.notification import show_message_notification
+from helpers.notification.toast import show_message_notification
 from helpers.helpers import save_teams_to_json
 from mainUI.teamsUI.autocomplete import Autocomplete
-from mongodb import MongoTeamManager
-from team_names import append_team_to_mongo
-from colors import COLOR_WARNING, COLOR_SUCCESS
+from database.mongodb import MongoTeamManager
+from helpers.team_names import append_team_to_mongo
+from assets.colors import COLOR_WARNING, COLOR_SUCCESS
 from mainUI.edit_teams_ui import TeamManagerWindow
  
 
 # ─── Decrypt & load ─────────────────────────────────────────
 EncryptedEnvLoader().load()
-
-
 
 class TeamInputManager(ctk.CTkFrame):
     def __init__(
@@ -52,7 +50,7 @@ class TeamInputManager(ctk.CTkFrame):
             return {}
 
     def _build_ui(self):
-        self.pack(fill="x", padx=10, pady=(0,10))
+        self.pack(fill="x", padx=10)
 
         # Load teams once for autocomplete
         self.teams = self._fetch_and_backup_teams()
@@ -88,9 +86,15 @@ class TeamInputManager(ctk.CTkFrame):
         ctk.CTkLabel(container, text="Sigla Fora").grid(row=2, column=1, sticky="w", padx=5)
         self.away_abbrev_entry = self._make_entry(container, row=3, column=1, placeholder="ex: FCP")
 
-        # Buttons
+        # ——— Buttons ———
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
-        btn_frame.pack(fill="x", pady=(5,10))
+        # Allow the frame to expand horizontally (and vertically if you like)
+        btn_frame.pack(fill="x")
+
+        # Tell the frame’s grid to share extra space equally between its two columns
+        btn_frame.grid_rowconfigure(0, weight=1)
+        btn_frame.grid_columnconfigure(0, weight=1, uniform="btns")
+        btn_frame.grid_columnconfigure(1, weight=1, uniform="btns")
 
         save_btn = ctk.CTkButton(
             btn_frame,
@@ -108,8 +112,8 @@ class TeamInputManager(ctk.CTkFrame):
                 pin=os.getenv("PIN")
             )
         )
-        save_btn.pack(side="left", expand=True, padx=5)
-        edit_btn.pack(side="left", expand=True, padx=5)
+        save_btn.grid(row=0, column=0, sticky="nsew", padx=(0,5))
+        edit_btn.grid(row=0, column=1, sticky="nsew", padx=(5,0))
 
     def _make_entry(self, parent, row, column, placeholder=""):
         entry = ctk.CTkEntry(parent, placeholder_text=placeholder)

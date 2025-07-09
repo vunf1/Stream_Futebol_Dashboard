@@ -1,10 +1,12 @@
 import os
 import re
-import customtkinter as ctk
-from helpers.notification import show_message_notification
-from colors import COLOR_ERROR, COLOR_INFO, COLOR_PAUSE, COLOR_STOP, COLOR_SUCCESS
+from tkinter import PhotoImage
+from customtkinter import CTkFrame, CTkImage, CTkButton, CTkEntry
+from assets.icons.icons_provider import get_icon
+from helpers.notification.toast import show_message_notification
+from assets.colors import COLOR_ACTIVE, COLOR_ERROR, COLOR_INFO, COLOR_PAUSE, COLOR_STOP, COLOR_SUCCESS, COLOR_WARNING
 
-class TimerWidget(ctk.CTkFrame):
+class TimerWidget(CTkFrame):
     def __init__(self, parent, field_folder, instance_number):
         super().__init__(parent,fg_color="transparent",corner_radius=0)
         self.field_folder = field_folder
@@ -13,6 +15,7 @@ class TimerWidget(ctk.CTkFrame):
         self.instance_number = instance_number
         self._load_persisted_time()        
         self.pack(padx=10, pady=10, fill="x")
+        self._icon_refs: list[CTkImage] = []
         self._build_ui()
 
     def _load_persisted_time(self):
@@ -32,55 +35,61 @@ class TimerWidget(ctk.CTkFrame):
                 self.timer_seconds = 0
 
     def _build_ui(self):
-        
-        self.pack(fill="x", padx=10, pady=10)
+        # Let this frame expand in both directions
+        self.pack(fill="both", expand=True)
 
-        container = ctk.CTkFrame(self, fg_color="transparent")
-        container.pack(fill="x")
-        
+        # Create container that also fills and expands
+        container = CTkFrame(self, fg_color="transparent")
+        container.pack(fill="both", expand=True)
+
+        # Make row 0 and all five columns stretch
+        container.grid_rowconfigure(0, weight=1)
         for col in range(5):
             container.grid_columnconfigure(col, weight=1)
 
-        save_button = ctk.CTkButton(
-            container, text="💾", width=40, font=("Segoe UI Emoji Emoji", 18),
+        # — Save button —
+        save_img = get_icon("save", 24)
+        self._icon_refs.append(save_img)
+        save_button = CTkButton(
+            container,
+            image=save_img,
+            text="",
+            fg_color="transparent",
+            hover_color=COLOR_ACTIVE,
             command=self.save_timer_from_entry
         )
-        save_button.grid(row=0, column=0, padx=5, pady=5)
+        save_button.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
 
-        self.timer_entry = ctk.CTkEntry(
-            container, width=90, font=("Segoe UI Emoji Emoji", 24), justify="center"
+        # — Timer entry —
+        self.timer_entry = CTkEntry(
+            container,
+            font=("Segoe UI Emoji", 24),
+            justify="center"
         )
         self.timer_entry.insert(0, self._format_time(self.timer_seconds))
-        self.timer_entry.grid(row=0, column=1, padx=5, pady=5)
+        self.timer_entry.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
 
-        # Friendly list of (label, callback, bg_color) for Start/Pause/Stop
-        controls = [
-            ("Start", self.start_timer, COLOR_INFO),
-            ("Pause", self.pause_timer, COLOR_PAUSE),
-            ("Stop",  self.reset_timer, COLOR_STOP),
+        # — Play / Pause / Stop buttons —
+        ICON_SIZE = 32
+        BUTTON_SPECS = [
+            ("play",  self.start_timer,   COLOR_INFO),
+            ("pause", self.pause_timer,   COLOR_WARNING),
+            ("stop",  self.reset_timer,   COLOR_ERROR),
         ]
 
-        start_button = ctk.CTkButton(
-            container, text=controls[0][0], width=70, height=30,
-            font=("Segoe UI", 14), fg_color=controls[0][2],
-            command=controls[0][1]
-        )
-        start_button.grid(row=0, column=2, padx=5, pady=5)
+        for idx, (icon_key, cmd, hover_col) in enumerate(BUTTON_SPECS, start=2):
+            img = get_icon(icon_key, ICON_SIZE)
+            self._icon_refs.append(img)
 
-        pause_button = ctk.CTkButton(
-            container, text=controls[1][0], width=70, height=30,
-            font=("Segoe UI", 14), fg_color=controls[1][2],
-            command=controls[1][1]
-        )
-        pause_button.grid(row=0, column=3, padx=5, pady=5)
-
-        stop_button = ctk.CTkButton(
-            container, text=controls[2][0], width=70, height=30,
-            font=("Segoe UI", 14), fg_color=controls[2][2],
-            command=controls[2][1]
-        )
-        stop_button.grid(row=0, column=4, padx=5, pady=5)
-
+            btn = CTkButton(
+                container,
+                image=img,
+                text="",                   # icon only
+                fg_color="transparent",    # no background
+                hover_color=hover_col,     # dynamic hover color
+                command=cmd
+            )
+            btn.grid(row=0, column=idx, sticky="nsew", padx=5, pady=5)
 
     def _format_time(self, total_seconds):        
         # Compute whole minutes and remaining seconds
