@@ -163,3 +163,7 @@ goal/goal-static/secret.key
 goal/goal-static/.env.enc
 goal/goal-static/helpers/.env.enc
 goal/goal-static/helpers/secret.key
+goal-static/.env.enc
+goal-static/helpers/.env.enc
+goal-static/secret.key
+goal-static/helpers/secret.key
