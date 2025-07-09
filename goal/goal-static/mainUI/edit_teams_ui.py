@@ -1,8 +1,8 @@
 # edit_popup.py
 import customtkinter as ctk
 from helpers.helpers import prompt_for_pin
-from helpers.notification import show_message_notification
-from colors  import COLOR_WARNING, COLOR_SUCCESS, COLOR_STOP
+from helpers.notification.toast import show_message_notification
+from assets.colors  import COLOR_WARNING, COLOR_SUCCESS, COLOR_STOP
 
 class TeamManagerWindow(ctk.CTkToplevel):
     def __init__(self, parent, mongo, pin):
@@ -57,8 +57,8 @@ class TeamManagerWindow(ctk.CTkToplevel):
 
 import os
 import customtkinter as ctk
-from colors import COLOR_SUCCESS, COLOR_STOP
-from helpers.notification import show_message_notification
+from assets.colors import COLOR_SUCCESS, COLOR_STOP
+from helpers.notification.toast import show_message_notification
 
 class EditTeamPopup(ctk.CTkToplevel):
     def __init__(self, parent, mongo, original_name, original_abrev, on_done):

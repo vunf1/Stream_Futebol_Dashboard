@@ -1,4 +1,5 @@
 # Standard library imports
+from datetime import datetime
 import os                     # File system operations
 import re                     # Regular expressions
 import sys                    # System-specific parameters and functions
@@ -9,16 +10,17 @@ from typing import Optional   # Type hint for optional values
 import customtkinter as ctk              # Modern tkinter-based UI toolkit
 import tkinter.messagebox as messagebox  # Standard tkinter message boxes
 
-from helpers.notification import (init_notification_queue)  # Notification queue initializer and toast display
+from helpers.date_time_provider import DateTimeProvider
+from helpers.notification.toast import (init_notification_queue)  # Notification queue initializer and toast display
 
 from mainUI.score_ui import ScoreUI          # Main scoring interface class
 
 from mainUI.teamsUI.teams_ui import TeamInputManager # Team name management UI
 from mainUI.timer_ui import TimerWidget      # Match timer widget
 
-from mongodb import MongoTeamManager        # MongoDB-backed team manager
-from notification_server import server_main # Background notification server entry point
-from team_names import load_teams_json      # Load team names from JSON file
+from database.mongodb import MongoTeamManager        # MongoDB-backed team manager
+from helpers.notification.notification_server import server_main # Background notification server entry point
+from helpers.team_names import load_teams_json      # Load team names from JSON file
 
 
 
@@ -28,12 +30,12 @@ ICON_MINUS = "\u268A"
 ICON_WARN = "\u267B"
 
 class ScoreApp:
-    def __init__(self, root: ctk.CTk, instance_number: int):
+    def __init__(self, root, instance_number: int):
         self.root = root
         self.root.iconbitmap("assets/icons/field.ico")
-        add_footer_label(self.root)
         self.root.title(f"{instance_number} Campo")
-        self.root.geometry("380x450")
+        
+        self.root.geometry("420x480")
         self.root.attributes("-topmost", True)
         self.root.minsize(190, 195)
         self.instance_number = instance_number
@@ -52,38 +54,31 @@ class ScoreApp:
         self.teams_data = load_teams_json(self.folder_desktop_path)
         self.mongo = MongoTeamManager()
 
-
         self.setup_ui()
 
 
 
     def setup_ui(self):
-        # 1) Timer as before
+        # 1) Timer 
         TimerWidget(self.root, self.field_folder, self.instance_number)
 
-        # 2) Reserve the attribute so the lambda won’t NameError
-        self.score_ui = None
-
-        # 3) Create TeamInputManager *before* the ScoreUI,
-        #    but give it a lambda that will call update_labels()
+        # 2)  ScoreUI 
+        self.score_ui = ScoreUI(
+            self.root,                # no keyword
+            self.instance_number,
+            self.mongo,
+            self.folder_desktop_path,
+            self.field_folder,
+        )
+        # 3) TeamInputManager
         TeamInputManager(
             parent=self.root,
             field_folder=self.field_folder,
-            refresh_labels_cb=lambda: self.score_ui.update_labels(),
+            refresh_labels_cb=lambda: self.score_ui._update_labels(),
             instance=self.instance_number
         )
 
-        # 4) Now finally build the ScoreUI and assign it
-        self.score_ui = ScoreUI(
-            parent=self.root,
-            instance_number=self.instance_number,
-            mongo=self.mongo,
-            desktop_folder=self.folder_desktop_path,
-            field_folder=self.field_folder,
-            half_file=self.half,
-            casa_goal_file=self.casa_goal_path,
-            fora_goal_file=self.fora_goal_path,
-        )
+        add_footer_label(self.root)
 
 def start_instance(instance_number: int):
     """
@@ -100,7 +95,7 @@ def start_instance(instance_number: int):
     root.mainloop()
 
 def ask_instance_count_ui() -> int:
-    result = {"value": None}
+    result: dict[str, int] = {"value": 0}
 
     def confirm():
         result["value"] = int(slider.get())
@@ -132,14 +127,17 @@ def ask_instance_count_ui() -> int:
     window.mainloop()
     return result["value"]
 
+
 def add_footer_label(parent, text: str = "© 2025 Vunf1"):
-    footer = ctk.CTkLabel(
-        parent,
-        text=text,
-        font=("Segoe UI Emoji", 11),
-        text_color="gray"
-    )
-    footer.pack(side="bottom", pady=(5, 5))
+    footer = ctk.CTkLabel(parent, text="", font=("Segoe UI Emoji", 11), text_color="gray")
+    footer.pack(side="bottom", pady=(5,5))
+
+    def refresh():
+        footer.configure(text=f"{text} — {DateTimeProvider.get_datetime()}")
+        parent.after(1000, refresh)
+
+    refresh()
+    return footer
 
 
 def child_entry(instance_number, notification_queue):
