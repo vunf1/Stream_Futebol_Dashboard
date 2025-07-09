@@ -1,11 +1,13 @@
 import sys
 import tkinter as tk
+from typing import Optional
 import customtkinter as ctk
 
 import os, json
 
-from colors import COLOR_ERROR, COLOR_WARNING
-from helpers.notification import display_notification, show_message_notification
+from assets.colors import COLOR_ERROR, COLOR_WARNING
+from helpers.make_drag_drop import make_it_drag_and_drop
+from helpers.notification.toast import display_notification, show_message_notification
 
 
 def save_teams_to_json(folder_desktop_path, teams):
@@ -29,17 +31,7 @@ def prompt_for_pin(parent, correct_pin):
         win.attributes("-topmost", True)
         win.grab_set()
 
-        # Make draggable
-        def start_move(e):
-            win._drag_x = e.x
-            win._drag_y = e.y
-        def do_move(e):
-            if hasattr(win, "_drag_x"):
-                x = e.x_root - win._drag_x
-                y = e.y_root - win._drag_y
-                win.geometry(f"+{x}+{y}")
-        win.bind("<Button-1>", start_move)
-        win.bind("<B1-Motion>", do_move)
+        make_it_drag_and_drop(win)
 
         # Body
         body = ctk.CTkFrame(win, fg_color="black", corner_radius=12)
@@ -56,7 +48,7 @@ def prompt_for_pin(parent, correct_pin):
         entry.pack(pady=(0,15))
         entry.after(100, entry.focus)
 
-        result = {"value": None}
+        result: dict[str, Optional[str]] = {"value": None}
         def on_submit(event=None):
             result["value"] = entry.get().strip()
             win.destroy()
