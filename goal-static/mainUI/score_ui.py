@@ -59,18 +59,26 @@ class ScoreUI:
             print(f"❌ Erro ao carregar equipas: {e}")
 
     def _load_texts(self):
-        # Generic reader for name/abbr files
+        # Generic reader with encoding and fallback
         def read_or_default(path, default):
             try:
-                text = open(path, 'r', encoding='utf-8').read().strip()
-                return text or default
+                with open(path, 'r', encoding='utf-8') as f:
+                    text = f.read().strip()
+                    return text or default
             except FileNotFoundError:
+                return default
+            except UnicodeDecodeError as e:
+                print(f"⚠️ Erro de codificação em '{path}': {e}")
+                return default
+            except Exception as e:
+                print(f"❌ Erro ao ler '{path}': {e}")
                 return default
 
         self.home_name = read_or_default(self.paths['home_name'], 'Casa')
         self.away_name = read_or_default(self.paths['away_name'], 'Fora')
         self.home_abbr = read_or_default(self.paths['home_abbr'], 'Casa')
         self.away_abbr = read_or_default(self.paths['away_abbr'], 'Fora')
+
 
     # -------------- Helper IO Methods --------------
     def _read_number(self, path):

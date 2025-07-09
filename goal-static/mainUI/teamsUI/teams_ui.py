@@ -33,7 +33,7 @@ class TeamInputManager(ctk.CTkFrame):
 
     def _write_field(self, filename: str, text: str):
         path = os.path.join(self.field_folder, filename)
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             f.write(text)
 
     def _fetch_and_backup_teams(self):
