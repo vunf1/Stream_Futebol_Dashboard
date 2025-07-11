@@ -16,4 +16,4 @@ encrypted = fernet.encrypt(data)
 with open(".env.enc", "wb") as f:
     f.write(encrypted)
 
-print("Encrypted .env → .env.enc, key saved to secret.key")
+print("Encrypted .env -> .env.enc, key saved to secret.key")

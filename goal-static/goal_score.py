@@ -35,7 +35,7 @@ class ScoreApp:
         self.root.iconbitmap("assets/icons/field.ico")
         self.root.title(f"{instance_number} Campo")
         
-        self.root.geometry("420x480")
+        self.root.geometry("420x520")
         self.root.attributes("-topmost", True)
         self.root.minsize(190, 195)
         self.instance_number = instance_number
