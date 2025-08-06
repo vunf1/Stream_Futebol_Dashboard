@@ -17,13 +17,21 @@ def fallback_notify(msg):
         tk.messagebox.showerror("Erro", msg) # type: ignore
     except Exception:
         pass
-
-def install_dependencies():
+def install_dependencies() -> None:
+    print("Installing Python dependencies…")
     try:
-        subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"], check=True)
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-r", "requirements.txt"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        print("Python dependencies installed successfully.")
     except subprocess.CalledProcessError as e:
-        fallback_notify(f"Falha na instalação das dependências:\n{e}")
-        sys.exit(1)
+        # On error, show the full pip stderr
+        fallback_notify(f"Falha na instalação das dependências:\n{e.stderr.strip()}")
+        sys.exit(e.returncode)
+
 
 def generate_secret_key():
     try:
@@ -103,8 +111,17 @@ class BuildWindow(ctk.CTk):
 
     def run_build_steps(self):
         try:
+            
+            # ─── Generate fresh version.txt ───────────────────────
+            self.update_status(0.02, "🔖 Gerando version.txt…")
+            result = subprocess.run(
+                [sys.executable, os.path.join(os.getcwd(), "version_gen.py")],
+                check=False, capture_output=True, text=True
+            )
+            if result.returncode != 0:
+                raise RuntimeError(f"version_gen.py falhou:\n{result.stderr}")
+            
             self.update_status(0.05, "🏟️ A preparar o relvado para os grandes jogos...")
-            time.sleep(0.5)
 
             self.update_status(0.10, "🧴 A aquecer os jogadores e lubrificar as chuteiras...")
             result = subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"], capture_output=True, text=True)
