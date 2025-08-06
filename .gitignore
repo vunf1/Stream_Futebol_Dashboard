@@ -167,3 +167,4 @@ goal-static/.env.enc
 goal-static/helpers/.env.enc
 goal-static/secret.key
 goal-static/helpers/secret.key
+goal-static/version.txt
