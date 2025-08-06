@@ -14,7 +14,7 @@ def fallback_notify(msg):
     try:
         root = tk.Tk()
         root.withdraw()
-        tk.messagebox.showerror("Erro", msg)
+        tk.messagebox.showerror("Erro", msg) # type: ignore
     except Exception:
         pass
 
@@ -36,7 +36,7 @@ install_dependencies()
 generate_secret_key()
 
 # Imports seguros após dependências
-import customtkinter as ctk
+import customtkinter as ctk # type: ignore
 from assets.colors import COLOR_SUCCESS, COLOR_ERROR, COLOR_INFO
 from helpers.notification.toast import display_notification as show_message_notification
 
@@ -55,27 +55,27 @@ def delete_old_executable(path: Path):
 
 class BuildWindow(ctk.CTk):
     def __init__(self):
-        super().__init__()
+        super().__init__() # type: ignore
         self.configure_gui()
         self.create_widgets()
-        make_it_drag_and_drop(self)
-        self.attributes("-topmost", True)
+        make_it_drag_and_drop(self) # type: ignore    
+        self.attributes("-topmost", True) # type: ignore
         threading.Thread(target=self.run_build_steps, daemon=True).start()
 
     def configure_gui(self):
         self.overrideredirect(True)
         self.geometry("450x110")        
         self.eval('tk::PlaceWindow . center')
-        self.iconbitmap("assets/icons/icon_soft.ico")
-        self.configure(fg_color="#222222")
+        self.iconbitmap("assets/icons/icon_soft.ico") # type: ignore
+        self.configure(fg_color="#222222") # type: ignore
 
     def create_widgets(self):
         self.label = ctk.CTkLabel(self, text="☕ A preparar a magia...", font=("Segoe UI", 16))
-        self.label.pack(pady=(25, 10))
+        self.label.pack(pady=(25, 10)) # type: ignore
 
         self.progress = ctk.CTkProgressBar(self, orientation="horizontal", mode="determinate", width=300)
-        self.progress.pack(pady=10)
-        self.progress.set(0)
+        self.progress.pack(pady=10)  # type: ignore
+        self.progress.set(0) # type: ignore
 
         self.error_label = ctk.CTkLabel(
             self,
@@ -86,13 +86,13 @@ class BuildWindow(ctk.CTk):
             justify="left",
             cursor="hand2"  # Indica que pode ser clicado
         )
-        self.error_label.pack(pady=(0, 5))
+        self.error_label.pack(pady=(0, 5)) # type: ignore
         self.error_label.pack_forget()
         self.error_label.bind("<Button-1>", self.copy_error_to_clipboard)
 
         
         self.close_button = ctk.CTkButton(self, text="Fechar", command=self.quit, fg_color="gray")
-        self.close_button.pack(pady=(10, 0))
+        self.close_button.pack(pady=(10, 0)) # type: ignore
         self.close_button.pack_forget()
 
     def update_status(self, value, message, delay=400):

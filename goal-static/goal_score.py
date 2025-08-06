@@ -10,19 +10,22 @@ from typing import Optional   # Type hint for optional values
 import customtkinter as ctk              # Modern tkinter-based UI toolkit
 import tkinter.messagebox as messagebox  # Standard tkinter message boxes
 
+from assets.colors import COLOR_ERROR
 from helpers.date_time_provider import DateTimeProvider
+from helpers.make_drag_drop import make_it_drag_and_drop
 from helpers.notification.toast import (init_notification_queue)  # Notification queue initializer and toast display
 
 from mainUI.score_ui import ScoreUI          # Main scoring interface class
 
 from mainUI.teamsUI.teams_ui import TeamInputManager # Team name management UI
-from mainUI.timer_ui import TimerWidget      # Match timer widget
 
 from database.mongodb import MongoTeamManager        # MongoDB-backed team manager
 from helpers.notification.notification_server import server_main # Background notification server entry point
 from helpers.team_names import load_teams_json      # Load team names from JSON file
 
+import customtkinter as ctk
 
+from widgets.timer_widget import TimeWidget
 
 FOLDER_NAME = "OBS_MARCADOR_FUTEBOL"
 ICON_BALL = "\u26BD"
@@ -59,8 +62,10 @@ class ScoreApp:
 
 
     def setup_ui(self):
+        
+
         # 1) Timer 
-        TimerWidget(self.root, self.field_folder, self.instance_number)
+        TimeWidget(self.root, self.field_folder, self.instance_number)
 
         # 2)  ScoreUI 
         self.score_ui = ScoreUI(
@@ -150,7 +155,6 @@ def child_entry(instance_number, notification_queue):
 
 def main():
     ctk.set_appearance_mode("system")
-
     # Ask how many ScoreApp instances to launch
     count = ask_instance_count_ui()
     if not count:
