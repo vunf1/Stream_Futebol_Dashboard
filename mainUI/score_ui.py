@@ -118,7 +118,11 @@ class ScoreUI:
             ('lock',       self._toggle_decrement),
             ('score00',    self._confirm_reset),
         ]
-        for idx, (icon_name, cmd) in enumerate(specs):
+        for idx, (icon_key, cmd) in enumerate(specs):
+            if icon_key == 'lock':
+                icon_name = 'unlock' if self.decrement_enabled else 'lock'
+            else:
+                icon_name = icon_key
             icon = get_icon(icon_name, 70)
             btn = ctk.CTkButton(
                 frame,
@@ -131,14 +135,43 @@ class ScoreUI:
             # Preserve swap/reset button references
             if icon_name == 'swap_score':
                 self.buttons['swap'] = btn
+            elif icon_key == 'lock':
+                self.buttons['lock'] = btn
             elif icon_name == 'score00':
                 self.buttons['reset'] = btn
     # -------------- UI Actions --------------
     def _toggle_decrement(self):
+        # flip the flag
         self.decrement_enabled = not self.decrement_enabled
         state = 'normal' if self.decrement_enabled else 'disabled'
-        for btn in self.buttons.values():
-            btn.configure(state=state)
+        for name, btn in self.buttons.items():
+            # disable/enable all buttons except lock itself?
+            if name != 'lock':
+                btn.configure(state=state)
+
+        # now update the lock button’s icon
+        lock_btn = self.buttons['lock']
+        # choose the icon: unlocked when enabled, locked when disabled
+        new_icon_name = 'unlock' if self.decrement_enabled else 'lock'
+        new_icon = get_icon(new_icon_name, 70)
+        lock_btn.configure(image=new_icon)
+
+        if self.decrement_enabled:
+            # notify user if you like
+            show_message_notification(
+                f"Campo {self.instance}",
+                f"Lock : {not self.decrement_enabled}",
+                icon='🔒' if not self.decrement_enabled else '🔓',
+                bg_color=COLOR_SUCCESS
+            )        
+        else:
+            # notify user if you like
+            show_message_notification(
+                f"Campo {self.instance}",
+                f"Lock : {not self.decrement_enabled}",
+                icon='🔒' if not self.decrement_enabled else '🔓',
+                bg_color=COLOR_ERROR
+            )
 
     def _update_labels(self):
         self._load_persisted_files()
