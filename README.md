@@ -65,9 +65,9 @@ Create a .env file with the following variables:
 
 ```
 MONGO_URI=mongodb+srv://<usuario>:<senha>@<cluster>.mongodb.net/
-MONGO_DB=nome_do_banco
-MONGO_COLLECTION=nome_da_colecao
-PIN=1234
+MONGO_DB=
+MONGO_COLLECTION=
+PIN=
 ```
 
 ---
