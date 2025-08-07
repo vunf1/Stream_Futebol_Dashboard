@@ -159,12 +159,12 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 .vscode/
-goal/goal-static/secret.key
-goal/goal-static/.env.enc
-goal/goal-static/helpers/.env.enc
-goal/goal-static/helpers/secret.key
-goal-static/.env.enc
-goal-static/helpers/.env.enc
-goal-static/secret.key
-goal-static/helpers/secret.key
-goal-static/version.txt
+secret.key
+.env.enc
+helpers/.env.enc
+helpers/secret.key
+.env.enc
+helpers/.env.enc
+secret.key
+helpers/secret.key
+version.txt

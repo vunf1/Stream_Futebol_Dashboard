@@ -14,8 +14,8 @@ class EncryptedEnvLoader:
     """
     def __init__(
         self,
-        enc_env_filename: str = ".env.enc",
-        key_filename: str = "secret.key",
+        enc_env_filename: str = "../.env.enc",
+        key_filename: str = "../secret.key",
         meipass_attr: str = "_MEIPASS"
     ):
         # Determine base path (handles PyInstaller or plain script)
