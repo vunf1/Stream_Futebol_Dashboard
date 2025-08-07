@@ -6,11 +6,11 @@ from io import StringIO
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 
-class EncryptedEnvLoader:
+class SecureEnvLoader:
     """
     Decrypts an encrypted .env file (using a Fernet key) and loads the
     resulting variables into os.environ via python-dotenv.
-    Working both in development and when bundled with PyInstaller (_MEIPASS).
+    Works both in development and when bundled with PyInstaller (_MEIPASS).
     """
     def __init__(
         self,
@@ -47,8 +47,8 @@ class EncryptedEnvLoader:
 # ──────────────────────────────────────────────────────────────────────────────
 # Usage: at the very top of your main module, before any os.getenv() calls:
 # 
-# from env_loader import EncryptedEnvLoader
-# EncryptedEnvLoader().load()
+# from env_loader import SecureEnvLoader
+# SecureEnvLoader().load()
 #
 # Then all your subsequent code (e.g. get_client(), MongoTeamManager, etc.)
 # can safely use os.getenv("MONGO_URI"), etc.

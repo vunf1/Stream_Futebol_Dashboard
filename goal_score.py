@@ -22,10 +22,10 @@ from mainUI.teamsUI.teams_ui import TeamInputManager # Team name management UI
 from database.mongodb import MongoTeamManager        # MongoDB-backed team manager
 from helpers.notification.notification_server import server_main # Background notification server entry point
 from helpers.team_names import load_teams_json      # Load team names from JSON file
-
+from helpers.filenames import get_file_path  # Helper function to get file paths based on instance number
 import customtkinter as ctk
 
-from widgets.timer_widget import TimeWidget
+from widgets.top_widget import TopWidget
 
 FOLDER_NAME = "OBS_MARCADOR_FUTEBOL"
 ICON_BALL = "\u26BD"
@@ -43,19 +43,8 @@ class ScoreApp:
         self.root.minsize(190, 195)
         self.instance_number = instance_number
         self.decrement_buttons_enabled = True
-
-        # Paths
-        self.folder_desktop_path = os.path.join(os.path.expanduser("~"), "Desktop", FOLDER_NAME)
-        self.field_folder = os.path.join(self.folder_desktop_path, f"Campo_{instance_number}")
-        os.makedirs(self.field_folder, exist_ok=True)
-
-        self.casa_goal_path = os.path.join(self.field_folder, "golo_casa.txt")
-        self.fora_goal_path = os.path.join(self.field_folder, "golo_fora.txt")
-
-        self.half = os.path.join(self.field_folder, "parte.txt")
-
-        self.teams_data = load_teams_json(self.folder_desktop_path)
         self.mongo = MongoTeamManager()
+        self.mongo.backup_to_json()  # Backup teams to JSON on startup
 
         self.setup_ui()
 
@@ -65,20 +54,18 @@ class ScoreApp:
         
 
         # 1) Timer 
-        TimeWidget(self.root, self.field_folder, self.instance_number)
+        TopWidget(self.root, self.instance_number, self.mongo)
 
         # 2)  ScoreUI 
         self.score_ui = ScoreUI(
             self.root,                # no keyword
             self.instance_number,
             self.mongo,
-            self.folder_desktop_path,
-            self.field_folder,
         )
         # 3) TeamInputManager
         TeamInputManager(
             parent=self.root,
-            field_folder=self.field_folder,
+            mongo=self.mongo,
             refresh_labels_cb=lambda: self.score_ui._update_labels(),
             instance=self.instance_number
         )

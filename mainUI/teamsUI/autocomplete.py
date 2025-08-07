@@ -16,9 +16,19 @@ class Autocomplete(ctk.CTkFrame):
         self.selection_callback = selection_callback
         self.max_visible = max_visible
         self.popup = None
-
+        
+        # store the last non-empty value
+        self._last_text = ""
         self.entry = ctk.CTkEntry(self, placeholder_text=placeholder)
         self.entry.pack(fill="x")
+        self.entry.bind(
+                    "<FocusIn>",
+                    lambda e: self.entry.delete(0, "end"),
+                    add=True
+                )
+         # on any focus-out, possibly restore
+        self.entry.bind("<FocusOut>", self._on_focus_out, add=True)
+
         self.entry.bind("<KeyRelease>", self._on_text_changed)
 
     def _on_text_changed(self, event):
@@ -107,13 +117,32 @@ class Autocomplete(ctk.CTkFrame):
         # fill entry, notify caller, then hide
         self.entry.delete(0, "end")
         self.entry.insert(0, label)
+        # call the selection callback with label and value
         self.selection_callback(label, value)
+        # remember this as the last valid text
+        self._last_text = label
+        # move focus away from the entry to this frame
+        self.focus_set()
         self._hide_popup()
 
+    def _on_focus_out(self, event):
+        """
+        When the entry loses focus:
+        - if the user left it non-empty, remember it as last text
+        - if it's empty, restore the previous last_text
+        """
+        current = self.entry.get().strip()
+        if current:
+            self._last_text = current
+        elif self._last_text:
+            # restore previous
+            self.entry.delete(0, "end")
+            self.entry.insert(0, self._last_text)
     def get(self) -> str:
         return self.entry.get()
 
     def set(self, text: str):
         self.entry.delete(0, "end")
         self.entry.insert(0, text)
+        
 

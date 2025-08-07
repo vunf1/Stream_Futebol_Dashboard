@@ -3,6 +3,7 @@ import json
 import tkinter.messagebox as messagebox
 import customtkinter as ctk
 from assets.colors import COLOR_INFO, COLOR_STOP, COLOR_SUCCESS, COLOR_WARNING
+from helpers.filenames import BASE_FOLDER_PATH
 from helpers.notification.toast import show_message_notification
 from database.mongodb import MongoTeamManager
 
@@ -57,8 +58,8 @@ def append_team_to_mongo(name: str, abrev: str, instance: int):
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao guardar equipa na base de dados: {e}")
 
-def load_teams_json(instance_folder: str):
-    json_path = os.path.join(instance_folder, "teams.json")
+def load_teams_json():
+    json_path = os.path.join(BASE_FOLDER_PATH, "teams.json")
     print("Tentando carregar:", json_path)  # DEBUG
 
     if os.path.exists(json_path):

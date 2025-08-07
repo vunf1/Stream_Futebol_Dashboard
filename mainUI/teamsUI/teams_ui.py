@@ -1,9 +1,10 @@
 import os, sys
 import customtkinter as ctk
 from tkinter import messagebox
-from helpers.env_loader import EncryptedEnvLoader
+from helpers.env_loader import SecureEnvLoader
+from helpers.filenames import get_file_path
 from helpers.notification.toast import show_message_notification
-from helpers.helpers import save_teams_to_json
+from helpers.helpers import load_teams_from_json, save_teams_to_json
 from mainUI.teamsUI.autocomplete import Autocomplete
 from database.mongodb import MongoTeamManager
 from helpers.team_names import append_team_to_mongo
@@ -12,27 +13,26 @@ from mainUI.edit_teams_ui import TeamManagerWindow
  
 
 # ─── Decrypt & load ─────────────────────────────────────────
-EncryptedEnvLoader().load()
+SecureEnvLoader().load()
 
 class TeamInputManager(ctk.CTkFrame):
     def __init__(
         self,
         parent,
-        field_folder: str,
+        mongo,
         refresh_labels_cb,    # callback to run after saving
         instance
     ):
         super().__init__(parent, fg_color="transparent", corner_radius=0)
         self.parent = parent
-        self.field_folder = field_folder
         self.refresh_labels = refresh_labels_cb
         self.instance_number = instance
 
-        self.mongo = MongoTeamManager()
+        self.mongo = mongo
         self._build_ui()
 
     def _write_field(self, filename: str, text: str):
-        path = os.path.join(self.field_folder, filename)
+        path = get_file_path(self.instance_number, filename)
         with open(path, "w", encoding="utf-8") as f:
             f.write(text)
 
@@ -41,19 +41,20 @@ class TeamInputManager(ctk.CTkFrame):
         Load all teams from MongoDB, write a local JSON backup,
         and return the dict of {name: abbreviation}.
         """
+            
         try:
-            teams = self.mongo.load_teams()
-            save_teams_to_json(self.field_folder, teams)
+            teams = load_teams_from_json()
+            if teams is False:
+                teams = self.mongo.load_teams()
+                save_teams_to_json(teams)
+                return teams
             return teams
         except Exception as e:
-            print(f"❌ Erro ao carregar equipas do MongoDB: {e}")
-            return {}
+            print(f"❌ Erro ao carregar equipas: {e}")
+            return {} # Return empty dict on failure
 
     def _build_ui(self):
         self.pack(fill="x", padx=10)
-
-        # Load teams once for autocomplete
-        self.teams = self._fetch_and_backup_teams()
 
         container = ctk.CTkFrame(self, fg_color="transparent")
         container.pack(fill="x")
@@ -64,10 +65,10 @@ class TeamInputManager(ctk.CTkFrame):
         ctk.CTkLabel(container, text="Nome Casa").grid(row=0, column=0, sticky="w", padx=5)
         self.home_name_entry = Autocomplete(
             container,
-            lambda: self.teams,
+            lambda: self._fetch_and_backup_teams(),
             self._on_home_selected,
             "ex: SPORTING"
-        )
+        ) 
         self.home_name_entry.grid(row=1, column=0, sticky="ew", padx=5, pady=(0,10))
 
         ctk.CTkLabel(container, text="Sigla Casa").grid(row=2, column=0, sticky="w", padx=5)
@@ -77,7 +78,7 @@ class TeamInputManager(ctk.CTkFrame):
         ctk.CTkLabel(container, text="Nome Fora").grid(row=0, column=1, sticky="w", padx=5)
         self.away_name_entry = Autocomplete(
             container,
-            lambda: self.teams,
+            lambda: self._fetch_and_backup_teams(),
             self._on_away_selected,
             "ex: PORTO"
         )
@@ -85,7 +86,7 @@ class TeamInputManager(ctk.CTkFrame):
 
         ctk.CTkLabel(container, text="Sigla Fora").grid(row=2, column=1, sticky="w", padx=5)
         self.away_abbrev_entry = self._make_entry(container, row=3, column=1, placeholder="ex: FCP")
-
+            
         # ——— Buttons ———
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
         # Allow the frame to expand horizontally (and vertically if you like)
@@ -108,8 +109,7 @@ class TeamInputManager(ctk.CTkFrame):
             fg_color="orange",
             command=lambda: TeamManagerWindow(
                 parent=self.parent,
-                mongo=self.mongo,
-                pin=os.getenv("PIN")
+                mongo=self.mongo
             )
         )
         save_btn.grid(row=0, column=0, sticky="nsew", padx=(0,5))
@@ -145,10 +145,10 @@ class TeamInputManager(ctk.CTkFrame):
             )
 
         try:
-            self._write_field("equipa_casa_nome.txt",  home_name)
-            self._write_field("equipa_casa_abrev.txt", home_abrev)
-            self._write_field("equipa_fora_nome.txt",  away_name)
-            self._write_field("equipa_fora_abrev.txt", away_abrev)
+            self._write_field("home_name",  home_name)
+            self._write_field("home_abbr", home_abrev)
+            self._write_field("away_name",  away_name)
+            self._write_field("away_abbr", away_abrev)
 
             self.refresh_labels()
             show_message_notification(
@@ -158,3 +158,4 @@ class TeamInputManager(ctk.CTkFrame):
             )
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save team info:\n{e}")
+            

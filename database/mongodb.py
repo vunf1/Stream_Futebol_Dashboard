@@ -1,26 +1,23 @@
 from pymongo import MongoClient
-import os
-
-from helpers.env_loader import EncryptedEnvLoader
+from assets.colors import COLOR_SUCCESS
+from helpers.env_loader import SecureEnvLoader
+from helpers.filenames import get_env
+from helpers.helpers import save_teams_to_json
+from helpers.notification.toast import show_message_notification
 # ─── Decrypt & load ─────────────────────────────────────────
-EncryptedEnvLoader().load()
-
-
-_client: MongoClient | None = None
-
-def get_client() -> MongoClient:
-    global _client
-    if _client is None:
-        _client = MongoClient(os.getenv("MONGO_URI"))
-    return _client
-
+SecureEnvLoader().load()
 
 # ─── MongoTeamManager ────────────────────────────────────────────────────────
 class MongoTeamManager:
     def __init__(self):
-        self.client          = get_client()
-        self.db              = self.client[os.getenv("MONGO_DB")]
-        self.collection      = self.db[os.getenv("MONGO_COLLECTION")]
+        uri = get_env("MONGO_URI")
+        self.client = MongoClient(uri)
+
+        db_name = get_env("MONGO_DB")
+        self.db = self.client[db_name]
+
+        coll_name = get_env("MONGO_COLLECTION")
+        self.collection = self.db[coll_name]
         
 
     def save_team(self, name: str, abbreviation: str) -> None:
@@ -55,3 +52,14 @@ class MongoTeamManager:
     def delete_team(self, name: str) -> bool:
         result = self.collection.delete_one({"name": name.strip().upper()})
         return result.deleted_count > 0
+
+    def backup_to_json(self) -> None:
+        teams = self.load_teams()
+        print("**Teams Backed Up**")
+        save_teams_to_json(teams)
+        
+        show_message_notification(
+            f"✅ Backup realizado",
+            f" Equipas salvas em JSON.",
+            icon='✅', bg_color=COLOR_SUCCESS
+        )

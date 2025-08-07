@@ -6,24 +6,44 @@ import customtkinter as ctk
 import os, json
 
 from assets.colors import COLOR_ERROR, COLOR_WARNING
+from helpers.filenames import BASE_FOLDER_PATH, get_env
 from helpers.make_drag_drop import make_it_drag_and_drop
 from helpers.notification.toast import display_notification, show_message_notification
 
 
-def save_teams_to_json(folder_desktop_path, teams):
-    json_path = os.path.join(folder_desktop_path, "teams.json")
+def save_teams_to_json(teams):
+    json_path = os.path.join(BASE_FOLDER_PATH, "teams.json")
     try:
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(teams, f, indent=4, ensure_ascii=False)
         print(f"📁 Backup JSON criado: {json_path}")
     except Exception as e:
-        print(f"❌ Falha ao criar backup JSON: {e}")  
-
-def prompt_for_pin(parent, correct_pin):
+        print(f"❌ Falha ao criar backup JSON: {e}")
+        return
+        
+def load_teams_from_json():
+    json_path = os.path.join(BASE_FOLDER_PATH, "teams.json")
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            teams = json.load(f)
+        print(f"📥 Backup JSON carregado: {json_path}")
+        return teams
+    except FileNotFoundError:
+        print(f"⚠️ Arquivo de backup não encontrado: {json_path}")
+        return False
+    except json.JSONDecodeError as e:
+        print(f"❌ Falha ao decodificar JSON em '{json_path}': {e}")
+        return False
+    except Exception as e:
+        print(f"❌ Erro ao carregar backup JSON: {e}")
+        return False
+    
+def prompt_for_pin(parent):
     """
     Shows a modal, draggable PIN prompt under `parent`.
     Returns True if the user enters `correct_pin`, False otherwise (or on Cancel).
     """
+    correct_pin=get_env("PIN")
     while True:
         win = ctk.CTkToplevel(parent, fg_color="black")
         win.overrideredirect(True)

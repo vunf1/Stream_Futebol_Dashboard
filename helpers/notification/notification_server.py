@@ -11,8 +11,9 @@ def server_main(notification_queue: Queue):
     """
     ctk.set_appearance_mode("dark")
     root = ctk.CTk()
+    # Set up the main window
     root.withdraw()
-
+    
     def poll_queue():
         while not notification_queue.empty():
             title, message, opts = notification_queue.get()

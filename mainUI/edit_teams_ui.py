@@ -1,20 +1,27 @@
 # edit_popup.py
 import customtkinter as ctk
 from helpers.helpers import prompt_for_pin
+from helpers.make_drag_drop import make_it_drag_and_drop
 from helpers.notification.toast import show_message_notification
 from assets.colors  import COLOR_WARNING, COLOR_SUCCESS, COLOR_STOP
+from helpers.top_c_child_parent import top_centered_child_to_parent
 
 class TeamManagerWindow(ctk.CTkToplevel):
-    def __init__(self, parent, mongo, pin):
+    def __init__(self, parent, mongo):
         super().__init__(parent)
         self.withdraw()
         self.mongo      = mongo
-        self.pin        = str(pin).strip()
 
         if not self._prompt_for_pin():  # ask PIN first
             self.destroy()
             return
+        
+        #make_it_drag_and_drop(self)
         self.deiconify()
+        child_w, child_h = 400, 400
+        # Center the child window at the top of the parent
+        top_centered_child_to_parent(self, parent, child_w, child_h)
+        self.attributes("-topmost", True)
         self.title("Team Manager")
         self.geometry("400x400")
         self.lift()
@@ -26,7 +33,7 @@ class TeamManagerWindow(ctk.CTkToplevel):
         self._build_team_list()
 
     def _prompt_for_pin(self):
-        return prompt_for_pin(self, self.pin)
+        return prompt_for_pin(self)
 
     def _build_team_list(self):
         
