@@ -1,6 +1,7 @@
 # edit_popup.py
 import customtkinter as ctk
 from helpers.helpers import prompt_for_pin
+from helpers.icons_provider import get_icon_path
 from helpers.make_drag_drop import make_it_drag_and_drop
 from helpers.notification.toast import show_message_notification
 from assets.colors  import COLOR_WARNING, COLOR_SUCCESS, COLOR_STOP
@@ -25,7 +26,7 @@ class TeamManagerWindow(ctk.CTkToplevel):
         self.title("Team Manager")
         self.geometry("400x400")
         self.lift()
-        self.iconbitmap("assets/icons/gear.ico")
+        self.iconbitmap(get_icon_path("gear")) 
         
         self.scrollable_frame = ctk.CTkScrollableFrame(self, corner_radius=0)
         self.scrollable_frame.pack(fill="both", expand=True, padx=5, pady=5)
@@ -76,7 +77,7 @@ class EditTeamPopup(ctk.CTkToplevel):
 
         self.title("Edit Team")
         self.geometry("300x240")
-        self.iconbitmap("assets/icons/icon_soft.ico")
+        self.iconbitmap(get_icon_path("icon_soft")) 
         self.grab_set()
         self.attributes("-topmost", True)
 

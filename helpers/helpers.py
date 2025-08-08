@@ -8,7 +8,7 @@ import os, json
 from assets.colors import COLOR_ERROR, COLOR_WARNING
 from helpers.filenames import BASE_FOLDER_PATH, get_env
 from helpers.make_drag_drop import make_it_drag_and_drop
-from helpers.notification.toast import display_notification, show_message_notification
+from helpers.notification.toast import show_message_notification
 
 
 def save_teams_to_json(teams):

@@ -1,46 +1,66 @@
-# deploy.ps1
-
-param (
-    [string]$BuildScript = ".\build.py",
-    [string]$DistFolder  = ".\dist",
-    [string]$ExeName     = "goal_score.exe",
-    [string]$TargetRoot  = "$Env:USERPROFILE\Desktop\FUTEBOL-SCORE-DASHBOARD\futebol-dashboard",
-    [string]$TargetExe   = "Futebol Dashboard.exe",
-    [string]$IconSource  = ".\assets\icons",
-    [string]$IconTarget  = "assets\icons"
+﻿# deploy.ps1
+#Requires -Version 5.1
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Low')]
+param(
+    [Parameter()][ValidateNotNullOrEmpty()][string]$BuildScript = ".\build.py",
+    [Parameter()][ValidateNotNullOrEmpty()][string]$DistFolder  = ".\dist",
+    [Parameter()][ValidateNotNullOrEmpty()][string]$ExeName     = "goal_score.exe",
+    [Parameter()][ValidateNotNullOrEmpty()][string]$TargetRoot  = "$Env:USERPROFILE\Desktop\FUTEBOL-SCORE-DASHBOARD\",
+    [Parameter()][ValidateNotNullOrEmpty()][string]$TargetExe   = "Futebol Dashboard.exe"
 )
 
-# Guarda o diretório inicial
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
-Push-Location $scriptDir
+$ErrorActionPreference = 'Stop'
+if ($PSVersionTable.PSVersion.Major -ge 7) { $PSNativeCommandUseErrorActionPreference = $true }
 
+$scriptRoot = Split-Path -LiteralPath $PSCommandPath
+Push-Location -LiteralPath $scriptRoot
 try {
-    Write-Host "1) Executando build: python $BuildScript"
-    python $BuildScript -ErrorAction Stop
+    Write-Host "1) Building -> $BuildScript"
 
-    # Certifica-se de que a pasta de destino existe
-    Write-Host "2) Criando pasta de destino: $TargetRoot"
+    # Prefer venv python if available, else fall back to PATH
+    $venvPy = Join-Path $scriptRoot ".venv\Scripts\python.exe"
+    if (Test-Path $venvPy) {
+        $py = $venvPy
+    } else {
+        $py = "python"
+    }
+    & $py $BuildScript
+    if ($LASTEXITCODE -ne 0) { throw "Build script failed with exit code $LASTEXITCODE." }
+
+    Write-Host "2) Ensuring target folder -> $TargetRoot"
     New-Item -ItemType Directory -Path $TargetRoot -Force | Out-Null
 
-    # Copia do executável
-    $sourceExe = Join-Path $DistFolder $ExeName
-    $destExe   = Join-Path $TargetRoot $TargetExe
-    Write-Host "3) Copiando EXE: $sourceExe → $destExe"
-    Copy-Item -Path $sourceExe -Destination $destExe -Force -ErrorAction Stop
+    $sourceExe = Join-Path -Path $DistFolder -ChildPath $ExeName
+    if (-not (Test-Path -LiteralPath $sourceExe)) {
+        throw "Executable not found at '$sourceExe'."
+    }
 
-    # Copia da pasta de ícones
-    $sourceIcons = Resolve-Path $IconSource
-    $destIcons   = Join-Path $TargetRoot $IconTarget
-    Write-Host "4) Copiando ícones: $sourceIcons → $destIcons"
-    Copy-Item -Path $sourceIcons -Destination $destIcons -Recurse -Force -ErrorAction Stop
+    $destExe = Join-Path -Path $TargetRoot -ChildPath $TargetExe
 
-    Write-Host "✅ Deploy concluído com sucesso!"
+    $copyNeeded = $true
+    if (Test-Path -LiteralPath $destExe) {
+        $src = Get-Item -LiteralPath $sourceExe
+        $dst = Get-Item -LiteralPath $destExe
+        # Fast comparison: size + timestamp
+        $copyNeeded = ($src.Length -ne $dst.Length) -or ($src.LastWriteTimeUtc -ne $dst.LastWriteTimeUtc)
+    }
+
+    if ($copyNeeded) {
+        if ($PSCmdlet.ShouldProcess($destExe, "Copy from $sourceExe")) {
+            Write-Host "3) Copying EXE -> $destExe"
+            Copy-Item -LiteralPath $sourceExe -Destination $destExe -Force
+        }
+    } else {
+        Write-Host "3) EXE unchanged - skipping copy."
+    }
+
+    Write-Host "Deploy concluido."
 }
 catch {
-    Write-Error "❌ Ocorreu um erro: $_"
+    Write-Error "Erro: $($_.Exception.Message)"
+    exit 1
 }
 finally {
-    # Volta ao diretório original
     Pop-Location
-    Write-Host "Retornado para $PWD"
+    Write-Host "<- Returned to $((Get-Location).Path)"
 }

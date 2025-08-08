@@ -1,7 +1,7 @@
 import customtkinter as ctk
 from customtkinter import CTkFrame, CTkButton, CTkLabel, CTkToplevel
 
-from assets.icons.icons_provider import get_icon
+from helpers.icons_provider import get_icon
 from database.gameinfo import GameInfoStore
 from database.mongodb import MongoTeamManager
 from helpers.make_drag_drop import make_it_drag_and_drop

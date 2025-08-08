@@ -5,5 +5,4 @@ pymongo
 pyinstaller
 keyboard
 cryptography
-cairosvg
 obsws-python

@@ -1,9 +1,10 @@
+# goal_score.py
 # Standard library imports
 from datetime import datetime
 import os                     # File system operations
 import re                     # Regular expressions
 import sys                    # System-specific parameters and functions
-from multiprocessing import Manager, Process, freeze_support  # Process management and multiprocessing support
+from multiprocessing import Manager, Process, Queue, freeze_support  # Process management and multiprocessing support
 from typing import Optional   # Type hint for optional values
 
 # Third-party library imports
@@ -13,6 +14,7 @@ import tkinter.messagebox as messagebox  # Standard tkinter message boxes
 from assets.colors import COLOR_ERROR
 from database.gameinfo import GameInfoStore
 from helpers.date_time_provider import DateTimeProvider
+from helpers.icons_provider import get_icon_path
 from helpers.make_drag_drop import make_it_drag_and_drop
 from helpers.notification.toast import (init_notification_queue)  # Notification queue initializer and toast display
 
@@ -36,10 +38,10 @@ ICON_WARN = "\u267B"
 class ScoreApp:
     def __init__(self, root, instance_number: int):
         self.root = root
-        self.root.iconbitmap("assets/icons/field.ico")
+        self.root.iconbitmap(get_icon_path("field"))
         self.root.title(f"{instance_number} Campo")
         
-        self.root.geometry("420x520")
+        self.root.geometry("420x460")
         self.root.attributes("-topmost", True)
         self.root.minsize(190, 195)
         self.instance_number = instance_number
@@ -50,12 +52,8 @@ class ScoreApp:
 
         self.setup_ui()
 
-
-
     def setup_ui(self):
-        
         TopWidget(self.root, self.instance_number, self.mongo, self.json)
-
         # 2)  ScoreUI 
         self.score_ui = ScoreUI(
             self.root,                # no keyword
@@ -71,7 +69,6 @@ class ScoreApp:
             instance=self.instance_number,
             json=self.json
         )
-
         add_footer_label(self.root)
 
 def start_instance(instance_number: int):
@@ -96,7 +93,7 @@ def ask_instance_count_ui() -> int:
         window.destroy()
 
     window = ctk.CTk()
-    window.iconbitmap("assets/icons/dice.ico")
+    window.iconbitmap(get_icon_path("dice"))
     window.title("Campos")
     window.geometry("320x200")
     window.resizable(False, False)
@@ -142,33 +139,31 @@ def child_entry(instance_number, notification_queue):
     start_instance(instance_number)
 
 
+
 def main():
     ctk.set_appearance_mode("system")
-    # Ask how many ScoreApp instances to launch
+
     count = ask_instance_count_ui()
     if not count:
         sys.exit()
 
-    # Initialize the shared notification queue in the main process
-    mgr = Manager()
-    q = mgr.Queue()
+    # Use a simple Queue (lighter/faster than Manager().Queue())
+    q = Queue()
     init_notification_queue(q)
 
-    # Start notification server (runs CTk loop for toasts)
+    # Start the notification server (daemon ok)
     p_notify = Process(target=server_main, args=(q,), daemon=True)
     p_notify.start()
 
-    # Launch each ScoreApp instance in its own process
     procs = []
     for i in range(1, count + 1):
         p = Process(target=child_entry, args=(i, q))
         p.start()
         procs.append(p)
 
-    # Wait for all ScoreApp processes to finish
     for p in procs:
         p.join()
-
+        
 if __name__ == '__main__':
     freeze_support()
     main()

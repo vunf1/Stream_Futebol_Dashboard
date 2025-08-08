@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from assets.colors import COLOR_ACTIVE, COLOR_BORDER, COLOR_SUCCESS, COLOR_ERROR
-from assets.icons.icons_provider import get_icon
+from helpers.icons_provider import get_icon
 from database.gameinfo import GameInfoStore, DEFAULT_FIELD_STATE
 from helpers.notification.toast import prompt_notification, show_message_notification
 

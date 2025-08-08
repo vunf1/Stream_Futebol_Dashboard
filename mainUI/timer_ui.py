@@ -5,7 +5,7 @@ from assets.colors import (
     COLOR_ACTIVE, COLOR_BORDER, COLOR_ERROR, COLOR_INFO,
     COLOR_PAUSE, COLOR_STOP, COLOR_SUCCESS, COLOR_WARNING,
 )
-from assets.icons.icons_provider import get_icon
+from helpers.icons_provider import get_icon
 from database.gameinfo import DEFAULT_FIELD_STATE, GameInfoStore, _format_time, _parse_time_to_seconds
 from helpers.notification.toast import show_message_notification
 from mainUI.score_ui import BUTTON_PAD
