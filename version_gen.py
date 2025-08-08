@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 # ──────── Configuration ────────
 
 # 1) Semantic version string
-version_str = "8.6.0"
+version_str = "9.0.0"
 # 2) Parse into a tuple of ints (must be 4-tuple for PyInstaller)
 version_tuple = tuple(int(x) for x in version_str.split(".")) + (0,)
 
@@ -74,6 +74,4 @@ VSVersionInfo(
 with open("version.txt", "w", encoding="utf-8") as f:
     f.write(template)
 
-print("version.txt generated with:")
-print(f"  filevers/prodvers = {version_tuple}")
-print(f"  Translation        = {translation}")
+print("version.txt generated")

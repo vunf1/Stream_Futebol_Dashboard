@@ -110,7 +110,7 @@ class TopWidget:
         if self._was_running:
             tc.start_timer()
 
-        child_w, child_h = 620, 200
+        child_w, child_h = 900, 120
         # Center the child window at the top of the parent
         top_centered_child_to_parent(win, self.parent, child_w, child_h)
 

@@ -7,7 +7,7 @@ with open("secret.key", "wb") as f:
     f.write(key)
 
 # 2) Read your plaintext .env and encrypt it
-with open("../.env", "rb") as f:
+with open(".env", "rb") as f:
     data = f.read()
 
 fernet = Fernet(key)

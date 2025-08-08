@@ -4,7 +4,7 @@ param (
     [string]$BuildScript = ".\build.py",
     [string]$DistFolder  = ".\dist",
     [string]$ExeName     = "goal_score.exe",
-    [string]$TargetRoot  = "$Env:USERPROFILE\Desktop\OBS_MARCADOR_FUTEBOL\futebol-dashboard",
+    [string]$TargetRoot  = "$Env:USERPROFILE\Desktop\FUTEBOL-SCORE-DASHBOARD\futebol-dashboard",
     [string]$TargetExe   = "Futebol Dashboard.exe",
     [string]$IconSource  = ".\assets\icons",
     [string]$IconTarget  = "assets\icons"
