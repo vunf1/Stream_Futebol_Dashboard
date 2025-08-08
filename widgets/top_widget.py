@@ -2,6 +2,7 @@ import customtkinter as ctk
 from customtkinter import CTkFrame, CTkButton, CTkLabel, CTkToplevel
 
 from assets.icons.icons_provider import get_icon
+from database.gameinfo import GameInfoStore
 from database.mongodb import MongoTeamManager
 from helpers.make_drag_drop import make_it_drag_and_drop
 from assets.colors import COLOR_ERROR
@@ -9,7 +10,7 @@ from helpers.top_c_child_parent import top_centered_child_to_parent
 from mainUI.timer_ui import TimerComponent
 
 class TopWidget:
-    def __init__(self, parent, instance_number: int, mongo: MongoTeamManager ):
+    def __init__(self, parent, instance_number: int, mongo: MongoTeamManager, json: GameInfoStore):
         """
         Widget launcher for opening a borderless, draggable TimerComponent window.
 
@@ -24,6 +25,7 @@ class TopWidget:
         self._timer_component: TimerComponent | None = None
         self._was_running: bool                     = False
         self.mongo = mongo
+        self.json = json
         self._init_top_grid()
 
     def _init_top_grid(self):
@@ -103,7 +105,7 @@ class TopWidget:
         close_btn.pack(side="right", padx=5)
 
         # Instantiate the TimerComponent in the Toplevel
-        tc = TimerComponent(win, self.instance_number)
+        tc = TimerComponent(win, self.instance_number, self.json)
         self._timer_component = tc
 
         # 4) Se antes estava a correr

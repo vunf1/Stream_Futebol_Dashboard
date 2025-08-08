@@ -11,6 +11,7 @@ import customtkinter as ctk              # Modern tkinter-based UI toolkit
 import tkinter.messagebox as messagebox  # Standard tkinter message boxes
 
 from assets.colors import COLOR_ERROR
+from database.gameinfo import GameInfoStore
 from helpers.date_time_provider import DateTimeProvider
 from helpers.make_drag_drop import make_it_drag_and_drop
 from helpers.notification.toast import (init_notification_queue)  # Notification queue initializer and toast display
@@ -27,7 +28,7 @@ import customtkinter as ctk
 
 from widgets.top_widget import TopWidget
 
-FOLDER_NAME = "OBS_MARCADOR_FUTEBOL"
+FOLDER_NAME = "FUTEBOL-SCORE-DASHBOARD"
 ICON_BALL = "\u26BD"
 ICON_MINUS = "\u268A"
 ICON_WARN = "\u267B"
@@ -42,6 +43,7 @@ class ScoreApp:
         self.root.attributes("-topmost", True)
         self.root.minsize(190, 195)
         self.instance_number = instance_number
+        self.json = GameInfoStore(instance_number, debug=True)
         self.decrement_buttons_enabled = True
         self.mongo = MongoTeamManager()
         self.mongo.backup_to_json()  # Backup teams to JSON on startup
@@ -52,22 +54,22 @@ class ScoreApp:
 
     def setup_ui(self):
         
-
-        # 1) Timer 
-        TopWidget(self.root, self.instance_number, self.mongo)
+        TopWidget(self.root, self.instance_number, self.mongo, self.json)
 
         # 2)  ScoreUI 
         self.score_ui = ScoreUI(
             self.root,                # no keyword
             self.instance_number,
             self.mongo,
+            self.json
         )
         # 3) TeamInputManager
         TeamInputManager(
             parent=self.root,
             mongo=self.mongo,
             refresh_labels_cb=lambda: self.score_ui._update_labels(),
-            instance=self.instance_number
+            instance=self.instance_number,
+            json=self.json
         )
 
         add_footer_label(self.root)

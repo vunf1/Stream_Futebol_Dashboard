@@ -1,209 +1,162 @@
-import os
 import customtkinter as ctk
-from tkinter import messagebox
 from assets.colors import COLOR_ACTIVE, COLOR_BORDER, COLOR_SUCCESS, COLOR_ERROR
 from assets.icons.icons_provider import get_icon
-from helpers.filenames import get_file_path, get_file_value
-from helpers.helpers import save_teams_to_json
+from database.gameinfo import GameInfoStore, DEFAULT_FIELD_STATE
 from helpers.notification.toast import prompt_notification, show_message_notification
 
 BUTTON_PAD = dict(padx=5, pady=5)
 
 class ScoreUI:
-    def __init__(
-        self,
-        root: ctk.CTkBaseClass,
-        instance: int,
-        mongo_client,
-    ):
-        # Setup paths and storage
+    """
+    Score control backed by GameInfoStore (gameinfo.json → field_<instance>).
+    Shows 'ABBR: score' for home/away, with +/−, swap, lock, and reset.
+    """
+    def __init__(self, root: ctk.CTkBaseClass, instance: int, mongo_client, json: GameInfoStore):
         self.instance = instance
         self.mongo = mongo_client
-        self.paths = {
-            key: get_file_path(self.instance, key)
-            for key in (
-                'home_score',
-                'away_score',
-                'home_name',
-                'away_name',
-                'home_abbr',
-                'away_abbr',
-            )
-        }
+        self.store = json
         self.decrement_enabled = True
-        self.buttons = {}
 
-        # Read persistent texts
+        self.buttons: dict[str, ctk.CTkButton] = {}
+        self._icon_refs = []
 
-        # Root wrapper frame
+        # Root wrapper
         self.parent = ctk.CTkFrame(root, fg_color='transparent')
         self.parent.pack(fill='both', expand=True)
         self.parent.grid_columnconfigure((0, 1), weight=1)
 
-        # Build UI rows
+        # UI
         self._build_score_display()
         self._build_score_controls()
         self._build_bottom_controls()
-        
-        # Load persisted files
-    def _load_persisted_files(self):
-        self.home_name = get_file_value(self.instance, 'home_name', 'Casa')
-        self.away_name = get_file_value(self.instance, 'away_name', 'Fora')
-        self.home_abbr = get_file_value(self.instance, 'home_abbr', 'Casa')
-        self.away_abbr = get_file_value(self.instance, 'away_abbr', 'Fora')
 
+        # Hydrate UI from JSON after widgets exist
+        self.parent.after(0, self._hydrate_from_json)
 
-    # -------------- Helper IO Methods --------------
-    def _read_number(self, path):
-        try:
-            return max(0, int(open(path, 'r').read().strip()))
-        except Exception:
-            self._write_number(path, 0)
-            return 0
+    # -------------- Hydration / labels --------------
+    def _hydrate_from_json(self):
+        self._update_labels()
 
-    def _write_number(self, path, value):
-        with open(path, 'w') as f:
-            f.write(str(value))
+    def _update_labels(self):
+        # Read from JSON (cached get is fine here)
+        home_abbr = self.store.get('home_abbr', DEFAULT_FIELD_STATE['home_abbr']) or 'Casa'
+        away_abbr = self.store.get('away_abbr', DEFAULT_FIELD_STATE['away_abbr']) or 'Fora'
+        home_score = int(self.store.get('home_score', 0) or 0)
+        away_score = int(self.store.get('away_score', 0) or 0)
+
+        self.home_label.configure(text=f"{home_abbr}: {home_score}")
+        self.away_label.configure(text=f"{away_abbr}: {away_score}")
 
     # -------------- UI Builders --------------
     def _build_score_display(self):
         frame = ctk.CTkFrame(self.parent, fg_color='transparent')
         frame.grid(row=1, column=0, columnspan=2, sticky='ew')
-        frame.grid_columnconfigure((0,1), weight=1)
+        frame.grid_columnconfigure((0, 1), weight=1)
 
         self.home_label = ctk.CTkLabel(frame, text='', font=(None, 24))
         self.away_label = ctk.CTkLabel(frame, text='', font=(None, 24))
         self.home_label.grid(row=0, column=0)
         self.away_label.grid(row=0, column=1)
 
-        self._update_labels()
-
     def _build_score_controls(self):
         frame = ctk.CTkFrame(self.parent, fg_color='transparent')
         frame.grid(row=2, column=0, columnspan=2, sticky='ew', **BUTTON_PAD)
-        frame.grid_columnconfigure((0,1,2,3), weight=1)
+        frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
 
-        # Create plus/minus buttons for each side
         for i, side in enumerate(('home', 'away')):
-            row_offset = 0
             icon_plus = get_icon('plusone', 24)
             icon_minus = get_icon('minusone', 24)
-            score_path = self.paths[f'{side}_score']
-            abbr = getattr(self, f'{side}_abbr')
-            label = getattr(self, f'{side}_label')
+            self._icon_refs += [icon_plus, icon_minus]
 
             btn_plus = ctk.CTkButton(
                 frame, image=icon_plus, text='', fg_color='transparent',
-                command=lambda s=side: self._change_score(s, 1)
+                command=lambda s=side: self._change_score(s, +1)
             )
             btn_minus = ctk.CTkButton(
                 frame, image=icon_minus, text='', fg_color='transparent',
                 command=lambda s=side: self._change_score(s, -1)
             )
-            btn_plus.grid(row=row_offset, column=i*2, sticky='e', padx=5)
-            btn_minus.grid(row=row_offset, column=i*2+1, sticky='w', padx=5)
-            # Store decrement for toggle
+            btn_plus.grid(row=0, column=i*2,   sticky='e', padx=5)
+            btn_minus.grid(row=0, column=i*2+1, sticky='w', padx=5)
+
+            # Track only minus buttons for lock toggle
             self.buttons[f'{side}_minus'] = btn_minus
 
     def _build_bottom_controls(self):
         frame = ctk.CTkFrame(self.parent, fg_color='transparent')
         frame.grid(row=3, column=0, columnspan=2, sticky='ew', padx=10, pady=10)
-        # Configure three equally expanding columns
         for col in (0, 1, 2):
             frame.grid_columnconfigure(col, weight=1)
 
-        # (icon_name, command, color)
         specs = [
             ('swap_score', self._swap_scores),
             ('lock',       self._toggle_decrement),
             ('score00',    self._confirm_reset),
         ]
         for idx, (icon_key, cmd) in enumerate(specs):
-            if icon_key == 'lock':
-                icon_name = 'unlock' if self.decrement_enabled else 'lock'
-            else:
-                icon_name = icon_key
+            icon_name = 'unlock' if (icon_key == 'lock' and self.decrement_enabled) else icon_key
             icon = get_icon(icon_name, 70)
+            self._icon_refs.append(icon)
             btn = ctk.CTkButton(
-                frame,
-                image=icon,
-                text='',
-                fg_color='transparent',
-                command=cmd
+                frame, image=icon, text='', fg_color='transparent', command=cmd
             )
             btn.grid(row=0, column=idx, sticky='nsew', padx=5, pady=5)
-            # Preserve swap/reset button references
-            if icon_name == 'swap_score':
-                self.buttons['swap'] = btn
-            elif icon_key == 'lock':
+
+            if icon_key == 'lock':
                 self.buttons['lock'] = btn
-            elif icon_name == 'score00':
+            elif icon_key == 'swap_score':
+                self.buttons['swap'] = btn
+            elif icon_key == 'score00':
                 self.buttons['reset'] = btn
-    # -------------- UI Actions --------------
+
+    # -------------- Actions --------------
     def _toggle_decrement(self):
-        # flip the flag
         self.decrement_enabled = not self.decrement_enabled
         state = 'normal' if self.decrement_enabled else 'disabled'
-        for name, btn in self.buttons.items():
-            # disable/enable all buttons except lock itself?
-            if name != 'lock':
-                btn.configure(state=state)
 
-        # now update the lock button’s icon
+        # Only affect the minus buttons
+        for side in ('home', 'away'):
+            self.buttons[f'{side}_minus'].configure(state=state)
+
+        # Update lock icon
         lock_btn = self.buttons['lock']
-        # choose the icon: unlocked when enabled, locked when disabled
-        new_icon_name = 'unlock' if self.decrement_enabled else 'lock'
-        new_icon = get_icon(new_icon_name, 70)
+        new_icon = get_icon('unlock' if self.decrement_enabled else 'lock', 70)
         lock_btn.configure(image=new_icon)
 
-        if self.decrement_enabled:
-            # notify user if you like
-            show_message_notification(
-                f"Campo {self.instance}",
-                f"Lock : {not self.decrement_enabled}",
-                icon='🔒' if not self.decrement_enabled else '🔓',
-                bg_color=COLOR_SUCCESS
-            )        
-        else:
-            # notify user if you like
-            show_message_notification(
-                f"Campo {self.instance}",
-                f"Lock : {not self.decrement_enabled}",
-                icon='🔒' if not self.decrement_enabled else '🔓',
-                bg_color=COLOR_ERROR
-            )
-
-    def _update_labels(self):
-        self._load_persisted_files()
-        # Reload names/abbrs
-        home_score = self._read_number(self.paths['home_score'])
-        away_score = self._read_number(self.paths['away_score'])
-        self.home_label.configure(text=f"{self.home_abbr}: {home_score}")
-        self.away_label.configure(text=f"{self.away_abbr}: {away_score}")
+        show_message_notification(
+            f"Campo {self.instance}",
+            f"Lock : {not self.decrement_enabled}",
+            icon='🔒' if not self.decrement_enabled else '🔓',
+            bg_color=COLOR_SUCCESS if self.decrement_enabled else COLOR_ERROR
+        )
 
     def _change_score(self, side: str, delta: int):
-        path = self.paths[f'{side}_score']
-        new_val = max(0, self._read_number(path) + delta)
-        self._write_number(path, new_val)
-        label = getattr(self, f'{side}_label')
-        abbr = getattr(self, f'{side}_abbr')
-        label.configure(text=f"{abbr}: {new_val}")
+        if delta < 0 and not self.decrement_enabled:
+            return
+
+        key = f'{side}_score'
+        current = int(self.store.get(key, 0) or 0)
+        new_val = max(0, current + delta)
+
+        # Persist via JSON; UI will reflect immediately
+        if self.store.set(key, new_val):
+            # Update that side’s label only
+            abbr = self.store.get(f'{side}_abbr') or ('Casa' if side == 'home' else 'Fora')
+            label = self.home_label if side == 'home' else self.away_label
+            label.configure(text=f"{abbr}: {new_val}")
 
     def _swap_scores(self):
         try:
-            h = self._read_number(self.paths['home_score'])
-            a = self._read_number(self.paths['away_score'])
-            self._write_number(self.paths['home_score'], a)
-            self._write_number(self.paths['away_score'], h)
-            self._update_labels()
-            show_message_notification(
-                f"✅ Campo {self.instance}",
-                f"Casa←{a} | Fora←{h}", icon='🔄', bg_color=COLOR_SUCCESS
-            )
+            h = int(self.store.get('home_score', 0) or 0)
+            a = int(self.store.get('away_score', 0) or 0)
+            if self.store.update({'home_score': a, 'away_score': h}):
+                self._update_labels()
+                show_message_notification(
+                    f"✅ Campo {self.instance}",
+                    f"Casa←{a} | Fora←{h}", icon='🔄', bg_color=COLOR_SUCCESS
+                )
         except Exception as e:
             print(f"❌ Erro ao trocar placares: {e}")
-
-
 
     def _confirm_reset(self):
         if prompt_notification(
@@ -211,6 +164,5 @@ class ScoreUI:
             "Zerar marcador?",
             icon='❓'
         ):
-            for key in ('home_score', 'away_score'):
-                self._write_number(self.paths[key], 0)
-            self._update_labels()
+            if self.store.update({'home_score': 0, 'away_score': 0}):
+                self._update_labels()

@@ -1,148 +1,253 @@
-
 import customtkinter as ctk
-from typing import Any, Callable
+from typing import Any, Callable, Dict, List, Optional
 
 class Autocomplete(ctk.CTkFrame):
     def __init__(
         self,
         parent,
-        fetch_suggestions: Callable[[], dict[str,Any]],
-        selection_callback: Callable[[str,Any],None],
+        fetch_suggestions: Callable[[], Dict[str, Any]],
+        selection_callback: Callable[[str, Any], None],
         placeholder: str = "",
-        max_visible: int = 6
+        max_visible: int = 6,
+        debounce_ms: int = 120,
     ):
-        super().__init__(parent)
+        super().__init__(parent, fg_color="transparent")
         self.fetch_suggestions = fetch_suggestions
         self.selection_callback = selection_callback
         self.max_visible = max_visible
-        self.popup = None
-        
-        # store the last non-empty value
-        self._last_text = ""
+        self.debounce_ms = debounce_ms
+
         self.entry = ctk.CTkEntry(self, placeholder_text=placeholder)
         self.entry.pack(fill="x")
-        self.entry.bind(
-                    "<FocusIn>",
-                    lambda e: self.entry.delete(0, "end"),
-                    add=True
-                )
-         # on any focus-out, possibly restore
+
+        # Popup + state
+        self.popup: Optional[ctk.CTkToplevel] = None
+        self.container: Optional[ctk.CTkScrollableFrame] = None
+        self.items: List[ctk.CTkLabel] = []
+        self.matches: List[str] = []
+        self._debounce_job: Optional[str] = None
+        self._selected_index: int = -1
+        self._last_text: str = ""  # for restore when empty
+
+        # Bindings
+        self.entry.bind("<KeyRelease>", self._on_key)
         self.entry.bind("<FocusOut>", self._on_focus_out, add=True)
+        self.entry.bind("<Down>", self._nav_down)
+        self.entry.bind("<Up>", self._nav_up)
+        self.entry.bind("<Return>", self._nav_enter)
+        self.entry.bind("<Escape>", self._restore_last_immediately)
 
-        self.entry.bind("<KeyRelease>", self._on_text_changed)
+    # ---------------- Events / Debounce ----------------
+    def _on_key(self, event):
+        # Ignore nav keys here (handled separately)
+        if event.keysym in ("Up", "Down", "Return", "Escape"):
+            return
+        if self._debounce_job:
+            self.after_cancel(self._debounce_job)
+        self._debounce_job = self.after(self.debounce_ms, self._query_and_show)
 
-    def _on_text_changed(self, event):
-        query = self.entry.get().strip().lower()
-        if not query:
-            return self._hide_popup()
-        self._show_popup(query)
+    def _query_and_show(self):
+        self._debounce_job = None
+        q = (self.entry.get() or "").strip()
+        if not q:
+            self._hide_popup()
+            return
 
-    def _show_popup(self, query: str):
-        all_items = self.fetch_suggestions() # should return dict[str, Any]
-        matches = [label for label in all_items if query in label.lower()]
-        if not matches:
-            return self._hide_popup()
+        data = self.fetch_suggestions() or {}
+        qcf = q.casefold()
+        labels = list(data.keys())
+        self.matches = [lbl for lbl in labels if qcf in lbl.casefold()]
 
-        # remove old popup if present
-        self._hide_popup()
+        if not self.matches:
+            self._hide_popup()
+            return
 
-        # create new floating window
-        self.popup = ctk.CTkToplevel(self)
-        self.popup.overrideredirect(True)
-        self.popup.attributes("-topmost", True)
+        self._selected_index = -1
+        popup = self._ensure_popup()
+        self._position_popup(popup)
+        self._populate_popup(data)
 
-        # position & size
+    # ---------------- Popup helpers ----------------
+    def _ensure_popup(self) -> ctk.CTkToplevel:
+        popup = self.popup
+        if popup is not None and popup.winfo_exists():
+            return popup
+        popup = ctk.CTkToplevel(self)
+        popup.overrideredirect(True)
+        popup.attributes("-topmost", True)
+        self.popup = popup
+
+        self.container = ctk.CTkScrollableFrame(popup, corner_radius=6)
+        self.container.pack(fill="both", expand=True)
+
+        # Global click to close
+        self.winfo_toplevel().bind_all("<Button-1>", self._on_global_click, "+")
+        return popup
+
+    def _position_popup(self, popup: ctk.CTkToplevel) -> None:
         self.entry.update_idletasks()
         x = self.entry.winfo_rootx()
         y = self.entry.winfo_rooty() + self.entry.winfo_height()
         width = self.entry.winfo_width()
-        item_height = 30
-        visible_count = min(len(matches), self.max_visible)
-        height = visible_count * item_height
-        self.popup.geometry(f"{width}x{height}+{x}+{y}")
+        item_h = 30
+        visible = min(len(self.matches), self.max_visible) or 1
+        height = max(1, visible) * item_h
+        popup.geometry(f"{width}x{height}+{x}+{y}")
 
-        # scrollable container
-        suggestion_frame = ctk.CTkScrollableFrame(self.popup, corner_radius=6)
-        suggestion_frame.pack(fill="both", expand=True)
+    def _populate_popup(self, data: Dict[str, Any]) -> None:
+        container = self.container
+        if container is None:
+            return
+        # Clear previous
+        for it in self.items:
+            it.destroy()
+        self.items.clear()
 
-        # anywhere you click outside should close it
-        root = self.winfo_toplevel()
-        root.bind_all("<Button-1>", self._on_global_click, "+")
-
-        # add one label per suggestion
-        for label in matches:
-            value = all_items[label]
+        # 🚀 Build ALL items (scroll shows the rest)
+        for label in self.matches:
+            value = data[label]
             item = ctk.CTkLabel(
-                suggestion_frame,
+                container,
                 text=label,
-                anchor="w",       # left‐align
+                anchor="w",
                 justify="left",
                 fg_color="#333333",
                 corner_radius=0,
-                height=item_height - 4
+                height=26,
             )
-            item.pack(fill="x", padx=(8,2), pady=1)
+            item.pack(fill="x", padx=(8, 2), pady=1)
+            item.bind("<Button-1>", lambda e, lbl=label, val=value: self._select(lbl, val))
+            item.bind("<Enter>",    lambda e, w=item: w.configure(fg_color="#444444"))
+            item.bind("<Leave>",    lambda e, w=item: w.configure(fg_color="#333333"))
+            self.items.append(item)
 
-            # click selects
-            item.bind(
-                "<Button-1>",
-                lambda e, lbl=label, val=value: self._select(lbl, val)
-            )
-            # hover effect
-            item.bind("<Enter>",  lambda e, w=item: w.configure(fg_color="#444444"))
-            item.bind("<Leave>",  lambda e, w=item: w.configure(fg_color="#333333"))
+        self._highlight_selected()  # reset highlight
+
+    def _hide_popup(self):
+        popup = self.popup
+        if popup is not None and popup.winfo_exists():
+            try:
+                self.winfo_toplevel().unbind_all("<Button-1>")
+            except Exception:
+                pass
+            popup.destroy()
+        self.popup = None
+        self.container = None
+        self.items.clear()
+        self.matches.clear()
+        self._selected_index = -1
 
     def _on_global_click(self, event):
-        widget = event.widget
-        # if click lands inside entry or popup, ignore
-        if widget == self.entry or self._is_descendant(widget, self.popup):
+        w = event.widget
+        if w == self.entry or (self.popup and self._is_descendant(w, self.popup)):
             return
         self._hide_popup()
 
-    def _is_descendant(self, widget, ancestor):
+    @staticmethod
+    def _is_descendant(widget, ancestor) -> bool:
+        if ancestor is None:
+            return False
         while widget:
             if widget == ancestor:
                 return True
             widget = getattr(widget, "master", None)
         return False
 
-    def _hide_popup(self):
-        if self.popup:
-            # undo the global click binding
-            self.winfo_toplevel().unbind_all("<Button-1>")
-            self.popup.destroy()
-            self.popup = None
+    # ---------------- Selection / Navigation ----------------
+    def _scroll_selected_into_view(self) -> None:
+        """Ensure the highlighted item is visible inside the scrollable frame."""
+        cont = self.container
+        if cont is None or not self.items or self._selected_index < 0:
+            return
+        # item geometry (relative to the inner frame)
+        item = self.items[self._selected_index]
+        try:
+            canvas = cont._parent_canvas  # customtkinter internal canvas
+        except Exception:
+            return
+
+        canvas.update_idletasks()
+
+        item_y = item.winfo_y()
+        item_h = item.winfo_height()
+
+        top = canvas.canvasy(0)                  # current top of visible area (in inner-frame coords)
+        view_h = canvas.winfo_height()
+        bottom = top + view_h
+
+        # compute the target top we want after scroll
+        if item_y < top:
+            target_top = item_y
+        elif item_y + item_h > bottom:
+            target_top = item_y + item_h - view_h
+        else:
+            return  # already fully visible
+
+        # clamp fraction to [0,1] based on scrollregion height
+        bbox = canvas.bbox("all")
+        if not bbox:
+            return
+        total_h = max(1, bbox[3] - bbox[1])
+        frac = max(0.0, min(1.0, target_top / total_h))
+        canvas.yview_moveto(frac)
 
     def _select(self, label: str, value: Any):
-        # fill entry, notify caller, then hide
         self.entry.delete(0, "end")
         self.entry.insert(0, label)
-        # call the selection callback with label and value
+        self._last_text = label  # remember it!
         self.selection_callback(label, value)
-        # remember this as the last valid text
-        self._last_text = label
-        # move focus away from the entry to this frame
         self.focus_set()
         self._hide_popup()
 
-    def _on_focus_out(self, event):
-        """
-        When the entry loses focus:
-        - if the user left it non-empty, remember it as last text
-        - if it's empty, restore the previous last_text
-        """
-        current = self.entry.get().strip()
-        if current:
-            self._last_text = current
-        elif self._last_text:
-            # restore previous
+    def _on_focus_out(self, _e):
+        # If user leaves it empty, restore last text
+        if not (self.entry.get() or "").strip() and self._last_text:
             self.entry.delete(0, "end")
             self.entry.insert(0, self._last_text)
+
+    def _restore_last_immediately(self, _e):
+        """ESC → restore last value and close popup."""
+        if self._last_text:
+            self.entry.delete(0, "end")
+            self.entry.insert(0, self._last_text)
+        self._hide_popup()
+        return "break"
+
+    def _nav_down(self, _e):
+        if not self.items:
+            return "break"
+        self._selected_index = (self._selected_index + 1) % len(self.items)
+        self._highlight_selected()
+        self._scroll_selected_into_view()
+        return "break"
+
+    def _nav_up(self, _e):
+        if not self.items:
+            return "break"
+        self._selected_index = (self._selected_index - 1) % len(self.items)
+        self._highlight_selected()
+        self._scroll_selected_into_view()
+        return "break"
+
+    def _nav_enter(self, _e):
+        if not self.items:
+            return "break"
+        idx = self._selected_index if self._selected_index >= 0 else 0
+        label = self.items[idx].cget("text")
+        data = self.fetch_suggestions() or {}
+        self._select(label, data.get(label))
+        return "break"
+
+    def _highlight_selected(self):
+        for i, item in enumerate(self.items):
+            item.configure(fg_color="#555555" if i == self._selected_index else "#333333")
+        # keep the highlighted one visible
+        self._scroll_selected_into_view()
+    # ---------------- API ----------------
     def get(self) -> str:
         return self.entry.get()
 
     def set(self, text: str):
         self.entry.delete(0, "end")
-        self.entry.insert(0, text)
-        
-
+        self.entry.insert(0, text or "")
+        self._last_text = text or ""

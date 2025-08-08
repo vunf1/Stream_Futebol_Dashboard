@@ -12,7 +12,7 @@ from mainUI.score_ui import BUTTON_PAD
 
 
 class TimerComponent(CTkFrame):
-    def __init__(self, parent, instance_number: int):
+    def __init__(self, parent, instance_number: int, json: GameInfoStore):
         super().__init__(
             parent,
             fg_color=("transparent"),
@@ -27,7 +27,7 @@ class TimerComponent(CTkFrame):
         self.pack_propagate(False)
 
         # JSON store (shared gameinfo.json, per-field block)
-        self.state = GameInfoStore(instance_number, debug=True)
+        self.state = json
 
         # UI refs
         self.max_entry: CTkEntry
