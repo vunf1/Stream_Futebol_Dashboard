@@ -57,21 +57,3 @@ def append_team_to_mongo(name: str, abrev: str, instance: int):
 
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao guardar equipa na base de dados: {e}")
-
-def load_teams_json():
-    json_path = os.path.join(BASE_FOLDER_PATH, "teams.json")
-    print("Tentando carregar:", json_path)  # DEBUG
-
-    if os.path.exists(json_path):
-        try:
-            with open(json_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                print("Conteúdo lido:", data)  # DEBUG
-                return data  # Agora já é diretamente {name: abrev}
-        except Exception as e:
-            print(f"Erro ao carregar JSON: {e}")
-            messagebox.showerror("Erro", f"Falha ao carregar JSON:\n{e}")
-    else:
-        print("Arquivo não encontrado:", json_path)
-
-    return {}

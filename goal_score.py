@@ -24,8 +24,6 @@ from mainUI.teamsUI.teams_ui import TeamInputManager # Team name management UI
 
 from database.mongodb import MongoTeamManager        # MongoDB-backed team manager
 from helpers.notification.notification_server import server_main # Background notification server entry point
-from helpers.team_names import load_teams_json      # Load team names from JSON file
-from helpers.filenames import get_file_path  # Helper function to get file paths based on instance number
 import customtkinter as ctk
 
 from widgets.top_widget import TopWidget

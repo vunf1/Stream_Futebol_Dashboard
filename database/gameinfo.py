@@ -1,13 +1,16 @@
 import os
 import re
 import json
+import time
 from typing import Any, Dict
 
 # ───────────────── Base path & file ─────────────────
 BASE_FOLDER_PATH = os.path.join(
     os.path.expanduser("~"),
     "Desktop",
-    "FUTEBOL-SCORE-DASHBOARD"
+    "FUTEBOL-SCORE-DASHBOARD",
+    "special",
+    "config"
 )
 GAMEINFO_PATH = os.path.join(BASE_FOLDER_PATH, "gameinfo.json")
 
@@ -28,6 +31,7 @@ DEFAULT_FIELD_STATE: Dict[str, Any] = {
     "max":        "45:00",
 }
 ALLOWED_KEYS = set(DEFAULT_FIELD_STATE.keys())
+
 
 
 def _parse_time_to_seconds(text: str) -> int | None:
@@ -177,32 +181,72 @@ class GameInfoStore:
             self._loaded = True
         return True
     
+    def _read_disk_raw(self) -> Dict[str, Any]:
+        try:
+            with open(self.path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if not isinstance(data, dict):
+                data = {}
+        except Exception:
+            data = {}
+        return data
+    
+    def _file_lock(self, timeout=2.0, poll=0.02):
+        lock = self.path + ".lock"
+        start = time.time()
+        while True:
+            try:
+                fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_RDWR)
+                os.close(fd)
+                break
+            except FileExistsError:
+                if time.time() - start > timeout:
+                    raise TimeoutError(f"Lock timeout: {lock}")
+                time.sleep(poll)
+        try:
+            yield
+        finally:
+            try:
+                os.remove(lock)
+            except FileNotFoundError:
+                pass
+    
     def _merge_and_write(self, patch: Dict[str, Any]) -> bool:
         """
-        Reload file, merge the patch into this field, write atomically,
-        then update the in-memory cache to the new snapshot.
-        Returns True if something actually changed on disk.
+        Merge only the provided keys for this field into the freshest file,
+        then write atomically. Does NOT call _load_from_disk() (avoids recursion).
         """
-        # Always work from the freshest file state to avoid clobbering
-        data = self._load_from_disk()  # also updates self._data/_loaded
-        blk = data.get(self.field_key)
-        if not isinstance(blk, dict):
-            blk = {}
-        changed = False
-        for k, v in patch.items():
-            if k in ALLOWED_KEYS and blk.get(k) != v:
-                blk[k] = v
-                changed = True
-        if not changed:
+        if not patch:
             return False
 
-        data[self.field_key] = blk
-        self._atomic_write(data)
+        with self._file_lock(): # type: ignore
+            data = self._read_disk_raw()
+            blk = data.get(self.field_key)
+            if not isinstance(blk, dict):
+                blk = {}
 
-        # 🔒 Ensure cache mirrors the file snapshot after write
-        self._data = data
-        self._loaded = True
-        return True
+            changed = False
+            for k, v in patch.items():
+                if k in ALLOWED_KEYS and blk.get(k) != v:
+                    blk[k] = v
+                    changed = True
+            if not changed:
+                return False
+
+            # Keep other fields intact, only replace this field's object
+            data[self.field_key] = blk
+
+            # Atomic write
+            tmp = self.path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            os.replace(tmp, self.path)
+            self._log("write ->", self.path)
+
+            # Update cache to reflect on-disk snapshot
+            self._data = data
+            self._loaded = True
+            return True
     
 if __name__ == "__main__":
     # Simple demo (no CLI flags): operate on "field 1"
