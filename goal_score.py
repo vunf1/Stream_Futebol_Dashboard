@@ -4,6 +4,7 @@ from datetime import datetime
 import os                     # File system operations
 import re                     # Regular expressions
 import sys                    # System-specific parameters and functions
+import time                   # Time utilities
 from multiprocessing import Manager, Process, Queue, freeze_support  # Process management and multiprocessing support
 from typing import Optional   # Type hint for optional values
 
@@ -153,11 +154,17 @@ def main():
     p_notify = Process(target=server_main, args=(q,), daemon=True)
     p_notify.start()
 
+    # Optimized batch process creation
     procs = []
+    batch_size = 3
     for i in range(1, count + 1):
         p = Process(target=child_entry, args=(i, q))
         p.start()
         procs.append(p)
+        
+        # Batch delay for better resource management
+        if i % batch_size == 0 and i < count:
+            time.sleep(0.05)  # Reduced delay for faster startup
 
     for p in procs:
         p.join()

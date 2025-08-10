@@ -3,6 +3,7 @@ from pathlib import Path
 from functools import lru_cache
 from typing import Any, Dict
 import sys
+import threading
 
 from customtkinter import CTkImage
 from tkinter import PhotoImage
@@ -15,6 +16,10 @@ except ImportError:
     Image = None  # type: ignore
     Resampling = None  # type: ignore
     _HAS_PIL = False
+
+# Global icon cache for better performance
+_global_icon_cache = {}
+_icon_cache_lock = threading.Lock()
 
 def _icons_dir() -> Path:
     """
@@ -55,8 +60,14 @@ def _scan_icons(folder: Path) -> Dict[str, Path]:
 
 _ICON_MAP = _scan_icons(_ICON_DIR)
 
-@lru_cache(maxsize=32)
 def get_icon(name: str, size: int = 24) -> CTkImage:
+    """Get icon with global caching for better performance"""
+    cache_key = f"{name}_{size}"
+    
+    with _icon_cache_lock:
+        if cache_key in _global_icon_cache:
+            return _global_icon_cache[cache_key]
+    
     try:
         path = _ICON_MAP[name]
     except KeyError:
@@ -64,10 +75,22 @@ def get_icon(name: str, size: int = 24) -> CTkImage:
 
     if _HAS_PIL and Image is not None and Resampling is not None:
         pil_img = Image.open(path).convert("RGBA").resize((size, size), Resampling.LANCZOS)
-        return CTkImage(light_image=pil_img, dark_image=pil_img, size=(size, size))
+        icon = CTkImage(light_image=pil_img, dark_image=pil_img, size=(size, size))
     else:
         photo: Any = PhotoImage(file=str(path))
-        return CTkImage(light_image=photo, dark_image=photo, size=(size, size))  # type: ignore
+        icon = CTkImage(light_image=photo, dark_image=photo, size=(size, size))  # type: ignore
+    
+    # Cache the icon
+    with _icon_cache_lock:
+        _global_icon_cache[cache_key] = icon
+    
+    return icon
+
+def clear_icon_cache():
+    """Clear the global icon cache to free memory"""
+    global _global_icon_cache
+    with _icon_cache_lock:
+        _global_icon_cache.clear()
 
 def get_icon_path(name: str) -> str:
     """

@@ -3,6 +3,8 @@ from assets.colors import COLOR_ACTIVE, COLOR_BORDER, COLOR_SUCCESS, COLOR_ERROR
 from helpers.icons_provider import get_icon
 from database.gameinfo import GameInfoStore, DEFAULT_FIELD_STATE
 from helpers.notification.toast import prompt_notification, show_message_notification
+import threading
+import time
 
 BUTTON_PAD = dict(padx=5, pady=5)
 
@@ -19,6 +21,14 @@ class ScoreUI:
 
         self.buttons: dict[str, ctk.CTkButton] = {}
         self._icon_refs = []
+        
+        # Performance optimizations
+        self._update_pending = False
+        self._update_timer = None
+        self._last_home_score = None
+        self._last_away_score = None
+        self._last_home_abbr = None
+        self._last_away_abbr = None
 
         # Root wrapper
         self.parent = ctk.CTkFrame(root, fg_color='transparent')
@@ -33,9 +43,27 @@ class ScoreUI:
         # Hydrate UI from JSON after widgets exist
         self.parent.after(0, self._hydrate_from_json)
 
-    # -------------- Hydration / labels --------------
+    # -------------- Hydration / labels -------------- 
     def _hydrate_from_json(self):
         self._update_labels()
+
+    def _schedule_label_update(self):
+        """Debounce label updates to avoid excessive refreshes"""
+        if self._update_pending:
+            return
+        
+        self._update_pending = True
+        
+        def delayed_update():
+            self._update_labels()
+            self._update_pending = False
+        
+        # Cancel existing timer if any
+        if self._update_timer:
+            self.parent.after_cancel(self._update_timer)
+        
+        # Schedule update after 50ms delay
+        self._update_timer = self.parent.after(50, delayed_update)
 
     def _update_labels(self):
         # Read from JSON (cached get is fine here)
@@ -44,8 +72,16 @@ class ScoreUI:
         home_score = int(self.store.get('home_score', 0) or 0)
         away_score = int(self.store.get('away_score', 0) or 0)
 
-        self.home_label.configure(text=f"{home_abbr}: {home_score}")
-        self.away_label.configure(text=f"{away_abbr}: {away_score}")
+        # Only update if values actually changed
+        if (home_abbr != self._last_home_abbr or home_score != self._last_home_score):
+            self.home_label.configure(text=f"{home_abbr}: {home_score}")
+            self._last_home_abbr = home_abbr
+            self._last_home_score = home_score
+
+        if (away_abbr != self._last_away_abbr or away_score != self._last_away_score):
+            self.away_label.configure(text=f"{away_abbr}: {away_score}")
+            self._last_away_abbr = away_abbr
+            self._last_away_score = away_score
 
     # -------------- UI Builders --------------
     def _build_score_display(self):
@@ -140,10 +176,8 @@ class ScoreUI:
 
         # Persist via JSON; UI will reflect immediately
         if self.store.set(key, new_val):
-            # Update that side’s label only
-            abbr = self.store.get(f'{side}_abbr') or ('Casa' if side == 'home' else 'Fora')
-            label = self.home_label if side == 'home' else self.away_label
-            label.configure(text=f"{abbr}: {new_val}")
+            # Use debounced update for better performance
+            self._schedule_label_update()
 
     def _swap_scores(self):
         try:

@@ -2,6 +2,7 @@ import os
 import re
 import json
 import time
+import threading
 from typing import Any, Dict
 
 # ───────────────── Base path & file ─────────────────
@@ -17,7 +18,7 @@ GAMEINFO_PATH = os.path.join(BASE_FOLDER_PATH, "gameinfo.json")
 # MM:SS or MMM+:SS (>=100 min), with seconds 00–59
 TIME_PATTERN = re.compile(r"^(?:\d{2}|[1-9]\d{2,}):[0-5]\d$")
 
-# Default block for each field_N
+# Default block for each field
 DEFAULT_FIELD_STATE: Dict[str, Any] = {
     "away_abbr":  "",
     "away_name":  "",
@@ -32,6 +33,72 @@ DEFAULT_FIELD_STATE: Dict[str, Any] = {
 }
 ALLOWED_KEYS = set(DEFAULT_FIELD_STATE.keys())
 
+# Global write buffer for batching operations
+_write_buffer = {}
+_write_buffer_lock = threading.Lock()
+_write_timer = None
+_write_timer_lock = threading.Lock()
+
+def _schedule_write():
+    """Schedule a delayed write to batch multiple operations"""
+    global _write_timer
+    
+    with _write_timer_lock:
+        if _write_timer:
+            _write_timer.cancel()
+        
+        def delayed_write():
+            _flush_write_buffer()
+        
+        _write_timer = threading.Timer(0.1, delayed_write)  # 100ms delay
+        _write_timer.start()
+
+def _flush_write_buffer():
+    """Flush all pending writes to disk"""
+    global _write_buffer
+    
+    with _write_buffer_lock:
+        if not _write_buffer:
+            return
+        
+        # Group writes by file path
+        files_to_write = {}
+        for (path, field_key, key), value in _write_buffer.items():
+            if path not in files_to_write:
+                files_to_write[path] = {}
+            if field_key not in files_to_write[path]:
+                files_to_write[path][field_key] = {}
+            files_to_write[path][field_key][key] = value
+        
+        # Write each file
+        for path, field_data in files_to_write.items():
+            try:
+                # Read current file
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    if not isinstance(data, dict):
+                        data = {}
+                except Exception:
+                    data = {}
+                
+                # Apply all changes for this file
+                for field_key, changes in field_data.items():
+                    if field_key not in data:
+                        data[field_key] = {}
+                    data[field_key].update(changes)
+                
+                # Atomic write
+                tmp = path + ".tmp"
+                with open(tmp, "w", encoding="utf-8") as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+                os.replace(tmp, path)
+                
+            except Exception as e:
+                print(f"Error flushing write buffer for {path}: {e}")
+        
+        # Clear buffer
+        _write_buffer.clear()
 
 
 def _parse_time_to_seconds(text: str) -> int | None:
@@ -153,12 +220,10 @@ class GameInfoStore:
         blk[key] = value
         self._log(f"set('{key}') =", repr(value))
         if persist:
-            # reload, merge, write, refresh cache (safe)
-            data = self._load_from_disk()
-            data[self.field_key][key] = value
-            self._atomic_write(data)
-            self._data = data
-            self._loaded = True
+            # Use buffered write for better performance
+            with _write_buffer_lock:
+                _write_buffer[(self.path, self.field_key, key)] = value
+            _schedule_write()
         return True
 
     def update(self, patch: Dict[str, Any], persist: bool = True) -> bool:
@@ -174,11 +239,11 @@ class GameInfoStore:
             return False
         self._log("update", safe_patch)
         if persist:
-            data = self._load_from_disk()
-            data[self.field_key].update(safe_patch)
-            self._atomic_write(data)
-            self._data = data
-            self._loaded = True
+            # Use buffered write for better performance
+            with _write_buffer_lock:
+                for key, value in safe_patch.items():
+                    _write_buffer[(self.path, self.field_key, key)] = value
+            _schedule_write()
         return True
     
     def _read_disk_raw(self) -> Dict[str, Any]:

@@ -6,3 +6,5 @@ pyinstaller
 keyboard
 cryptography
 obsws-python
+psutil
+Pillow

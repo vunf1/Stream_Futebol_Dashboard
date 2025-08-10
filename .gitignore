@@ -168,3 +168,5 @@ helpers/.env.enc
 secret.key
 helpers/secret.key
 version.txt
+Stream_Futebol_Dashboard.code-workspace
+PERFORMANCE_OPTIMIZATIONS.md

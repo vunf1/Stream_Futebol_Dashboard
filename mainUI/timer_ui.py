@@ -277,11 +277,14 @@ class TimerComponent(CTkFrame):
         if not self.timer_running:
             return
 
+        # Batch updates for better performance
+        updates = {}
+        
         if self.timer_seconds_main < self.timer_seconds_max:
             self.timer_seconds_main += 1
             t = _format_time(self.timer_seconds_main)
             self._set_entry_text(self.timer_entry, t)
-            self.state.set("timer", t)
+            updates["timer"] = t
 
             if self.timer_seconds_main == self.timer_seconds_max:
                 show_message_notification(
@@ -293,12 +296,16 @@ class TimerComponent(CTkFrame):
                 self.timer_seconds_extra = 0
                 te = "00:00"
                 self._set_entry_text(self.extra_entry, te)
-                self.state.set("extra", te)
+                updates["extra"] = te
         else:
             self.timer_seconds_extra += 1
             te = _format_time(self.timer_seconds_extra)
             self._set_entry_text(self.extra_entry, te)
-            self.state.set("extra", te)
+            updates["extra"] = te
+
+        # Batch persist updates
+        if updates:
+            self.state.update(updates, persist=True)
 
         if self.timer_running:
             self.after(1000, self._tick)

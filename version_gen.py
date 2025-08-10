@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 # ──────── Configuration ────────
 
 # 1) Semantic version string
-version_str = "9.0.0"
+version_str = "10.0.0"
 # 2) Parse into a tuple of ints (must be 4-tuple for PyInstaller)
 version_tuple = tuple(int(x) for x in version_str.split(".")) + (0,)
 
