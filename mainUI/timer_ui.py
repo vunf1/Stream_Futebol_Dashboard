@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from customtkinter import CTkFrame, CTkImage, CTkButton, CTkEntry, CTkLabel
 from assets.colors import (
     COLOR_ACTIVE, COLOR_BORDER, COLOR_ERROR, COLOR_INFO,
@@ -8,6 +8,9 @@ from assets.colors import (
 from helpers.icons_provider import get_icon
 from database.gameinfo import DEFAULT_FIELD_STATE, GameInfoStore, _format_time, _parse_time_to_seconds
 from helpers.notification.toast import show_message_notification
+from helpers.config_manager import get_config
+from helpers.memory_manager import MemoryTracker
+from helpers.timer_performance import get_timer_monitor, time_tick, time_ui_update, time_json_operation
 from mainUI.score_ui import BUTTON_PAD
 
 
@@ -29,22 +32,52 @@ class TimerComponent(CTkFrame):
         # JSON store (shared gameinfo.json, per-field block)
         self.state = json
 
+        # Performance configuration
+        self.ui_update_debounce = get_config("ui_update_debounce", 50)
+        self.timer_update_interval = get_config("timer_update_interval", 1000)
+        
         # UI refs
         self.max_entry: CTkEntry
         self.timer_entry: CTkEntry
         self.extra_entry: CTkEntry
         self.half_buttons: dict[str, CTkButton] = {}
-        self._icon_refs: list[CTkImage] = []
-
+        
+        # Pre-load all icons for better performance
+        self._icons = self._preload_icons()
+        
         # runtime
         self.timer_seconds_main = 0
         self.timer_seconds_extra = 0
         self.timer_seconds_max = 0
         self.timer_running = False
+        
+        # Performance optimization: debounced updates
+        self._update_pending = False
+        self._update_timer = None
+        self._last_values = {"timer": "", "extra": ""}
+        
+        # Performance monitoring
+        self.performance_monitor = get_timer_monitor(f"field_{instance_number}")
 
         # Build UI, then hydrate from JSON after widgets exist
         self._build_ui()
         self.after(0, self._hydrate_from_json)
+
+    def _preload_icons(self) -> Dict[str, CTkImage]:
+        """Pre-load all icons for better performance"""
+        icons = {}
+        icon_specs = [
+            ("1half", 44), ("2half", 44), ("save", 24),
+            ("play", 32), ("pause", 32), ("stop", 32)
+        ]
+        
+        for name, size in icon_specs:
+            try:
+                icons[name] = get_icon(name, size)
+            except Exception as e:
+                print(f"Warning: Could not load icon {name}: {e}")
+        
+        return icons
 
     # ---------- Half controls ----------
     def _read_half(self) -> str:
@@ -61,8 +94,10 @@ class TimerComponent(CTkFrame):
         self.half_buttons = {}
 
         for idx, (label, icon_name) in enumerate((("1ª Parte", "1half"), ("2ª Parte", "2half"))):
-            icon = get_icon(icon_name, ICON_SIZE)
-            self._icon_refs.append(icon)
+            icon = self._icons.get(icon_name)
+            if not icon:
+                continue
+                
             w, h = icon.cget("size")
             btn = CTkButton(
                 parent,
@@ -135,18 +170,17 @@ class TimerComponent(CTkFrame):
             # give each column some minimum width so entries don't collapse
             container.grid_columnconfigure(col, weight=1, uniform="col", minsize=90)
 
-
     def _build_save_button(self, col: int = 0):
-        img = get_icon("save", 24)
-        self._icon_refs.append(img)
-        CTkButton(
-            self.container,
-            image=img,
-            text="",
-            fg_color="transparent",
-            hover_color=COLOR_ACTIVE,
-            command=self.save_timers_from_entries,
-        ).grid(row=0, column=col, sticky="nsew", padx=5, pady=5)
+        img = self._icons.get("save")
+        if img:
+            CTkButton(
+                self.container,
+                image=img,
+                text="",
+                fg_color="transparent",
+                hover_color=COLOR_ACTIVE,
+                command=self.save_timers_from_entries,
+            ).grid(row=0, column=col, sticky="nsew", padx=5, pady=5)
 
     def _build_time_entries(self, start_col: int, specs: list[tuple]):
         for idx, (attr, ph, ph_col, text_col, bg) in enumerate(specs):
@@ -171,20 +205,18 @@ class TimerComponent(CTkFrame):
                 text_color="#EAEAEA",           # better contrast on dark bg
             ).grid(row=1, column=col, sticky="n", pady=(0, 6))
 
-
     def _build_controls(self, start_col: int, specs: list[tuple]):
-        ICON_SIZE = 32
         for idx, (key, cmd, col) in enumerate(specs):
-            img = get_icon(key, ICON_SIZE)
-            self._icon_refs.append(img)
-            CTkButton(
-                self.container,
-                image=img,
-                text="",
-                fg_color="transparent",
-                hover_color=col,
-                command=cmd,
-            ).grid(row=0, column=start_col + idx, sticky="nsew", padx=5, pady=5)
+            img = self._icons.get(key)
+            if img:
+                CTkButton(
+                    self.container,
+                    image=img,
+                    text="",
+                    fg_color="transparent",
+                    hover_color=col,
+                    command=cmd,
+                ).grid(row=0, column=start_col + idx, sticky="nsew", padx=5, pady=5)
 
     # ---------- Hydrate / save (JSON) ----------
     def _hydrate_from_json(self):
@@ -203,14 +235,46 @@ class TimerComponent(CTkFrame):
         self._set_entry_text(self.timer_entry, _format_time(self.timer_seconds_main))
         self._set_entry_text(self.extra_entry, _format_time(self.timer_seconds_extra))
 
+        # Update last values for change detection
+        self._last_values["timer"] = _format_time(self.timer_seconds_main)
+        self._last_values["extra"] = _format_time(self.timer_seconds_extra)
+
         # ensure half highlight matches JSON
         self._highlight_half(self._read_half())
 
     def _set_entry_text(self, entry: CTkEntry, text: str) -> None:
+        """Optimized entry text setting - only update if different"""
         if entry.get() != text:
             entry.delete(0, "end")
             entry.insert(0, text)
 
+    def _schedule_ui_update(self):
+        """Debounced UI update to reduce unnecessary refreshes"""
+        if self._update_pending:
+            return
+        
+        self._update_pending = True
+        self._update_timer = self.after(self.ui_update_debounce, self._perform_ui_update)
+
+    @time_ui_update
+    def _perform_ui_update(self):
+        """Perform the actual UI update"""
+        self._update_pending = False
+        self._update_timer = None
+        
+        # Update entries only if values changed
+        timer_text = _format_time(self.timer_seconds_main)
+        extra_text = _format_time(self.timer_seconds_extra)
+        
+        if timer_text != self._last_values["timer"]:
+            self._set_entry_text(self.timer_entry, timer_text)
+            self._last_values["timer"] = timer_text
+        
+        if extra_text != self._last_values["extra"]:
+            self._set_entry_text(self.extra_entry, extra_text)
+            self._last_values["extra"] = extra_text
+
+    @time_json_operation
     def save_timers_from_entries(self):
         fields = [
             ("Tempo Máximo",    "max_entry",   "max"),
@@ -273,18 +337,20 @@ class TimerComponent(CTkFrame):
             bg_color=COLOR_INFO,
         )
 
+    @time_tick
     def _tick(self):
+        """Optimized timer tick with batched updates"""
         if not self.timer_running:
             return
 
         # Batch updates for better performance
         updates = {}
+        needs_ui_update = False
         
         if self.timer_seconds_main < self.timer_seconds_max:
             self.timer_seconds_main += 1
-            t = _format_time(self.timer_seconds_main)
-            self._set_entry_text(self.timer_entry, t)
-            updates["timer"] = t
+            updates["timer"] = _format_time(self.timer_seconds_main)
+            needs_ui_update = True
 
             if self.timer_seconds_main == self.timer_seconds_max:
                 show_message_notification(
@@ -294,21 +360,23 @@ class TimerComponent(CTkFrame):
                     bg_color=COLOR_ERROR,
                 )
                 self.timer_seconds_extra = 0
-                te = "00:00"
-                self._set_entry_text(self.extra_entry, te)
-                updates["extra"] = te
+                updates["extra"] = "00:00"
+                needs_ui_update = True
         else:
             self.timer_seconds_extra += 1
-            te = _format_time(self.timer_seconds_extra)
-            self._set_entry_text(self.extra_entry, te)
-            updates["extra"] = te
+            updates["extra"] = _format_time(self.timer_seconds_extra)
+            needs_ui_update = True
 
         # Batch persist updates
         if updates:
             self.state.update(updates, persist=True)
 
+        # Schedule UI update if needed
+        if needs_ui_update:
+            self._schedule_ui_update()
+
         if self.timer_running:
-            self.after(1000, self._tick)
+            self.after(self.timer_update_interval, self._tick)
 
     def pause_timer(self):
         if not self.timer_running:
@@ -331,9 +399,19 @@ class TimerComponent(CTkFrame):
         self._set_entry_text(self.extra_entry, zero)
         self.state.update({"timer": zero, "extra": zero}, persist=True)
 
+        # Update last values
+        self._last_values["timer"] = zero
+        self._last_values["extra"] = zero
+
         show_message_notification(
             f"⏹️ Campo {self.instance_number} - Parado",
             "Cronómetro parado.",
             icon="🛑",
             bg_color=COLOR_STOP,
         )
+
+    def destroy(self):
+        """Cleanup when component is destroyed"""
+        if self._update_timer:
+            self.after_cancel(self._update_timer)
+        super().destroy()

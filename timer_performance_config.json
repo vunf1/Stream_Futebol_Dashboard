@@ -1,0 +1,9 @@
+{
+  "ui_update_debounce": 25,
+  "timer_update_interval": 1000,
+  "icon_cache_size": 100,
+  "memory_cleanup_interval": 180,
+  "write_buffer_delay": 0.05,
+  "debug_mode": false,
+  "log_level": "INFO"
+}
