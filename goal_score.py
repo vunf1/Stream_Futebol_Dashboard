@@ -37,6 +37,9 @@ class ScoreApp:
         self.root.overrideredirect(True)
         self.root.attributes("-toolwindow", False)  # Keep taskbar icon visible
         
+        # Set dark theme for consistent appearance
+        ctk.set_appearance_mode("dark")
+        
         # Position the window using cascade logic
         self._position_window(instance_number)
         
@@ -141,49 +144,106 @@ class ScoreApp:
         """Handle window closing event"""
         global _instance_positions
         
+        # Stop spinner animation and hide loading indicator
+        if hasattr(self, 'spinner_active'):
+            self.spinner_active = False
+        
         # Remove this instance from position tracking
         if hasattr(self, 'instance_number') and self.instance_number in _instance_positions:
             del _instance_positions[self.instance_number]
-            self._hide_loading_indicator()
+        
+        # Hide loading indicator if it exists
+        self._hide_loading_indicator()
         
         # Destroy the window
         self.root.destroy()
 
     def _show_fast_loading_indicator(self):
-        """Show a minimal loading indicator while UI is being built"""
+        """Show a clean, professional loading screen while UI is being built"""
+        # Set root window background to match loading theme
+        self.root.configure(fg_color="#1a1a1a")
+        
+        # Create a full-screen loading overlay
         self.loading_frame = ctk.CTkFrame(
             self.root, 
-            fg_color=("gray95", "gray15"),
-            corner_radius=8,
-            border_width=1,
-            border_color=("gray80", "gray30")
+            fg_color="#1a1a1a",
+            corner_radius=0
         )
-        self.loading_frame.place(relx=0.5, rely=0.5, anchor="center")
+        self.loading_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
         
-        # Simple loading icon and text
-        loading_icon = ctk.CTkLabel(
+        # Main loading container
+        loading_container = ctk.CTkFrame(
             self.loading_frame,
-            text="⚽",
-            font=("Segoe UI Emoji", 24),
-            text_color=("gray40", "gray60")
+            fg_color="transparent"
         )
-        loading_icon.pack(pady=(15, 8))
+        loading_container.place(relx=0.5, rely=0.5, anchor="center")
         
-        loading_label = ctk.CTkLabel(
-            self.loading_frame,
-            text="Loading...",
-            font=("Segoe UI", 12, "bold"),
-            text_color=("gray20", "gray90")
+        # App title
+        app_title = ctk.CTkLabel(
+            loading_container,
+            text="Stream Futebol Dashboard",
+            font=("Segoe UI", 20, "bold"),
+            text_color="#ffffff"
         )
-        loading_label.pack(pady=(0, 15))
+        app_title.pack(pady=(0, 20))
         
-        # Store reference for updates
-        self.loading_label = loading_label
+        # Loading spinner (animated dots)
+        self.spinner_label = ctk.CTkLabel(
+            loading_container,
+            text="● ● ○",
+            font=("Segoe UI", 16),
+            text_color="#4CAF50"
+        )
+        self.spinner_label.pack(pady=(0, 15))
+        
+        # Status message
+        self.status_label = ctk.CTkLabel(
+            loading_container,
+            text="Initializing...",
+            font=("Segoe UI", 12),
+            text_color="#cccccc"
+        )
+        self.status_label.pack()
+        
+        # Start spinner animation
+        self._animate_spinner()
 
-    # Animation methods removed for faster startup
+    def _animate_spinner(self):
+        """Animate the loading spinner dots"""
+        self.spinner_active = True
+        spinner_states = ["● ○ ○", "○ ● ○", "○ ○ ●", "● ● ●"]
+        current_state = 0
+        
+        def update_spinner():
+            nonlocal current_state
+            # Check if animation should continue
+            if not hasattr(self, 'spinner_active') or not self.spinner_active:
+                return
+                
+            if hasattr(self, 'spinner_label') and hasattr(self, 'loading_frame'):
+                try:
+                    # Check if widgets still exist and are valid
+                    if (self.spinner_label.winfo_exists() and 
+                        self.loading_frame.winfo_exists()):
+                        self.spinner_label.configure(text=spinner_states[current_state])
+                        current_state = (current_state + 1) % len(spinner_states)
+                        # Continue animation
+                        self.root.after(300, update_spinner)
+                except:
+                    # Widget was destroyed, stop animation
+                    self.spinner_active = False
+            else:
+                # Stop animation if widgets don't exist
+                self.spinner_active = False
+        
+        update_spinner()
 
     def _hide_loading_indicator(self):
         """Hide the loading indicator"""
+        # Stop spinner animation
+        if hasattr(self, 'spinner_active'):
+            self.spinner_active = False
+        
         if hasattr(self, 'loading_frame'):
             self.loading_frame.destroy()
             delattr(self, 'loading_frame')
@@ -195,65 +255,169 @@ class ScoreApp:
     def _fast_setup_ui(self):
         """Faster UI setup to ensure smooth loading"""
         try:
-            # Update loading message
-            self._update_loading_message("Building UI...")
-            
-            # Build UI components in parallel where possible
-            self._update_loading_message("Initializing components...")
-            
-            # Add title label at the top
-            title_label = ctk.CTkLabel(
-                self.root, 
-                text=f"Campo {self.instance_number}", 
-                font=("Segoe UI Emoji", 16, "bold"),
-                text_color="white"
-            )
-            title_label.pack(pady=(10, 5))
-            
-            # Initialize components
-            TopWidget(self.root, self.instance_number, self.mongo, self.json)
-            
-            self.score_ui = ScoreUI(
+            # Create a hidden container for all UI components
+            self.ui_container = ctk.CTkFrame(
                 self.root,
-                self.instance_number,
-                self.mongo,
-                self.json
+                fg_color="transparent"
             )
+            # Keep it hidden initially
+            self.ui_container.pack(fill="both", expand=True)
+            self.ui_container.pack_forget()  # Hide it
             
-            TeamInputManager(
-                parent=self.root,
-                mongo=self.mongo,
-                refresh_labels_cb=lambda: self.score_ui._update_labels(),
-                instance=self.instance_number,
-                json=self.json
-            )
+            # Set root background to match loading theme initially
+            self.root.configure(fg_color="#1a1a1a")
             
-            add_footer_label(self.root)
-            
-            # Make the body draggable
-            self._make_body_draggable()
-            
-            # Hide loading indicator immediately
-            self.root.after(50, self._complete_fast_loading)
+            # Step 1: Initialize core components
+            self._update_loading_message("Initializing database...")
+            self.root.after(100, lambda: self._setup_step_1())
             
         except Exception as e:
             print(f"Error during UI setup: {e}")
             # Fallback: show UI immediately if there's an error
             self._hide_loading_indicator()
             self.root.attributes("-alpha", 1.0)
+    
+    def _setup_step_1(self):
+        """Step 1: Initialize database and basic components"""
+        try:
+            self._update_loading_message("Building UI components...")
+            self.root.after(100, lambda: self._setup_step_2())
+        except Exception as e:
+            print(f"Error in step 1: {e}")
+            self._hide_loading_indicator()
+            self.root.attributes("-alpha", 1.0)
+    
+    def _setup_step_2(self):
+        """Step 2: Build UI components"""
+        try:
+            # Add title label at the top
+            title_label = ctk.CTkLabel(
+                self.ui_container, 
+                text=f"Campo {self.instance_number}", 
+                font=("Segoe UI Emoji", 16, "bold"),
+                text_color="white"
+            )
+            title_label.pack(pady=(10, 5))
+            
+            self._update_loading_message("Loading score interface...")
+            self.root.after(100, lambda: self._setup_step_3())
+            
+        except Exception as e:
+            print(f"Error in step 2: {e}")
+            self._hide_loading_indicator()
+            self.root.attributes("-alpha", 1.0)
+    
+    def _setup_step_3(self):
+        """Step 3: Initialize score UI and team manager"""
+        try:
+            # Initialize components
+            TopWidget(self.ui_container, self.instance_number, self.mongo, self.json)
+            
+            self.score_ui = ScoreUI(
+                self.ui_container,
+                self.instance_number,
+                self.mongo,
+                self.json
+            )
+            
+            self._update_loading_message("Setting up team management...")
+            self.root.after(100, lambda: self._setup_step_4())
+            
+        except Exception as e:
+            print(f"Error in step 3: {e}")
+            self._hide_loading_indicator()
+            self.root.attributes("-alpha", 1.0)
+    
+    def _setup_step_4(self):
+        """Step 4: Finalize UI setup"""
+        try:
+            TeamInputManager(
+                parent=self.ui_container,
+                mongo=self.mongo,
+                refresh_labels_cb=lambda: self.score_ui._update_labels(),
+                instance=self.instance_number,
+                json=self.json
+            )
+            
+            add_footer_label(self.ui_container)
+            
+            # Make the body draggable
+            self._make_body_draggable()
+            
+            self._update_loading_message("Finalizing...")
+            self.root.after(200, self._complete_fast_loading)
+            
+        except Exception as e:
+            print(f"Error in step 4: {e}")
+            self._hide_loading_indicator()
+            self.root.attributes("-alpha", 1.0)
 
     def _complete_fast_loading(self):
-        """Complete the fast loading process"""
+        """Complete the fast loading process with smooth transition"""
+        # Update final status
+        self._update_loading_message("Ready!")
+        
+        # Brief pause to show "Ready!" message
+        self.root.after(500, self._fade_in_ui)
+    
+    def _fade_in_ui(self):
+        """Fade in the UI smoothly"""
         # Hide loading indicator
         self._hide_loading_indicator()
         
-        # Make window fully visible immediately
-        self.root.attributes("-alpha", 1.0)
+        # Set root background to default theme
+        self.root.configure(fg_color=("gray95", "gray15"))
+        
+        # Show the UI container
+        if hasattr(self, 'ui_container'):
+            self.ui_container.pack(fill="both", expand=True)
+        
+        # Smooth fade transition
+        self._smooth_fade_transition()
+    
+    def _smooth_fade_transition(self):
+        """Smooth fade transition from loading to UI"""
+        # Start with loading background
+        self.root.configure(fg_color="#1a1a1a")
+        
+        # Gradually transition to final background (dark theme only)
+        def fade_step(step=0):
+            if step <= 10:
+                # Interpolate between loading color and final dark color
+                progress = step / 10
+                r1, g1, b1 = 26, 26, 26  # #1a1a1a
+                r2, g2, b2 = 43, 43, 43  # #2b2b2b (standard dark theme)
+                
+                r = int(r1 + (r2 - r1) * progress)
+                g = int(g1 + (g2 - g1) * progress)
+                b = int(b1 + (b2 - b1) * progress)
+                
+                color = f"#{r:02x}{g:02x}{b:02x}"
+                self.root.configure(fg_color=color)
+                
+                # Continue fade
+                self.root.after(20, lambda: fade_step(step + 1))
+            else:
+                # Set final background to match CustomTkinter dark theme exactly
+                self.root.configure(fg_color="gray15")  # Use CustomTkinter's built-in dark theme
+                # Make window fully visible
+                self.root.attributes("-alpha", 1.0)
+                # Ensure window is focused and visible
+                self.root.lift()
+                self.root.focus_force()
+        
+        fade_step()
 
     def _update_loading_message(self, message: str):
         """Update the loading message to show current progress"""
-        if hasattr(self, 'loading_label') and self.loading_label.winfo_exists():
-            self.loading_label.configure(text=message)
+        if hasattr(self, 'status_label') and hasattr(self, 'loading_frame'):
+            try:
+                if (self.status_label.winfo_exists() and 
+                    self.loading_frame.winfo_exists()):
+                    self.status_label.configure(text=message)
+            except:
+                # Widget was destroyed, ignore update
+                pass
 
     def _make_body_draggable(self):
         """Make the window body draggable"""
@@ -355,6 +519,16 @@ def add_footer_label(parent, text: str = "© 2025 Vunf1"):
     footer.pack(side="left")
     
     # Close button (X) - Modern transparent design
+    # Find the root window to close the entire instance
+    def close_instance():
+        # Navigate up to find the root window
+        current = parent
+        while hasattr(current, 'winfo_toplevel'):
+            current = current.winfo_toplevel()
+            if hasattr(current, 'destroy'):
+                current.destroy()
+                break
+    
     close_button = ctk.CTkButton(
         footer_frame, 
         text="✕", 
@@ -365,7 +539,7 @@ def add_footer_label(parent, text: str = "© 2025 Vunf1"):
         hover_color="#2b2b2b",
         text_color="#888888",
         corner_radius=14,
-        command=lambda: parent.destroy()
+        command=close_instance
     )
     close_button.pack(side="right", padx=(5, 0))
 
