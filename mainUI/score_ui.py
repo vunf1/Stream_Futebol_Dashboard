@@ -43,13 +43,27 @@ class ScoreUI:
         self.parent.pack(fill='both', expand=True)
         self.parent.grid_columnconfigure((0, 1), weight=1)
 
-        # UI
-        self._build_score_display()
-        self._build_score_controls()
-        self._build_bottom_controls()
+        # Defer UI building for smooth loading
+        self.parent.after(100, self._deferred_build_ui)
 
-        # Hydrate UI from JSON after widgets exist
-        self.parent.after(0, self._hydrate_from_json)
+    def _deferred_build_ui(self):
+        """Deferred UI building to ensure smooth loading"""
+        try:
+            # Build UI components
+            self._build_score_display()
+            self._build_score_controls()
+            self._build_bottom_controls()
+            
+            # Hydrate UI from JSON after widgets exist
+            self.parent.after(50, self._hydrate_from_json)
+            
+        except Exception as e:
+            print(f"Error building ScoreUI: {e}")
+            # Fallback: build UI immediately if there's an error
+            self._build_score_display()
+            self._build_score_controls()
+            self._build_bottom_controls()
+            self._hydrate_from_json()
 
     # -------------- Hydration / labels -------------- 
     def _hydrate_from_json(self):

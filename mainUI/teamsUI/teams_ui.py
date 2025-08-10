@@ -37,8 +37,19 @@ class TeamInputManager(ctk.CTkFrame):
         # Local cache for team suggestions: { "TEAM NAME": "ABR" }
         self._teams_cache: Dict[str, str] = {}
 
-        self._build_ui()
-        self.after(0, self._hydrate_from_store)
+        # Defer UI building for smooth loading
+        self.after(200, self._deferred_build_ui)
+
+    def _deferred_build_ui(self):
+        """Deferred UI building to ensure smooth loading"""
+        try:
+            self._build_ui()
+            self.after(50, self._hydrate_from_store)
+        except Exception as e:
+            print(f"Error building TeamInputManager: {e}")
+            # Fallback: build UI immediately if there's an error
+            self._build_ui()
+            self._hydrate_from_store()
 
     # -------------------------- Data --------------------------
     def _hydrate_from_store(self) -> None:

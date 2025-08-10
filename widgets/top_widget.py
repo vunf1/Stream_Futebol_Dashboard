@@ -26,7 +26,18 @@ class TopWidget:
         self._was_running: bool                     = False
         self.mongo = mongo
         self.json = json
-        self._init_top_grid()
+        
+        # Defer UI initialization for smooth loading
+        self.parent.after(150, self._deferred_init_top_grid)
+
+    def _deferred_init_top_grid(self):
+        """Deferred UI initialization to ensure smooth loading"""
+        try:
+            self._init_top_grid()
+        except Exception as e:
+            print(f"Error initializing TopWidget: {e}")
+            # Fallback: initialize immediately if there's an error
+            self._init_top_grid()
 
     def _init_top_grid(self):
         # Create header frame and pack into parent
