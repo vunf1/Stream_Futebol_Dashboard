@@ -22,6 +22,14 @@ class ScoreUI:
         self.buttons: dict[str, ctk.CTkButton] = {}
         self._icon_refs = []
         
+        # Pre-load lock icons to prevent flickering
+        self.lock_icon = get_icon('lock', 70)
+        self.unlock_icon = get_icon('unlock', 70)
+        self._icon_refs += [self.lock_icon, self.unlock_icon]
+        
+        # Get theme colors for hover effects
+        self.theme_bg = ctk.ThemeManager.theme["CTkFrame"]["fg_color"]
+        
         # Performance optimizations
         self._update_pending = False
         self._update_timer = None
@@ -106,10 +114,12 @@ class ScoreUI:
 
             btn_plus = ctk.CTkButton(
                 frame, image=icon_plus, text='', fg_color='transparent',
+                hover_color=('gray75', 'gray25'),
                 command=lambda s=side: self._change_score(s, +1)
             )
             btn_minus = ctk.CTkButton(
                 frame, image=icon_minus, text='', fg_color='transparent',
+                hover_color=('gray75', 'gray25'),
                 command=lambda s=side: self._change_score(s, -1)
             )
             btn_plus.grid(row=0, column=i*2,   sticky='e', padx=5)
@@ -130,12 +140,23 @@ class ScoreUI:
             ('score00',    self._confirm_reset),
         ]
         for idx, (icon_key, cmd) in enumerate(specs):
-            icon_name = 'unlock' if (icon_key == 'lock' and self.decrement_enabled) else icon_key
-            icon = get_icon(icon_name, 70)
-            self._icon_refs.append(icon)
-            btn = ctk.CTkButton(
-                frame, image=icon, text='', fg_color='transparent', command=cmd
-            )
+            if icon_key == 'lock':
+                # Use pre-loaded lock icon
+                icon = self.unlock_icon if self.decrement_enabled else self.lock_icon
+                # Lock button: use theme background color for hover
+                btn = ctk.CTkButton(
+                    frame, image=icon, text='', fg_color='transparent', 
+                    hover_color=self.theme_bg, command=cmd
+                )
+            else:
+                icon = get_icon(icon_key, 70)
+                self._icon_refs.append(icon)
+                # Other buttons: standard hover color
+                btn = ctk.CTkButton(
+                    frame, image=icon, text='', fg_color='transparent',
+                    hover_color=('gray75', 'gray25'), command=cmd
+                )
+                
             btn.grid(row=0, column=idx, sticky='nsew', padx=5, pady=5)
 
             if icon_key == 'lock':
@@ -148,25 +169,41 @@ class ScoreUI:
     # -------------- Actions --------------
     def _toggle_decrement(self):
         self.decrement_enabled = not self.decrement_enabled
-        state = 'normal' if self.decrement_enabled else 'disabled'
-
-        # Only affect the minus buttons
-        for side in ('home', 'away'):
-            self.buttons[f'{side}_minus'].configure(state=state)
-
-        # Update lock icon
-        lock_btn = self.buttons['lock']
-        new_icon = get_icon('unlock' if self.decrement_enabled else 'lock', 70)
-        lock_btn.configure(image=new_icon)
-
-        show_message_notification(
-            f"Campo {self.instance}",
-            f"Lock : {not self.decrement_enabled}",
-            icon='🔒' if not self.decrement_enabled else '🔓',
-            bg_color=COLOR_SUCCESS if self.decrement_enabled else COLOR_ERROR
-        )
+        
+        # Batch all UI updates to prevent flickering
+        def update_ui():
+            # Update minus buttons appearance instead of state to prevent flickering
+            for side in ('home', 'away'):
+                btn = self.buttons[f'{side}_minus']
+                if self.decrement_enabled:
+                    # Enable: restore normal appearance with consistent hover color
+                    btn.configure(fg_color='transparent', hover_color=('gray75', 'gray25'))
+                else:
+                    # Disable: visual indication without state change
+                    btn.configure(fg_color=('gray90', 'gray30'), hover_color=('gray90', 'gray30'))
+            
+            # Update lock icon
+            lock_btn = self.buttons['lock']
+            new_icon = self.unlock_icon if self.decrement_enabled else self.lock_icon
+            lock_btn.configure(image=new_icon)
+        
+        # Execute UI updates in a single batch
+        self.parent.after_idle(update_ui)
+        
+        # Show notification after UI updates with a small delay
+        def show_notification():
+            show_message_notification(
+                f"Campo {self.instance}",
+                f"Lock : {not self.decrement_enabled}",
+                icon='🔒' if not self.decrement_enabled else '🔓',
+                bg_color=COLOR_SUCCESS if self.decrement_enabled else COLOR_ERROR
+            )
+        
+        # Delay notification to prevent interference with UI updates
+        self.parent.after(100, show_notification)
 
     def _change_score(self, side: str, delta: int):
+        # Check the flag instead of button state
         if delta < 0 and not self.decrement_enabled:
             return
 
