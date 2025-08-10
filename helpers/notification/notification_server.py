@@ -223,7 +223,7 @@ def server_main(notification_queue: Queue):
         except Exception:
             pass
         finally:
-            root.after(80, poll)
+            root.after(50, poll)  # Faster polling (was 80ms, now 50ms)
 
     poll()
     root.mainloop()

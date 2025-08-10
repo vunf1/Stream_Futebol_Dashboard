@@ -115,7 +115,7 @@ def prompt_for_pin(parent):
             border_color=("gray70", "gray40")
         )
         entry.pack(pady=8)
-        entry.after(100, entry.focus)
+        entry.after(50, entry.focus)  # Faster focus (was 100ms, now 50ms)
 
         # Small close button below input field
         close_btn = ctk.CTkButton(

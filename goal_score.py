@@ -35,6 +35,9 @@ ICON_BALL = "\u26BD"
 ICON_MINUS = "\u268A"
 ICON_WARN = "\u267B"
 
+# Global variable to track instance positions for cascade effect
+_instance_positions = {}
+
 class ScoreApp:
     def __init__(self, root, instance_number: int):
         self.root = root
@@ -45,6 +48,9 @@ class ScoreApp:
         self.root.geometry("420x460")
         self.root.attributes("-topmost", True)
         self.root.minsize(190, 195)
+        
+        # Position the window using cascade logic
+        self._position_window(instance_number)
         
         # Add smooth loading attributes
         self.root.attributes("-alpha", 0.0)  # Start transparent
@@ -61,6 +67,217 @@ class ScoreApp:
 
         # Defer UI setup for smooth loading
         self.root.after(50, self._deferred_setup_ui)
+
+    def _position_window(self, instance_number: int):
+        """Position the window in center for first instance, cascade for subsequent ones"""
+        global _instance_positions
+        
+        # Get screen dimensions
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        
+        # Window dimensions
+        window_width = 420
+        window_height = 460
+        
+        if instance_number == 1:
+            # First instance: center on screen
+            x = (screen_width - window_width) // 2
+            y = (screen_height - window_height) // 2
+        else:
+            # Subsequent instances: cascade from previous position
+            if instance_number - 1 in _instance_positions:
+                prev_x, prev_y = _instance_positions[instance_number - 1]
+                # Offset diagonally for better cascade effect
+                x = prev_x + 40
+                y = prev_y + 40
+                
+                # Check if window would go off-screen
+                if x + window_width > screen_width - 50:  # Leave 50px margin
+                    x = 50  # Reset to left side with margin
+                if y + window_height > screen_height - 50:  # Leave 50px margin
+                    y = 50  # Reset to top side with margin
+            else:
+                # Fallback: calculate position based on instance number
+                base_x = (screen_width - window_width) // 2
+                base_y = (screen_height - window_height) // 2
+                
+                # Create a grid-like pattern to avoid overlap
+                grid_col = (instance_number - 1) % 3  # 3 columns
+                grid_row = (instance_number - 1) // 3  # Multiple rows
+                
+                x = base_x + (grid_col * (window_width + 20))
+                y = base_y + (grid_row * (window_height + 20))
+                
+                # Ensure window doesn't go off-screen
+                if x + window_width > screen_width - 50:
+                    x = 50
+                if y + window_height > screen_height - 50:
+                    y = 50
+        
+        # Store position for this instance
+        _instance_positions[instance_number] = (x, y)
+        
+        # Apply position
+        self.root.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        
+        # Ensure no overlap with existing windows
+        self._adjust_for_overlap(instance_number, x, y, window_width, window_height)
+
+    def _adjust_for_overlap(self, instance_number: int, x: int, y: int, width: int, height: int):
+        """Adjust window position if it overlaps with existing windows"""
+        global _instance_positions
+        
+        for other_instance, (other_x, other_y) in _instance_positions.items():
+            if other_instance == instance_number:
+                continue
+                
+            # Check for overlap
+            if (x < other_x + width and x + width > other_x and 
+                y < other_y + height and y + height > other_y):
+                
+                # Move this window to avoid overlap
+                new_x = other_x + width + 20
+                new_y = other_y + height + 20
+                
+                # Ensure new position is on screen
+                screen_width = self.root.winfo_screenwidth()
+                screen_height = self.root.winfo_screenheight()
+                
+                if new_x + width > screen_width - 50:
+                    new_x = 50
+                if new_y + height > screen_height - 50:
+                    new_y = 50
+                
+                # Update position
+                _instance_positions[instance_number] = (new_x, new_y)
+                self.root.geometry(f"{width}x{height}+{new_x}+{new_y}")
+                break
+        
+        # Bring window to front and focus
+        self.root.lift()
+        self.root.focus_force()
+        
+        # Bind window events for better management
+        self.root.bind("<Map>", self._on_window_map)
+        self.root.bind("<FocusIn>", self._on_focus_in)
+        self.root.bind("<Configure>", self._on_configure)
+        self.root.bind("<Unmap>", self._on_window_unmap)
+        self.root.bind("<Button-1>", self._on_click)
+        self.root.bind("<Map>", self._on_window_restore)
+        self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
+
+    def _on_window_map(self, event):
+        """Handle window mapping event"""
+        # Ensure window is properly positioned when mapped
+        self.root.after(100, self._ensure_proper_position)
+    
+    def _on_window_restore(self, event):
+        """Handle window restore event"""
+        # Ensure proper z-order when window is restored
+        self.root.after(50, self._restore_z_order)
+    
+    def _restore_z_order(self):
+        """Restore proper z-order for this window"""
+        # Bring window to front and ensure it's visible
+        self.root.lift()
+        self.root.focus_force()
+        
+        # Ensure window is not minimized
+        if self.root.state() == 'iconic':
+            self.root.deiconify()
+    
+    def _handle_window_state_change(self):
+        """Handle window state changes and ensure proper cascade behavior"""
+        if hasattr(self, 'instance_number'):
+            # Ensure this window maintains its position in the cascade
+            if self.instance_number in _instance_positions:
+                stored_x, stored_y = _instance_positions[self.instance_number]
+                current_x = self.root.winfo_x()
+                current_y = self.root.winfo_y()
+                
+                # If position changed, restore it
+                if current_x != stored_x or current_y != stored_y:
+                    self.root.geometry(f"420x460+{stored_x}+{stored_y}")
+    
+    def _on_window_unmap(self, event):
+        """Handle window unmapping event (minimization)"""
+        # Store current position when window is minimized
+        if hasattr(self, 'instance_number'):
+            current_x = self.root.winfo_x()
+            current_y = self.root.winfo_y()
+            if self.instance_number in _instance_positions:
+                _instance_positions[self.instance_number] = (current_x, current_y)
+    
+    def _on_click(self, event):
+        """Handle mouse click events"""
+        # Bring window to front when clicked
+        self.root.lift()
+        self.root.focus_force()
+    
+    def _on_focus_in(self, event):
+        """Handle focus in event"""
+        # Bring window to front when focused
+        self.root.lift()
+        
+        # Ensure proper z-order for cascade effect
+        self._ensure_cascade_z_order()
+    
+    def _ensure_cascade_z_order(self):
+        """Ensure proper z-order for cascade effect"""
+        if hasattr(self, 'instance_number'):
+            # Bring this window to front
+            self.root.lift()
+            
+            # Ensure other windows maintain their relative positions
+            for other_instance, (other_x, other_y) in _instance_positions.items():
+                if other_instance != self.instance_number:
+                    # Find the window for this instance and adjust z-order
+                    for widget in self.root.winfo_toplevel().winfo_children():
+                        if hasattr(widget, 'instance_number') and widget.instance_number == other_instance:
+                            widget.lower()
+                            break
+    
+    def _on_configure(self, event):
+        """Handle window configuration changes"""
+        # Update stored position if window is moved
+        if hasattr(self, 'instance_number') and event.widget == self.root:
+            new_x = self.root.winfo_x()
+            new_y = self.root.winfo_y()
+            
+            # Only update if position actually changed
+            if self.instance_number in _instance_positions:
+                stored_x, stored_y = _instance_positions[self.instance_number]
+                if new_x != stored_x or new_y != stored_y:
+                    _instance_positions[self.instance_number] = (new_x, new_y)
+    
+    def _ensure_proper_position(self):
+        """Ensure window is in proper position and not overlapping"""
+        if hasattr(self, 'instance_number'):
+            current_x = self.root.winfo_x()
+            current_y = self.root.winfo_y()
+            
+            # Check if position matches stored position
+            if self.instance_number in _instance_positions:
+                stored_x, stored_y = _instance_positions[self.instance_number]
+                if current_x != stored_x or current_y != stored_y:
+                    # Restore position
+                    self.root.geometry(f"420x460+{stored_x}+{stored_y}")
+    
+    def _on_closing(self):
+        """Handle window closing event"""
+        global _instance_positions
+        
+        # Remove this instance from position tracking
+        if hasattr(self, 'instance_number') and self.instance_number in _instance_positions:
+            del _instance_positions[self.instance_number]
+        
+        # Clean up any remaining references
+        if hasattr(self, 'loading_frame'):
+            self._hide_loading_indicator()
+        
+        # Destroy the window
+        self.root.destroy()
 
     def _show_loading_indicator(self):
         """Show a loading indicator while UI is being built"""
@@ -238,6 +455,14 @@ def ask_instance_count_ui() -> int:
     window.title("Campos")
     window.geometry("320x200")
     window.resizable(False, False)
+    
+    # Center the dialog window on screen
+    window.update_idletasks()
+    screen_width = window.winfo_screenwidth()
+    screen_height = window.winfo_screenheight()
+    x = (screen_width - 320) // 2
+    y = (screen_height - 200) // 2
+    window.geometry(f"320x200+{x}+{y}")
 
     ctk.CTkLabel(window, text="Quantos campos queres abrir?", font=("Segoe UI Emoji", 15)).pack(pady=(20, 10))
 

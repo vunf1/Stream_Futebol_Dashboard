@@ -30,8 +30,8 @@ class TeamManagerWindow(ctk.CTkToplevel):
         self.title("Team Manager")
         self.geometry("500x600")
         self.iconbitmap(get_icon_path("gear"))
-        # Set topmost after a small delay to prevent aggressive focus
-        self.after(100, lambda: self.attributes("-topmost", True))
+        # Stagger window operations for smooth appearance
+        self.after(50, lambda: self.attributes("-topmost", True))  # Faster (was 100ms, now 50ms)
         
         # Center the child window at the top of the parent
         top_centered_child_to_parent(self, parent, child_w, child_h)
@@ -44,18 +44,18 @@ class TeamManagerWindow(ctk.CTkToplevel):
         # Show loading state
         self._show_loading_state()
         
-        # Defer team loading to prevent flickering
-        self.after(100, self._deferred_load_teams)
+        # Defer team loading for smooth appearance
+        self.after(50, self._deferred_load_teams)  # Faster (was 100ms, now 50ms)
         
-        # Ensure window is visible and focused
-        self.after(50, self.focus_force)
-        self.after(50, self.grab_set)  # Make this window modal
+        # Focus and grab after a short delay
+        self.after(25, self.focus_force)  # Faster (was 50ms, now 25ms)
+        self.after(25, self.grab_set)  # Make this window modal - Faster (was 50ms, now 25ms)
         
-        # Set focus to search bar after loading
-        self.after(150, lambda: self.search_entry.focus_set())
+        # Focus search entry after UI is ready
+        self.after(75, lambda: self.search_entry.focus_set())  # Faster (was 150ms, now 75ms)
         
-        # Visual feedback that window is ready
-        self.after(300, self._show_ready_indicator)
+        # Show ready indicator
+        self.after(150, self._show_ready_indicator)  # Faster (was 300ms, now 150ms)
 
     def _prompt_for_pin(self):
         return prompt_for_pin(self)
@@ -503,9 +503,8 @@ class TeamManagerWindow(ctk.CTkToplevel):
             # Load teams from database
             self.all_teams = self.mongo.load_teams()
             
-            # Remove loading state with a small delay for smooth transition
-            if hasattr(self, 'loading_widget') and self.loading_widget:
-                self.after(50, lambda: self._remove_loading_state())
+            # Remove loading state after a short delay
+            self.after(25, lambda: self._remove_loading_state())  # Faster (was 50ms, now 25ms)
             
             # Create team buttons in batch
             self._create_team_buttons()

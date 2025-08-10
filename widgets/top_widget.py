@@ -28,7 +28,7 @@ class TopWidget:
         self.json = json
         
         # Defer UI initialization for smooth loading
-        self.parent.after(150, self._deferred_init_top_grid)
+        self.parent.after(75, self._deferred_init_top_grid)  # Faster (was 150ms, now 75ms)
 
     def _deferred_init_top_grid(self):
         """Deferred UI initialization to ensure smooth loading"""

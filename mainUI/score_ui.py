@@ -44,7 +44,7 @@ class ScoreUI:
         self.parent.grid_columnconfigure((0, 1), weight=1)
 
         # Defer UI building for smooth loading
-        self.parent.after(100, self._deferred_build_ui)
+        self.parent.after(50, self._deferred_build_ui)  # Faster (was 100ms, now 50ms)
 
     def _deferred_build_ui(self):
         """Deferred UI building to ensure smooth loading"""
@@ -55,7 +55,7 @@ class ScoreUI:
             self._build_bottom_controls()
             
             # Hydrate UI from JSON after widgets exist
-            self.parent.after(50, self._hydrate_from_json)
+            self.parent.after(25, self._hydrate_from_json)  # Faster (was 50ms, now 25ms)
             
         except Exception as e:
             print(f"Error building ScoreUI: {e}")

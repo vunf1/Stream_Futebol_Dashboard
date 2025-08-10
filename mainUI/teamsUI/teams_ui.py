@@ -38,13 +38,13 @@ class TeamInputManager(ctk.CTkFrame):
         self._teams_cache: Dict[str, str] = {}
 
         # Defer UI building for smooth loading
-        self.after(200, self._deferred_build_ui)
+        self.after(100, self._deferred_build_ui)  # Faster (was 200ms, now 100ms)
 
     def _deferred_build_ui(self):
         """Deferred UI building to ensure smooth loading"""
         try:
             self._build_ui()
-            self.after(50, self._hydrate_from_store)
+            self.after(25, self._hydrate_from_store)  # Faster (was 50ms, now 25ms)
         except Exception as e:
             print(f"Error building TeamInputManager: {e}")
             # Fallback: build UI immediately if there's an error

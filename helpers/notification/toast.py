@@ -324,7 +324,7 @@ def _build_toast_window(
             yi = int(y + (y_end - y) * t)
             toast.geometry(f"+{toast.winfo_x()}+{yi}")
             if t < 1.0:
-                timers.append(toast.after(16, lambda: tick(i + 1))) # type: ignore[no-untyped-call]
+                timers.append(toast.after(12, lambda: tick(i + 1))) # type: ignore[no-untyped-call] # Faster (was 16ms, now 12ms)
             else:
                 try:
                     toast.destroy()
@@ -374,9 +374,9 @@ def _build_toast_window(
                 prog_bar.set(max(0.0, min(1.0, remaining / total_s))) # type: ignore[no-untyped-call]
             except Exception:
                 pass
-            timers.append(toast.after(16, step))# type: ignore # ~60 fps 
+            timers.append(toast.after(12, step))# type: ignore # ~83 fps (was 16ms, now 12ms)
 
-        timers.append(toast.after(16, step)) # type: ignore[no-untyped-call]
+        timers.append(toast.after(12, step)) # type: ignore[no-untyped-call] # Faster (was 16ms, now 12ms)
 
     def fade_in():
         """Fade-in + optional small lift/slide from the server-placed target (bottom-right)."""
@@ -411,7 +411,7 @@ def _build_toast_window(
                 yi = int(y0 + (y_final - y0) * a)
                 toast.geometry(f"+{xi}+{yi}")
             if t < 1.0:
-                timers.append(toast.after(16, lambda: tick(i + 1))) # type: ignore[no-untyped-call]
+                timers.append(toast.after(12, lambda: tick(i + 1))) # type: ignore[no-untyped-call] # Faster (was 16ms, now 12ms)
             else:
                 toast.attributes("-alpha", 1.0)
                 # Only start the visible-time countdown after we’re fully in
