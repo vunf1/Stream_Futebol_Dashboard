@@ -5,10 +5,64 @@ from helpers.helpers import load_teams_from_json, save_teams_to_json
 from mainUI.teamsUI.autocomplete import Autocomplete
 from mainUI.edit_teams_ui import TeamManagerWindow
 from assets.colors import COLOR_WARNING, COLOR_SUCCESS
-from helpers.team_names import append_team_to_mongo
 from database.gameinfo import GameInfoStore, DEFAULT_FIELD_STATE
+from database.mongodb import MongoTeamManager
+import tkinter.messagebox as messagebox
 
 BUTTON_PAD = dict(padx=5, pady=5)
+
+def append_team_to_mongo(name: str, abrev: str, instance: int):
+    """Helper function to append team to MongoDB with validation"""
+    name = name.strip().upper()
+    abrev = abrev.strip().upper()
+    
+    if not name or not abrev:
+        return  # Skip empty entries
+    
+    mongo = MongoTeamManager()
+    
+    current_abrev = mongo.get_abbreviation(name)
+    
+    if current_abrev:
+        if current_abrev != abrev:
+            # Same name, different abbrev — Ask to update
+            root = ctk.CTk()
+            root.withdraw()
+            result = messagebox.askyesno(
+                title=f"Campo {instance} - Equipa já existe",
+                message=(
+                    f"A equipa '{name}' já existe com a sigla '{current_abrev}'.\n\n"
+                    f"Deseja atualizar para '{abrev}'?"
+                )
+            )
+            root.destroy()
+            if result:
+                try:
+                    mongo.save_team(name, abrev)
+                    show_message_notification(f"✅Campo {instance} - Atualizado", f"Equipa '{name}' atualizada para '{abrev}'.", bg_color=COLOR_SUCCESS)
+                except Exception as e:
+                    messagebox.showerror("Erro", f"Erro ao atualizar equipa: {e}")
+            else:
+                show_message_notification(f"❌ Campo {instance} - Cancelado", f"A sigla de '{name}' não foi alterada.", bg_color=COLOR_WARNING)
+            return
+        else:
+            show_message_notification(f"ℹ️ Campo {instance} - Mantido", f"A sigla de '{name}' já é '{abrev}'.", bg_color=COLOR_WARNING)
+            return
+
+    # Check if abbreviation is already used by another team (informative, not blocking)
+    all_teams = mongo.load_teams()
+    for other_name, other_abrev in all_teams.items():
+        if other_name != name and other_abrev == abrev:
+            show_message_notification(f"⚠️ Campo {instance} - Reutilização", f"A abreviação '{abrev}' já está em uso por '{other_name}', mas será reutilizada.", bg_color=COLOR_WARNING)
+            break  # Just log, don't stop
+
+    # Save new team
+    try:
+        mongo.save_team(name, abrev)
+        show_message_notification(f"✅ Campo {instance} - Gravado", f"Equipa '{name}' gravada com sucesso.", duration=1500, bg_color=COLOR_SUCCESS)
+    except Exception as e:
+        messagebox.showerror("Erro", f"Erro ao guardar equipa na base de dados: {e}")
+
 
 class TeamInputManager(ctk.CTkFrame):
     """
