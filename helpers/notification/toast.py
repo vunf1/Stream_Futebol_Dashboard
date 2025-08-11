@@ -45,6 +45,7 @@ def prompt_notification(
     prompt = ctk.CTkToplevel(master=parent)
     prompt.overrideredirect(True)
     prompt.attributes("-topmost", True)
+    prompt.attributes("-toolwindow", True)  # prevent taskbar icon
     prompt.configure(fg_color=bg_color or "black")
     make_it_drag_and_drop(prompt)
 
@@ -195,6 +196,7 @@ def _build_toast_window(
     toast.overrideredirect(True)   # borderless
     toast.attributes("-topmost", True)
     toast.attributes("-alpha", 0.0)  # start fully transparent for fade-in
+    toast.attributes("-toolwindow", True)  # prevent taskbar icon
 
     # True transparent corners via chroma key where supported (Windows/Tk 8.6+)
     CHROMA = "#010101"
