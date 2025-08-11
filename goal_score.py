@@ -18,6 +18,7 @@ from mainUI.teamsUI.teams_ui import TeamInputManager # Team name management UI
 from database.mongodb import MongoTeamManager        # MongoDB-backed team manager
 from helpers.notification.notification_server import server_main # Background notification server entry point
 from widgets.top_widget import TopWidget
+from helpers.footer_label import add_footer_label
 
 # Global variable to track instance positions for cascade effect
 _instance_positions = {}
@@ -509,46 +510,7 @@ def ask_instance_count_ui() -> int:
     return result["value"]
 
 
-def add_footer_label(parent, text: str = "© 2025 Vunf1"):
-    # Create footer frame to hold both label and close button
-    footer_frame = ctk.CTkFrame(parent, fg_color="transparent")
-    footer_frame.pack(side="bottom", pady=(5,5), fill="x", padx=10)
-    
-    # Footer label
-    footer = ctk.CTkLabel(footer_frame, text="", font=("Segoe UI Emoji", 11), text_color="gray")
-    footer.pack(side="left")
-    
-    # Close button (X) - Modern transparent design
-    # Find the root window to close the entire instance
-    def close_instance():
-        # Navigate up to find the root window
-        current = parent
-        while hasattr(current, 'winfo_toplevel'):
-            current = current.winfo_toplevel()
-            if hasattr(current, 'destroy'):
-                current.destroy()
-                break
-    
-    close_button = ctk.CTkButton(
-        footer_frame, 
-        text="✕", 
-        width=28, 
-        height=28,
-        font=("Segoe UI Emoji", 14, "bold"),
-        fg_color="transparent",
-        hover_color="#2b2b2b",
-        text_color="#888888",
-        corner_radius=14,
-        command=close_instance
-    )
-    close_button.pack(side="right", padx=(5, 0))
 
-    def refresh():
-        footer.configure(text=f"{text} — {DateTimeProvider.get_datetime()}")
-        parent.after(1000, refresh)
-
-    refresh()
-    return footer
 
 
 def child_entry(instance_number, notification_queue):
