@@ -2,7 +2,6 @@
 import customtkinter as ctk
 from helpers.helpers import prompt_for_pin
 from helpers.icons_provider import get_icon_path, get_icon
-# from helpers.make_drag_drop import make_it_drag_drop
 from helpers.notification.toast import show_message_notification
 from assets.colors import COLOR_WARNING, COLOR_SUCCESS, COLOR_STOP
 from helpers.top_c_child_parent import top_centered_child_to_parent

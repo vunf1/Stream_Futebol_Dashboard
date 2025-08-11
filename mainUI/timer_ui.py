@@ -9,7 +9,7 @@ from helpers.icons_provider import get_icon
 from database.gameinfo import DEFAULT_FIELD_STATE, GameInfoStore, _format_time, _parse_time_to_seconds
 from helpers.notification.toast import show_message_notification
 from helpers.config_manager import get_config
-from helpers.memory_manager import MemoryTracker
+
 from helpers.timer_performance import get_timer_monitor, time_tick, time_ui_update, time_json_operation
 from mainUI.score_ui import BUTTON_PAD
 
@@ -56,8 +56,7 @@ class TimerComponent(CTkFrame):
         self._update_timer = None
         self._last_values = {"timer": "", "extra": ""}
         
-        # Performance monitoring
-        self.performance_monitor = get_timer_monitor(f"field_{instance_number}")
+
 
         # Build UI, then hydrate from JSON after widgets exist
         self._build_ui()
