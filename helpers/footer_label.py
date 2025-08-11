@@ -20,10 +20,10 @@ def add_footer_label(parent, text: str = "© 2025 Vunf1"):
     """
     # Create footer frame to hold both label and close button
     footer_frame = ctk.CTkFrame(parent, fg_color="transparent")
-    footer_frame.pack(side="bottom", pady=(5,5), fill="x", padx=10)
+    footer_frame.pack(side="bottom", pady=(2,2), fill="x", padx=6)
     
     # Footer label
-    footer = ctk.CTkLabel(footer_frame, text="", font=("Segoe UI Emoji", 11), text_color="gray")
+    footer = ctk.CTkLabel(footer_frame, text="", font=("Segoe UI Emoji", 10), text_color="gray")
     footer.pack(side="left")
     
     # Close button (X) - Modern transparent design
@@ -40,16 +40,16 @@ def add_footer_label(parent, text: str = "© 2025 Vunf1"):
     close_button = ctk.CTkButton(
         footer_frame, 
         text="✕", 
-        width=28, 
-        height=28,
-        font=("Segoe UI Emoji", 14, "bold"),
+        width=24, 
+        height=24,
+        font=("Segoe UI Emoji", 12, "bold"),
         fg_color="transparent",
         hover_color="#2b2b2b",
         text_color="#888888",
-        corner_radius=14,
+        corner_radius=12,
         command=close_instance
     )
-    close_button.pack(side="right", padx=(5, 0))
+    close_button.pack(side="right", padx=(3, 0))
 
     def refresh():
         footer.configure(text=f"{text} — {DateTimeProvider.get_datetime()}")

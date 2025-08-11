@@ -10,6 +10,7 @@ from database.gameinfo import DEFAULT_FIELD_STATE, GameInfoStore, _format_time, 
 from helpers.notification.toast import show_message_notification
 from helpers.config_manager import get_config
 
+
 from helpers.timer_performance import get_timer_monitor, time_tick, time_ui_update, time_json_operation
 from mainUI.score_ui import BUTTON_PAD
 
@@ -20,13 +21,14 @@ class TimerComponent(CTkFrame):
             parent,
             fg_color=("transparent"),
             corner_radius=18,
-            border_width=1,
+            border_width=0,
             border_color=COLOR_BORDER,
         )
         self.instance_number = instance_number
         
-        self.configure(width=960, height=180)
-        self.pack(side="top", fill="x", padx=12, pady=10)
+        
+        self.configure(width=960, height=80)
+        self.pack(side="top", fill="x", padx=8, pady=5)
         self.pack_propagate(False)
 
         # JSON store (shared gameinfo.json, per-field block)
@@ -88,8 +90,8 @@ class TimerComponent(CTkFrame):
 
     def _build_half_controls(self, parent, start_col: int = 0):
         ICON_SIZE = 44
-        FRAME_PAD = 6
-        CORNER = 10
+        FRAME_PAD = 4
+        CORNER = 8
         self.half_buttons = {}
 
         for idx, (label, icon_name) in enumerate((("1ª Parte", "1half"), ("2ª Parte", "2half"))):
@@ -112,11 +114,19 @@ class TimerComponent(CTkFrame):
             btn.grid(
                 row=0,
                 column=start_col + idx,
-                padx=max(2, BUTTON_PAD["padx"] - 2),
-                pady=max(2, BUTTON_PAD["pady"] - 2),
+                padx=max(1, BUTTON_PAD["padx"] - 3),  
+                pady=max(1, BUTTON_PAD["pady"] - 3),  
                 sticky="nsew",
             )
             self.half_buttons[label] = btn
+
+        # Add label below 1half button
+        CTkLabel(
+            parent,
+            text=f"Campo - {self.instance_number}",
+            font=("Arial", 10),
+            text_color="#EAEAEA",
+        ).grid(row=1, column=start_col, sticky="n", pady=(0, 4))
 
     def _highlight_half(self, selected: str):
         for part, btn in self.half_buttons.items():
@@ -126,7 +136,7 @@ class TimerComponent(CTkFrame):
         self._write_half(part)
         self._highlight_half(part)
         show_message_notification(
-            f"✅ Campo {self.instance_number}",
+            f"Campo - {self.instance_number}",
             f"Metade definida: {part}",
             icon="✅",
             bg_color=COLOR_SUCCESS,
@@ -135,7 +145,7 @@ class TimerComponent(CTkFrame):
     # ---------- UI ----------
     def _build_ui(self):
         self.container = CTkFrame(self, fg_color="transparent")
-        self.container.pack(fill="both", expand=True, padx=12, pady=8)
+        self.container.pack(fill="both", expand=True, padx=8, pady=4)  
 
         time_fields = [
             ("max_entry",   "Máximo", None,    "black", "grey"),
@@ -160,14 +170,18 @@ class TimerComponent(CTkFrame):
         self._build_save_button(col=SAVE_COL)
         self._build_time_entries(start_col=TIME_START_COL, specs=time_fields)
         self._build_controls(start_col=CTRL_START_COL, specs=controls)
+        
+        # Add footer
+        from helpers.footer_label import add_footer_label
+        add_footer_label(self, f"Campo {self.instance_number}")
 
     def _configure_grid(self, container, cols: int):
         # two rows: row 0 = entries/buttons, row 1 = labels
-        container.grid_rowconfigure(0, weight=1, uniform="row", minsize=56)
-        container.grid_rowconfigure(1, weight=0, minsize=20)
+        container.grid_rowconfigure(0, weight=1, uniform="row", minsize=48) 
+        container.grid_rowconfigure(1, weight=0, minsize=16) 
         for col in range(cols):
             # give each column some minimum width so entries don't collapse
-            container.grid_columnconfigure(col, weight=1, uniform="col", minsize=90)
+            container.grid_columnconfigure(col, weight=1, uniform="col", minsize=80)
 
     def _build_save_button(self, col: int = 0):
         img = self._icons.get("save")
@@ -179,15 +193,15 @@ class TimerComponent(CTkFrame):
                 fg_color="transparent",
                 hover_color=COLOR_ACTIVE,
                 command=self.save_timers_from_entries,
-            ).grid(row=0, column=col, sticky="nsew", padx=5, pady=5)
+            ).grid(row=0, column=col, sticky="nsew", padx=3, pady=3)
 
     def _build_time_entries(self, start_col: int, specs: list[tuple]):
         for idx, (attr, ph, ph_col, text_col, bg) in enumerate(specs):
             col = start_col + idx
             entry = CTkEntry(
                 self.container,
-                width=140, height=44,           # <- keeps them from shrinking
-                font=("Arial Bold", 18),
+                width=120, height=36,
+                font=("Arial Bold", 16),
                 justify="center",
                 placeholder_text=ph,
                 **({"placeholder_text_color": ph_col} if ph_col else {}),
@@ -195,14 +209,14 @@ class TimerComponent(CTkFrame):
                 fg_color=bg,
             )
             setattr(self, attr, entry)
-            entry.grid(row=0, column=col, sticky="nsew", padx=6, pady=(6, 2))
+            entry.grid(row=0, column=col, sticky="nsew", padx=4, pady=(4, 1))
 
             CTkLabel(
                 self.container,
                 text=ph,
-                font=("Arial", 12),
+                font=("Arial", 10),
                 text_color="#EAEAEA",           # better contrast on dark bg
-            ).grid(row=1, column=col, sticky="n", pady=(0, 6))
+            ).grid(row=1, column=col, sticky="n", pady=(0, 4))
 
     def _build_controls(self, start_col: int, specs: list[tuple]):
         for idx, (key, cmd, col) in enumerate(specs):
@@ -215,7 +229,31 @@ class TimerComponent(CTkFrame):
                     fg_color="transparent",
                     hover_color=col,
                     command=cmd,
-                ).grid(row=0, column=start_col + idx, sticky="nsew", padx=5, pady=5)
+                ).grid(row=0, column=start_col + idx, sticky="nsew", padx=3, pady=3)
+                
+                # Add "X" label below stop button
+                if key == "stop":
+                    close_label = CTkLabel(
+                        self.container,
+                        text="X",
+                        font=("Arial", 10),
+                        text_color="#EAEAEA",
+                        cursor="hand2",  # Show hand cursor on hover
+                    )
+                    close_label.grid(row=1, column=start_col + idx, sticky="ne", pady=(0, 4), padx=(0, 10))  # Align to right with right padding
+                    
+                    # Make the label clickable to close the component
+                    close_label.bind("<Button-1>", lambda e: self._close_component())
+                    
+                    # Add hover effect
+                    def on_enter(e):
+                        close_label.configure(text_color="#FF6B6B")  # Red color on hover
+                    
+                    def on_leave(e):
+                        close_label.configure(text_color="#EAEAEA")  # Original color
+                    
+                    close_label.bind("<Enter>", on_enter)
+                    close_label.bind("<Leave>", on_leave)
 
     # ---------- Hydrate / save (JSON) ----------
     def _hydrate_from_json(self):
@@ -288,7 +326,7 @@ class TimerComponent(CTkFrame):
             secs = _parse_time_to_seconds(text)
             if secs is None:
                 show_message_notification(
-                    f"❌ Campo {self.instance_number} - Erro",
+                    f"Campo - {self.instance_number} - Erro",
                     f"{label}: formato inválido. Usa 'MM:SS' ou 'MMM:SS' (segundos 00–59).",
                     icon="❌",
                     bg_color=COLOR_ERROR,
@@ -305,7 +343,7 @@ class TimerComponent(CTkFrame):
         self.state.update(patch, persist=True)
 
         show_message_notification(
-            f"💾 Campo {self.instance_number} - Guardado",
+            f"Campo - {self.instance_number} - Guardado",
             "Tempos guardados.",
             icon="💾",
             bg_color=COLOR_SUCCESS,
@@ -330,7 +368,7 @@ class TimerComponent(CTkFrame):
         self.timer_running = True
         self._tick()
         show_message_notification(
-            f"⏱️ Campo {self.instance_number} - Iniciado",
+            f"Campo - {self.instance_number} - Iniciado",
             "Cronómetro iniciado.",
             icon="⏳",
             bg_color=COLOR_INFO,
@@ -353,7 +391,7 @@ class TimerComponent(CTkFrame):
 
             if self.timer_seconds_main == self.timer_seconds_max:
                 show_message_notification(
-                    f"⏱️Campo {self.instance_number} - Tempo Extra",
+                    f"Campo - {self.instance_number} - Tempo Extra",
                     "Tempo Extra iniciado.",
                     icon="⏳",
                     bg_color=COLOR_ERROR,
@@ -382,7 +420,7 @@ class TimerComponent(CTkFrame):
             return
         self.timer_running = False
         show_message_notification(
-            f"⏸️Campo {self.instance_number} - Pausado",
+            f"Campo - {self.instance_number} - Pausado",
             "Cronómetro pausado.",
             icon="⏸",
             bg_color=COLOR_PAUSE,
@@ -403,11 +441,21 @@ class TimerComponent(CTkFrame):
         self._last_values["extra"] = zero
 
         show_message_notification(
-            f"⏹️ Campo {self.instance_number} - Parado",
+            f"Campo - {self.instance_number} - Parado",
             "Cronómetro parado.",
             icon="🛑",
             bg_color=COLOR_STOP,
         )
+
+    def _close_component(self):
+        """Close the timer component and its parent window"""
+        # Find the parent window and close it
+        current = self
+        while hasattr(current, 'winfo_toplevel'):
+            current = current.winfo_toplevel()
+            if hasattr(current, 'destroy'):
+                current.destroy()
+                break
 
     def destroy(self):
         """Cleanup when component is destroyed"""
