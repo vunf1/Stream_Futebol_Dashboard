@@ -74,8 +74,31 @@ PIN=
 
 ## ▶️ How to Run
 
+There are several ways to run the application:
+
+### Option 1: Using the PowerShell launcher script (Recommended for Windows)
+```powershell
+.\run.ps1
+```
+
+### Option 2: Using the batch file (Windows)
+```cmd
+run.bat
+```
+
+### Option 3: Using the Python launcher script
 ```bash
-python goal_score.py
+python run.py
+```
+
+### Option 4: Using Python module syntax
+```bash
+python -m src.goal_score
+```
+
+### Option 5: Direct execution (from root directory)
+```bash
+python src/goal_score.py
 ```
 
 When launched, the app will prompt how many fields you want to open. Each will function independently.

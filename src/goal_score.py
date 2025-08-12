@@ -7,12 +7,12 @@ from multiprocessing import Process, Queue, freeze_support  # Process management
 # Third-party library imports
 import customtkinter as ctk              # Modern tkinter-based UI toolkit
 
-from src.core import GameInfoStore, MongoTeamManager
-from src.utils import DateTimeProvider
-from src.ui import get_icon_path, add_footer_label, ScoreUI, TeamInputManager, TopWidget
-from src.notification import init_notification_queue, server_main
-from src.core import get_config
-from src.licensing import LicenseBlocker
+from .core import GameInfoStore, MongoTeamManager
+from .utils import DateTimeProvider
+from .ui import get_icon_path, add_footer_label, ScoreUI, TeamInputManager, TopWidget
+from .notification import init_notification_queue, server_main
+from .core import get_config
+from .licensing import LicenseBlocker
 
 # Global variable to track instance positions for cascade effect
 _instance_positions = {}
