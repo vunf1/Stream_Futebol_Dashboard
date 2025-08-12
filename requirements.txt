@@ -9,3 +9,4 @@ obsws-python
 psutil
 Pillow
 reportlab
+requests

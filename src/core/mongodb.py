@@ -1,14 +1,11 @@
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
-from src.core import SecureEnvLoader
+from src.core.env_loader import ensure_env_loaded
 from src.core import get_env
 from src.core import save_teams_to_json
 from src.notification import show_message_notification
 import threading
 import time
-
-# ─── Decrypt & load ─────────────────────────────────────────
-SecureEnvLoader().load()
 
 # Global connection pool
 _mongo_client = None
@@ -20,6 +17,9 @@ _cache_ttl = 300  # 5 minutes cache
 def _get_mongo_client():
     """Get or create MongoDB client with connection pooling"""
     global _mongo_client
+    
+    # Ensure environment is loaded before accessing env vars
+    ensure_env_loaded()
     
     with _mongo_client_lock:
         if _mongo_client is None:

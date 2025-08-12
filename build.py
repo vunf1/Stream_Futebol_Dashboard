@@ -89,6 +89,9 @@ from src.ui.colors import COLOR_SUCCESS, COLOR_ERROR, COLOR_INFO
 from src.notification.toast import init_notification_queue, show_message_notification
 from src.notification.notification_server import server_main
 
+# UI utilities
+from src.ui import get_icon_path
+
 
 # ───────────────────────── Notifications glue ─────────────────────────
 
@@ -339,6 +342,8 @@ class BuildWindow(ctk.CTk):
                     "--hidden-import", "customtkinter",
                     "--hidden-import", "ctkmessagebox",
                     "--add-data", add_data("src/ui/icons", "src/ui/icons"),
+                    "--add-data", add_data(".env.enc", "."),
+                    "--add-data", add_data("secret.key", "."),
                     "--icon", "src/ui/icons/icon_soft.ico",
                     "--version-file", "version.txt",
                     "src/goal_score.py"

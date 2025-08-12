@@ -13,16 +13,18 @@ import requests
 from src.core import SecureEnvLoader
 from src.core import get_env
 from src.core import _get_mongo_client
+from src.core.env_loader import ensure_env_loaded
 
 class LicenseValidator:
     """Validates license codes against MongoDB and returns signed payloads."""
     
     def __init__(self):
-        # Load environment variables
-        SecureEnvLoader().load()
+        # Defer environment loading until actually needed to avoid PyInstaller import issues
+        self._env_loaded = False
         
         # Get MongoDB configuration
         try:
+            self._ensure_env_loaded()
             self.mongo_uri = get_env("MONGO_URI")
             self.mongo_db_name = get_env("MONGO_DB_license")
             self.mongo_collection_name = get_env("MONGO_COLLECTION_licences")
@@ -42,7 +44,13 @@ class LicenseValidator:
             self.api_key = get_env("LICENSE_API_KEY")
         except RuntimeError:
             self.api_key = ""
-        
+    
+    def _ensure_env_loaded(self):
+        """Ensure environment variables are loaded before using them"""
+        if not self._env_loaded:
+            ensure_env_loaded()
+            self._env_loaded = True
+    
     def _get_mongo_connection(self):
         """Get MongoDB connection for license validation."""
         try:
