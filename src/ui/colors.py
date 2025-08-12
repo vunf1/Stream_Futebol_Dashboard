@@ -1,25 +1,27 @@
+from ..config import AppConfig
+
 # ── Branding / Base ───────────────────────────────────────────────
-COLOR_PRIMARY     = "#1E90FF"  # DodgerBlue    – primary action & highlights
-COLOR_SECONDARY   = "#6C757D"  # Gray          – secondary text / disabled
-COLOR_ACCENT      = "#17A2B8"  # Teal          – accent elements
+COLOR_PRIMARY     = AppConfig.COLOR_PRIMARY
+COLOR_SECONDARY   = AppConfig.COLOR_SECONDARY
+COLOR_ACCENT      = AppConfig.COLOR_ACCENT
 
 # ── States ───────────────────────────────────────────────────────
-COLOR_SUCCESS     = "#28A745"  # Green         – success / go
-COLOR_ERROR       = "#DC3545"  # Red           – errors / stop
-COLOR_WARNING     = "#FFC107"  # Amber         – caution / watch out
-COLOR_INFO        = "#17A2B8"  # Teal          – info / neutral notice
-COLOR_PAUSE       = "#6C757D"  # Gray          – paused / inactive
-COLOR_STOP        = "#A0522D"  # Light Red     – hard stop / end
+COLOR_SUCCESS     = AppConfig.COLOR_SUCCESS
+COLOR_ERROR       = AppConfig.COLOR_ERROR
+COLOR_WARNING     = AppConfig.COLOR_WARNING
+COLOR_INFO        = AppConfig.COLOR_INFO
+COLOR_PAUSE       = AppConfig.COLOR_PAUSE
+COLOR_STOP        = AppConfig.COLOR_STOP
 
 # ── UI Helpers ──────────────────────────────────────────────────
-COLOR_BACKGROUND  = "#000000"  # Black – default window background
-COLOR_SURFACE     = "#FFFFFF"  # White            – cards, panels
-COLOR_BORDER      = "#CED4DA"  # Light gray       – outlines, separators
-COLOR_HOVER       = "#E2E6EA"  # Hover effect
-COLOR_ACTIVE      = "#0056B3"  # DarkDodgerBlue   – active/selected state
-COLOR_DISABLED    = "#ADB5BD"  # Muted gray       – disabled controls
+COLOR_BACKGROUND  = AppConfig.COLOR_BACKGROUND
+COLOR_SURFACE     = AppConfig.COLOR_SURFACE
+COLOR_BORDER      = AppConfig.COLOR_BORDER
+COLOR_HOVER       = AppConfig.COLOR_HOVER
+COLOR_ACTIVE      = AppConfig.COLOR_ACTIVE
+COLOR_DISABLED    = AppConfig.COLOR_DISABLED
 
 # ── Typography ──────────────────────────────────────────────────
-COLOR_TEXT_PRIMARY   = "#212529"  # Almost black – main text
-COLOR_TEXT_SECONDARY = "#6C757D"  # Gray         – secondary text
-COLOR_TEXT_DISABLE   = "#ADB5BD"  # Muted        – disabled text
+COLOR_TEXT_PRIMARY   = AppConfig.COLOR_TEXT_PRIMARY
+COLOR_TEXT_SECONDARY = AppConfig.COLOR_TEXT_SECONDARY
+COLOR_TEXT_DISABLE   = AppConfig.COLOR_TEXT_DISABLE

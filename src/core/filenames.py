@@ -27,26 +27,17 @@ def get_env(name: str) -> str:
         raise RuntimeError(f"Environment variable {name} is not set")
     return value
 
+from ..config import AppConfig
+
 # Full path to the FUTEBOL-SCORE-DASHBOARD folder on the Desktop
 BASE_FOLDER_PATH = os.path.join(
     os.path.expanduser("~"),
     "Desktop",
-    "FUTEBOL-SCORE-DASHBOARD"
+    AppConfig.DESKTOP_FOLDER_NAME
 )
 
 # Map logical keys → file‑stems (no extension)
-BASE_FILE_STEMS: Dict[str, str] = {
-    'half':        'half',
-    'home_score':  'home_score',
-    'away_score':  'away_score',
-    'home_name':   'home_name',
-    'away_name':   'away_name',
-    'home_abbr':   'home_abbr',
-    'away_abbr':   'away_abbr',
-    'max':         'max',
-    'timer':       'timer',
-    'extra':       'extra',
-}
+BASE_FILE_STEMS: Dict[str, str] = AppConfig.BASE_FILE_STEMS
 
 def get_folder_path(instance_number: int) -> str:
     """
@@ -57,7 +48,7 @@ def get_folder_path(instance_number: int) -> str:
     """
     folder = os.path.join(
         BASE_FOLDER_PATH,
-        f"Campo_{instance_number}"
+        f"{AppConfig.FIELD_PREFIX}{instance_number}"
     )    
     os.makedirs(folder, exist_ok=True)
     return folder

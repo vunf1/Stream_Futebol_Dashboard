@@ -6,10 +6,11 @@ from typing import Dict, List, Optional, Any
 import customtkinter as ctk
 
 from .filenames import BASE_FOLDER_PATH, get_env
+from ..config import AppConfig
 
 
 def save_teams_to_json(teams):
-    json_path = os.path.join(BASE_FOLDER_PATH, "teams.json")
+    json_path = os.path.join(BASE_FOLDER_PATH, AppConfig.TEAMS_BACKUP_FILENAME)
     try:
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(teams, f, indent=4, ensure_ascii=False)
@@ -19,7 +20,7 @@ def save_teams_to_json(teams):
         return
         
 def load_teams_from_json():
-    json_path = os.path.join(BASE_FOLDER_PATH, "teams.json")
+    json_path = os.path.join(BASE_FOLDER_PATH, AppConfig.TEAMS_BACKUP_FILENAME)
     try:
         with open(json_path, "r", encoding="utf-8") as f:
             teams = json.load(f)

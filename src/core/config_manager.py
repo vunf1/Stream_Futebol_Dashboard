@@ -43,7 +43,10 @@ class ConfigManager:
             
             # Debug settings
             "debug_mode": False,
-            "log_level": "INFO"
+            "log_level": "INFO",
+            
+            # UI appearance settings
+            "window_opacity": 0.95,  # Window transparency level (0.0 to 1.0)
         }
     
     def _load_config(self):

@@ -6,6 +6,7 @@ from io import StringIO
 
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
+from ..config import AppConfig
 
 class SecureEnvLoader:
     """
@@ -15,10 +16,10 @@ class SecureEnvLoader:
 
     def __init__(
         self,
-        enc_env_filename: str = ".env.enc",
-        key_filename: str = "secret.key",
-        meipass_attr: str = "_MEIPASS",
-        env_dir_envvar: str = "GOAL_ENV_DIR",   # optional override
+        enc_env_filename: str = AppConfig.ENV_ENCRYPTED_FILENAME,
+        key_filename: str = AppConfig.SECRET_KEY_FILENAME,
+        meipass_attr: str = AppConfig.MEIPASS_ATTRIBUTE,
+        env_dir_envvar: str = AppConfig.ENV_DIR_ENVVAR,   # optional override
     ):
         self.enc_env_filename = enc_env_filename
         self.key_filename = key_filename
@@ -75,7 +76,7 @@ class SecureEnvLoader:
                 return key_path, enc_env_path
         
         # 6. Try Desktop/FUTEBOL-SCORE-DASHBOARD (common deployment location)
-        desktop_path = Path.home() / "Desktop" / "FUTEBOL-SCORE-DASHBOARD"
+        desktop_path = Path.home() / "Desktop" / AppConfig.DESKTOP_FOLDER_NAME
         key_path = desktop_path / self.key_filename
         enc_env_path = desktop_path / self.enc_env_filename
         if key_path.exists() and enc_env_path.exists():
@@ -147,7 +148,7 @@ class SecureEnvLoader:
             locations.append(f"  - Project root: {base}")
             
             # Desktop location
-            desktop_path = Path.home() / "Desktop" / "FUTEBOL-SCORE-DASHBOARD"
+            desktop_path = Path.home() / "Desktop" / AppConfig.DESKTOP_FOLDER_NAME
             locations.append(f"  - Desktop location: {desktop_path}")
             
             for loc in locations:

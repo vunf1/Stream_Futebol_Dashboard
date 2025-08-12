@@ -43,14 +43,18 @@
 ```
 .
 ├── goal_score.py        # Entry point and UI orchestration
-├── mainUI/
-│   ├── score_ui.py      # ScoreUI class (main window)
-│   └── ...              # Other UI modules (teams, timer, etc.)
-├── helpers/
-│   ├── helpers.py       # Utilities: JSON backup, formatting
-│   └── notification.py  # Toast & message dialogs
-├── mongodb.py           # MongoDB connection and operations
-├── team_names.py        # Legacy JSON-based team storage
+├── config_editor.py     # Configuration editor launcher
+├── src/
+│   ├── config/          # Configuration system
+│   │   ├── settings.py  # Application settings
+│   │   └── config_editor.py  # Configuration UI
+│   ├── core/            # Core functionality
+│   ├── ui/              # User interface components
+│   ├── licensing/       # License management
+│   ├── notification/    # Notification system
+│   ├── performance/     # Performance monitoring
+│   ├── security/        # Security utilities
+│   └── utils/           # Utility functions
 ├── build.py             # PyInstaller builder script
 ├── assets/icons/        # Application icons (ICO, PNG)
 ├── version.txt          # Project version
@@ -69,6 +73,37 @@ MONGO_DB=
 MONGO_COLLECTION=
 PIN=
 ```
+
+### 🎨 Customization
+
+The application supports comprehensive configuration through a centralized settings system. You can customize various aspects of the application:
+
+#### **Configuration Editor**
+Launch the configuration editor to easily modify settings:
+```bash
+python config_editor.py
+```
+
+#### **Key Configuration Areas**
+- **Window Settings**: Opacity, dimensions, and positioning
+- **Performance Settings**: UI updates, caching, and buffer management
+- **Animation Settings**: Loading animations and timing
+- **Field Settings**: Maximum fields, cascade offsets, and grid spacing
+- **UI Settings**: Fonts, colors, and themes
+
+#### **Configuration File**
+Settings are stored in `performance_config.json` (created automatically):
+- **Default**: 0.95 (95% opacity, slight transparency)
+- **Range**: 0.0 (completely transparent) to 1.0 (fully opaque)
+- **Location**: `performance_config.json` file (created automatically)
+
+#### **Environment Variables**
+Some settings can be configured via environment variables in `.env`:
+- `MONGO_URI` - MongoDB connection string
+- `MONGO_DB` - Database name
+- `MONGO_COLLECTION` - Collection name
+- `PIN` - Admin PIN for team management
+- `DEBUG_MODE` - Enable debug mode (true/false)
 
 ---
 

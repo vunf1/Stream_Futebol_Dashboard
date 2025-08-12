@@ -5,32 +5,23 @@ import time
 import threading
 from typing import Any, Dict
 
+from ..config import AppConfig
+
 # ───────────────── Base path & file ─────────────────
 BASE_FOLDER_PATH = os.path.join(
     os.path.expanduser("~"),
     "Desktop",
-    "FUTEBOL-SCORE-DASHBOARD",
-    "special",
-    "config"
+    AppConfig.DESKTOP_FOLDER_NAME,
+    AppConfig.SPECIAL_CONFIG_FOLDER,
+    AppConfig.CONFIG_SUBFOLDER
 )
-GAMEINFO_PATH = os.path.join(BASE_FOLDER_PATH, "gameinfo.json")
+GAMEINFO_PATH = os.path.join(BASE_FOLDER_PATH, AppConfig.GAMEINFO_FILENAME)
 
 # MM:SS or MMM+:SS (>=100 min), with seconds 00–59
 TIME_PATTERN = re.compile(r"^(?:\d{2}|[1-9]\d{2,}):[0-5]\d$")
 
 # Default block for each field
-DEFAULT_FIELD_STATE: Dict[str, Any] = {
-    "away_abbr":  "",
-    "away_name":  "",
-    "home_abbr":  "",
-    "home_name":  "",
-    "home_score": 0,
-    "away_score": 0,
-    "half":       "1ª Parte",
-    "timer":      "00:00",
-    "extra":      "00:00",
-    "max":        "45:00",
-}
+DEFAULT_FIELD_STATE: Dict[str, Any] = AppConfig.DEFAULT_FIELD_STATE
 ALLOWED_KEYS = set(DEFAULT_FIELD_STATE.keys())
 
 # Global write buffer for batching operations

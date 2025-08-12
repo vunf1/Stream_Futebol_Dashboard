@@ -17,6 +17,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ed25519
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 import requests
+from ..config import AppConfig
 
 # License status types
 LicenseStatus = Literal["active", "trial", "expired", "trial_expired", "blocked", "not_found"]
@@ -26,7 +27,7 @@ class LicenseManager:
     
     def __init__(self):
         self.desktop_path = Path.home() / "Desktop"
-        self.license_dir = self.desktop_path / "FUTEBOL-SCORE-DASHBOARD"
+        self.license_dir = self.desktop_path / AppConfig.DESKTOP_FOLDER_NAME
         self.license_file = self.license_dir / "license.enc"
         self.app_key = self._get_app_key()
         self.machine_hash = self._compute_machine_hash()

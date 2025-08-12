@@ -13,6 +13,7 @@ from .ui import get_icon_path, add_footer_label, ScoreUI, TeamInputManager, TopW
 from .notification import init_notification_queue, server_main
 from .core import get_config
 from .licensing import LicenseBlocker
+from .config import AppConfig
 
 # Global variable to track instance positions for cascade effect
 _instance_positions = {}
@@ -24,9 +25,10 @@ class ScoreApp:
         self.root.title(f"{instance_number} Campo")
         
         # Configure window properties for fast loading
-        self.root.geometry("420x520")  # Increased height to better accommodate all elements
+        window_config = AppConfig.get_window_config()
+        self.root.geometry(f"{window_config['width']}x{window_config['height']}")
         self.root.attributes("-topmost", True)
-        self.root.minsize(190, 255)  # Adjusted minimum size
+        self.root.minsize(window_config['min_width'], window_config['min_height'])
         
         # Remove window border but keep taskbar icon
         self.root.overrideredirect(True)
@@ -39,7 +41,8 @@ class ScoreApp:
         self._position_window(instance_number)
         
         # Fast loading - minimal transparency effect
-        self.root.attributes("-alpha", 0.95)  # Start almost visible
+        self.opacity = AppConfig.WINDOW_OPACITY
+        self.root.attributes("-alpha", self.opacity)  # Start with configured opacity
         
         # Show minimal loading indicator for fast loading
         self._show_fast_loading_indicator()
@@ -50,10 +53,11 @@ class ScoreApp:
         self.mongo = MongoTeamManager()
         
         # Defer backup operation to avoid blocking UI
-        self.root.after(100, self._deferred_backup)
+        animation_config = AppConfig.get_animation_config()
+        self.root.after(animation_config['backup_delay'], self._deferred_backup)
         
         # Faster UI setup with minimal delay
-        self.root.after(10, self._fast_setup_ui)
+        self.root.after(animation_config['ui_setup_delay'], self._fast_setup_ui)
 
     def _position_window(self, instance_number: int):
         """Position the window in center for first instance, cascade for subsequent ones"""
@@ -65,9 +69,10 @@ class ScoreApp:
         
         screen_width, screen_height = self._screen_dimensions
         
-        # Window dimensions (constants for faster access)
-        window_width = 420
-        window_height = 520
+        # Window dimensions from configuration
+        window_config = AppConfig.get_window_config()
+        window_width = window_config['width']
+        window_height = window_config['height']
         
         if instance_number == 1:
             # First instance: center on screen
@@ -77,14 +82,14 @@ class ScoreApp:
             # Fast cascade positioning
             if instance_number - 1 in _instance_positions:
                 prev_x, prev_y = _instance_positions[instance_number - 1]
-                x = prev_x + 40
-                y = prev_y + 40
+                x = prev_x + AppConfig.FIELD_CASCADE_OFFSET
+                y = prev_y + AppConfig.FIELD_CASCADE_OFFSET
                 
                 # Quick boundary check
-                if x + window_width > screen_width - 50:
-                    x = 50
-                if y + window_height > screen_height - 50:
-                    y = 50
+                if x + window_width > screen_width - AppConfig.SCREEN_BOUNDARY_MARGIN:
+                    x = AppConfig.SCREEN_BOUNDARY_MARGIN
+                if y + window_height > screen_height - AppConfig.SCREEN_BOUNDARY_MARGIN:
+                    y = AppConfig.SCREEN_BOUNDARY_MARGIN
             else:
                 # Fast grid positioning
                 base_x = (screen_width - window_width) // 2
@@ -93,14 +98,14 @@ class ScoreApp:
                 grid_col = (instance_number - 1) % 3
                 grid_row = (instance_number - 1) // 3
                 
-                x = base_x + (grid_col * (window_width + 20))
-                y = base_y + (grid_row * (window_height + 20))
+                x = base_x + (grid_col * (window_width + AppConfig.FIELD_GRID_SPACING))
+                y = base_y + (grid_row * (window_height + AppConfig.FIELD_GRID_SPACING))
                 
                 # Quick boundary check
-                if x + window_width > screen_width - 50:
-                    x = 50
-                if y + window_height > screen_height - 50:
-                    y = 50
+                if x + window_width > screen_width - AppConfig.SCREEN_BOUNDARY_MARGIN:
+                    x = AppConfig.SCREEN_BOUNDARY_MARGIN
+                if y + window_height > screen_height - AppConfig.SCREEN_BOUNDARY_MARGIN:
+                    y = AppConfig.SCREEN_BOUNDARY_MARGIN
         
         # Store position and apply immediately
         _instance_positions[instance_number] = (x, y)
@@ -123,8 +128,8 @@ class ScoreApp:
                 y < other_y + height and y + height > other_y):
                 
                 # Simple adjustment
-                new_x = other_x + width + 20
-                new_y = other_y + height + 20
+                new_x = other_x + width + AppConfig.WINDOW_OVERLAP_ADJUSTMENT
+                new_y = other_y + height + AppConfig.WINDOW_OVERLAP_ADJUSTMENT
                 
                 # Update position
                 _instance_positions[instance_number] = (new_x, new_y)
@@ -156,12 +161,12 @@ class ScoreApp:
     def _show_fast_loading_indicator(self):
         """Show a clean, professional loading screen while UI is being built"""
         # Set root window background to match loading theme
-        self.root.configure(fg_color="#1a1a1a")
+        self.root.configure(fg_color=AppConfig.COLORS["loading_bg"])
         
         # Create a full-screen loading overlay
         self.loading_frame = ctk.CTkFrame(
             self.root, 
-            fg_color="#1a1a1a",
+            fg_color=AppConfig.COLORS["loading_bg"],
             corner_radius=0
         )
         self.loading_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
@@ -176,9 +181,9 @@ class ScoreApp:
         # App title
         app_title = ctk.CTkLabel(
             loading_container,
-            text="Stream Futebol Dashboard",
-            font=("Segoe UI", 20, "bold"),
-            text_color="#ffffff"
+            text=AppConfig.APP_TITLE,
+            font=(AppConfig.FONT_FAMILY, AppConfig.FONT_SIZE_TITLE, "bold"),
+            text_color=AppConfig.COLORS["text"]
         )
         app_title.pack(pady=(0, 20))
         
@@ -186,8 +191,8 @@ class ScoreApp:
         self.spinner_label = ctk.CTkLabel(
             loading_container,
             text="● ● ○",
-            font=("Segoe UI", 16),
-            text_color="#4CAF50"
+            font=(AppConfig.FONT_FAMILY, AppConfig.FONT_SIZE_SUBTITLE),
+            text_color=AppConfig.COLORS["spinner"]
         )
         self.spinner_label.pack(pady=(0, 15))
         
@@ -195,8 +200,8 @@ class ScoreApp:
         self.status_label = ctk.CTkLabel(
             loading_container,
             text="Initializing...",
-            font=("Segoe UI", 12),
-            text_color="#cccccc"
+            font=(AppConfig.FONT_FAMILY, AppConfig.FONT_SIZE_BODY),
+            text_color=AppConfig.COLORS["text_secondary"]
         )
         self.status_label.pack()
         
@@ -223,7 +228,8 @@ class ScoreApp:
                         self.spinner_label.configure(text=spinner_states[current_state])
                         current_state = (current_state + 1) % len(spinner_states)
                         # Continue animation
-                        self.root.after(300, update_spinner)
+                        animation_config = AppConfig.get_animation_config()
+                        self.root.after(animation_config['spinner_interval'], update_spinner)
                 except:
                     # Widget was destroyed, stop animation
                     self.spinner_active = False
@@ -252,13 +258,14 @@ class ScoreApp:
         try:
             # Step 0: Check license before proceeding
             self._update_loading_message("Checking license...")
-            self.root.after(50, lambda: self._check_license_and_setup())
+            animation_config = AppConfig.get_animation_config()
+            self.root.after(animation_config['license_check_delay'], lambda: self._check_license_and_setup())
             
         except Exception as e:
             print(f"Error during UI setup: {e}")
             # Fallback: show UI immediately if there's an error
             self._hide_loading_indicator()
-            self.root.attributes("-alpha", 1.0)
+            self.root.attributes("-alpha", self.opacity)
     
     def _check_license_and_setup(self):
         """Check license and proceed with setup if valid"""
@@ -290,7 +297,8 @@ class ScoreApp:
     def _continue_app_setup(self):
         """Continue with the app setup after license validation"""
         self._update_loading_message("Initializing database...")
-        self.root.after(100, lambda: self._setup_step_1())
+        animation_config = AppConfig.get_animation_config()
+        self.root.after(animation_config['loading_step_delay'], lambda: self._setup_step_1())
     
     def _setup_step_1(self):
         """Step 1: Initialize database and basic components"""
@@ -305,14 +313,15 @@ class ScoreApp:
             self.ui_container.pack_forget()  # Hide it
             
             # Set root background to match loading theme initially
-            self.root.configure(fg_color="#1a1a1a")
+            self.root.configure(fg_color=AppConfig.COLORS["loading_bg"])
             
             self._update_loading_message("Building UI components...")
-            self.root.after(100, lambda: self._setup_step_2())
+            animation_config = AppConfig.get_animation_config()
+            self.root.after(animation_config['loading_step_delay'], lambda: self._setup_step_2())
         except Exception as e:
             print(f"Error in step 1: {e}")
             self._hide_loading_indicator()
-            self.root.attributes("-alpha", 1.0)
+            self.root.attributes("-alpha", self.opacity)
     
     def _setup_step_2(self):
         """Step 2: Build UI components"""
@@ -321,18 +330,19 @@ class ScoreApp:
             title_label = ctk.CTkLabel(
                 self.ui_container, 
                 text=f"Campo {self.instance_number}", 
-                font=("Segoe UI Emoji", 16, "bold"),
+                font=(AppConfig.FONT_FAMILY_EMOJI, AppConfig.FONT_SIZE_SUBTITLE, "bold"),
                 text_color="white"
             )
             title_label.pack(pady=(10, 5))
             
             self._update_loading_message("Loading score interface...")
-            self.root.after(100, lambda: self._setup_step_3())
+            animation_config = AppConfig.get_animation_config()
+            self.root.after(animation_config['loading_step_delay'], lambda: self._setup_step_3())
             
         except Exception as e:
             print(f"Error in step 2: {e}")
             self._hide_loading_indicator()
-            self.root.attributes("-alpha", 1.0)
+            self.root.attributes("-alpha", self.opacity)
     
     def _setup_step_3(self):
         """Step 3: Initialize score UI and team manager"""
@@ -348,12 +358,13 @@ class ScoreApp:
             )
             
             self._update_loading_message("Setting up team management...")
-            self.root.after(100, lambda: self._setup_step_4())
+            animation_config = AppConfig.get_animation_config()
+            self.root.after(animation_config['loading_step_delay'], lambda: self._setup_step_4())
             
         except Exception as e:
             print(f"Error in step 3: {e}")
             self._hide_loading_indicator()
-            self.root.attributes("-alpha", 1.0)
+            self.root.attributes("-alpha", self.opacity)
     
     def _setup_step_4(self):
         """Step 4: Finalize UI setup"""
@@ -372,12 +383,13 @@ class ScoreApp:
             self._make_body_draggable()
             
             self._update_loading_message("Finalizing...")
-            self.root.after(200, self._complete_fast_loading)
+            animation_config = AppConfig.get_animation_config()
+            self.root.after(animation_config['completion_delay'], self._complete_fast_loading)
             
         except Exception as e:
             print(f"Error in step 4: {e}")
             self._hide_loading_indicator()
-            self.root.attributes("-alpha", 1.0)
+            self.root.attributes("-alpha", self.opacity)
 
     def _complete_fast_loading(self):
         """Complete the fast loading process and show the UI"""
@@ -388,12 +400,12 @@ class ScoreApp:
             # Hide loading indicator
             self._hide_loading_indicator()
             
-            # Make window fully visible
-            self.root.attributes("-alpha", 1.0)
+            # Keep the configured opacity for transparency
+            self.root.attributes("-alpha", self.opacity)
             
             # Start periodic license checking to ensure app stays secure
             if hasattr(self, 'license_blocker'):
-                self.license_blocker.start_periodic_check(30000)  # Check every 30 seconds
+                self.license_blocker.start_periodic_check(AppConfig.LICENSE_CHECK_INTERVAL)
                 print("Periodic license checking started")
             
             print(f"Campo {self.instance_number} loaded successfully!")
@@ -402,7 +414,7 @@ class ScoreApp:
             print(f"Error completing loading: {e}")
             # Fallback: show UI immediately if there's an error
             self._hide_loading_indicator()
-            self.root.attributes("-alpha", 1.0)
+            self.root.attributes("-alpha", self.opacity)
     
     def _fade_in_ui(self):
         """Fade in the UI smoothly"""
@@ -422,13 +434,14 @@ class ScoreApp:
     def _smooth_fade_transition(self):
         """Smooth fade transition from loading to UI"""
         # Start with loading background
-        self.root.configure(fg_color="#1a1a1a")
+        self.root.configure(fg_color=AppConfig.COLORS["loading_bg"])
         
         # Gradually transition to final background (dark theme only)
         def fade_step(step=0):
-            if step <= 10:
+            animation_config = AppConfig.get_animation_config()
+            if step <= animation_config['fade_steps']:
                 # Interpolate between loading color and final dark color
-                progress = step / 10
+                progress = step / animation_config['fade_steps']
                 r1, g1, b1 = 26, 26, 26  # #1a1a1a
                 r2, g2, b2 = 43, 43, 43  # #2b2b2b (standard dark theme)
                 
@@ -440,12 +453,12 @@ class ScoreApp:
                 self.root.configure(fg_color=color)
                 
                 # Continue fade
-                self.root.after(20, lambda: fade_step(step + 1))
+                self.root.after(animation_config['fade_step_interval'], lambda: fade_step(step + 1))
             else:
                 # Set final background to match CustomTkinter dark theme exactly
                 self.root.configure(fg_color="gray15")  # Use CustomTkinter's built-in dark theme
-                # Make window fully visible
-                self.root.attributes("-alpha", 1.0)
+                # Keep the configured opacity for transparency
+                self.root.attributes("-alpha", self.opacity)
                 # Ensure window is focused and visible
                 self.root.lift()
                 self.root.focus_force()
@@ -509,7 +522,8 @@ def ask_instance_count_ui() -> int:
     except:
         pass  # Silently ignore icon loading errors
     window.title("Campos")
-    window.geometry("320x200")
+    dialog_config = AppConfig.get_dialog_config()
+    window.geometry(f"{dialog_config['width']}x{dialog_config['height']}")
     window.resizable(False, False)
     
     # Remove window border but ensure visibility
@@ -518,27 +532,28 @@ def ask_instance_count_ui() -> int:
     window.attributes("-topmost", True)  # Ensure window appears on top
     
     # Set a visible background color for the borderless window
-    window.configure(fg_color="#2b2b2b")
+    window.configure(fg_color=AppConfig.COLORS["surface"])
     
     # Center the dialog window on screen
     window.update_idletasks()
     screen_width = window.winfo_screenwidth()
     screen_height = window.winfo_screenheight()
-    x = (screen_width - 320) // 2
-    y = (screen_height - 200) // 2
-    window.geometry(f"380x200+{x}+{y}")
+    dialog_config = AppConfig.get_dialog_config()
+    x = (screen_width - dialog_config['width']) // 2
+    y = (screen_height - dialog_config['height']) // 2
+    window.geometry(f"{dialog_config['expanded_width']}x{dialog_config['expanded_height']}+{x}+{y}")
     
     # Ensure window gets focus and is visible
     window.lift()
     window.focus_force()
 
-    ctk.CTkLabel(window, text="Quantos campos queres abrir?", font=("Segoe UI Emoji", 15)).pack(pady=(20, 10))
+    ctk.CTkLabel(window, text="Quantos campos queres abrir?", font=(AppConfig.FONT_FAMILY_EMOJI, AppConfig.FONT_SIZE_DIALOG_TITLE)).pack(pady=(20, 10))
 
-    slider = ctk.CTkSlider(window, from_=1, to=20, number_of_steps=19, width=220)
-    slider.set(1)
+    slider = ctk.CTkSlider(window, from_=AppConfig.MIN_FIELDS, to=AppConfig.MAX_FIELDS, number_of_steps=AppConfig.MAX_FIELDS-1, width=AppConfig.DIALOG_SLIDER_WIDTH)
+    slider.set(AppConfig.DEFAULT_FIELDS)
     slider.pack()
 
-    value_label = ctk.CTkLabel(window, text="1", font=("Segoe UI Emoji", 13))
+    value_label = ctk.CTkLabel(window, text=str(AppConfig.DEFAULT_FIELDS), font=(AppConfig.FONT_FAMILY_EMOJI, AppConfig.FONT_SIZE_DIALOG_BODY))
     value_label.pack(pady=(5, 10))
 
     def update_label(value):
