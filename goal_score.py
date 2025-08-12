@@ -256,6 +256,53 @@ class ScoreApp:
     def _fast_setup_ui(self):
         """Faster UI setup to ensure smooth loading"""
         try:
+            # Step 0: Check license before proceeding
+            self._update_loading_message("Checking license...")
+            self.root.after(50, lambda: self._check_license_and_setup())
+            
+        except Exception as e:
+            print(f"Error during UI setup: {e}")
+            # Fallback: show UI immediately if there's an error
+            self._hide_loading_indicator()
+            self.root.attributes("-alpha", 1.0)
+    
+    def _check_license_and_setup(self):
+        """Check license and proceed with setup if valid"""
+        try:
+            from helpers.license_blocker import LicenseBlocker
+            
+            # Initialize license blocker with callback to continue setup
+            self.license_blocker = LicenseBlocker(
+                self.root, 
+                on_license_valid=self._continue_app_setup
+            )
+            
+            # Check license status
+            if self.license_blocker.check_and_block():
+                # License is valid, proceed with normal setup
+                print("License validated, proceeding with app setup...")
+                self._continue_app_setup()
+            else:
+                # License is invalid, app is blocked
+                print("License validation failed, app is blocked")
+                # The license blocker will handle showing the blocking overlay
+                # and license activation modal
+                return
+                
+        except Exception as e:
+            print(f"Error checking license: {e}")
+            # If license check fails, proceed with normal setup for development
+            print("License check failed, proceeding with development mode...")
+            self._continue_app_setup()
+    
+    def _continue_app_setup(self):
+        """Continue with the app setup after license validation"""
+        self._update_loading_message("Initializing database...")
+        self.root.after(100, lambda: self._setup_step_1())
+    
+    def _setup_step_1(self):
+        """Step 1: Initialize database and basic components"""
+        try:
             # Create a hidden container for all UI components
             self.ui_container = ctk.CTkFrame(
                 self.root,
@@ -268,19 +315,6 @@ class ScoreApp:
             # Set root background to match loading theme initially
             self.root.configure(fg_color="#1a1a1a")
             
-            # Step 1: Initialize core components
-            self._update_loading_message("Initializing database...")
-            self.root.after(100, lambda: self._setup_step_1())
-            
-        except Exception as e:
-            print(f"Error during UI setup: {e}")
-            # Fallback: show UI immediately if there's an error
-            self._hide_loading_indicator()
-            self.root.attributes("-alpha", 1.0)
-    
-    def _setup_step_1(self):
-        """Step 1: Initialize database and basic components"""
-        try:
             self._update_loading_message("Building UI components...")
             self.root.after(100, lambda: self._setup_step_2())
         except Exception as e:
@@ -354,12 +388,29 @@ class ScoreApp:
             self.root.attributes("-alpha", 1.0)
 
     def _complete_fast_loading(self):
-        """Complete the fast loading process with smooth transition"""
-        # Update final status
-        self._update_loading_message("Ready!")
-        
-        # Brief pause to show "Ready!" message
-        self.root.after(500, self._fade_in_ui)
+        """Complete the fast loading process and show the UI"""
+        try:
+            # Show the UI container
+            self.ui_container.pack(fill="both", expand=True)
+            
+            # Hide loading indicator
+            self._hide_loading_indicator()
+            
+            # Make window fully visible
+            self.root.attributes("-alpha", 1.0)
+            
+            # Start periodic license checking to ensure app stays secure
+            if hasattr(self, 'license_blocker'):
+                self.license_blocker.start_periodic_check(30000)  # Check every 30 seconds
+                print("Periodic license checking started")
+            
+            print(f"Campo {self.instance_number} loaded successfully!")
+            
+        except Exception as e:
+            print(f"Error completing loading: {e}")
+            # Fallback: show UI immediately if there's an error
+            self._hide_loading_indicator()
+            self.root.attributes("-alpha", 1.0)
     
     def _fade_in_ui(self):
         """Fade in the UI smoothly"""
@@ -483,7 +534,7 @@ def ask_instance_count_ui() -> int:
     screen_height = window.winfo_screenheight()
     x = (screen_width - 320) // 2
     y = (screen_height - 200) // 2
-    window.geometry(f"320x200+{x}+{y}")
+    window.geometry(f"380x200+{x}+{y}")
     
     # Ensure window gets focus and is visible
     window.lift()
