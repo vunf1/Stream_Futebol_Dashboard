@@ -6,7 +6,7 @@ import time
 import os
 from pathlib import Path
 
-from helpers.make_drag_drop import make_it_drag_and_drop
+from src.ui.make_drag_drop import make_it_drag_and_drop
 
 # ───────────────────────── Bootstrap (before CTk import) ─────────────────────────
 
@@ -32,13 +32,23 @@ def run_cmd_quiet(args, *, name: str):
     Run a command with no console output. If it fails, re-run capturing stderr
     so we can show a helpful error.
     """
+    print(f"🔧 Running: {' '.join(args)}")
     rc = subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                         creationflags=_creationflags()).returncode
     if rc != 0:
+        print(f"❌ Command failed with exit code {rc}")
         cp = subprocess.run(args, capture_output=True, text=True,
                             creationflags=_creationflags())
         stderr = (cp.stderr or "").strip()
-        raise RuntimeError(stderr or f"{name} falhou (exit {cp.returncode})")
+        stdout = (cp.stdout or "").strip()
+        error_msg = stderr or f"{name} falhou (exit {cp.returncode})"
+        if stdout:
+            print(f"stdout: {stdout}")
+        if stderr:
+            print(f"stderr: {stderr}")
+        raise RuntimeError(error_msg)
+    else:
+        print(f"✅ Command completed successfully")
 
 def install_dependencies() -> None:
     """Install runtime deps once (skip when frozen)."""
@@ -60,7 +70,7 @@ def generate_secret_key() -> None:
     if getattr(sys, "frozen", False):
         return
     try:
-        run_cmd_quiet([sys.executable, os.path.join("helpers", "generate_secret.py")],
+        run_cmd_quiet([sys.executable, os.path.join("src", "security", "generate_secret.py")],
                       name="generate_secret")
     except Exception as e:
         fallback_notify(f"Erro ao gerar chave secreta:\n{e}")
@@ -73,11 +83,11 @@ generate_secret_key()
 
 import customtkinter as ctk
 from multiprocessing import Manager, Process
-from assets.colors import COLOR_SUCCESS, COLOR_ERROR, COLOR_INFO
+from src.ui.colors import COLOR_SUCCESS, COLOR_ERROR, COLOR_INFO
 
 # notifications (queue + server)
-from helpers.notification.toast import init_notification_queue, show_message_notification
-from helpers.notification.notification_server import server_main
+from src.notification.toast import init_notification_queue, show_message_notification
+from src.notification.notification_server import server_main
 
 
 # ───────────────────────── Notifications glue ─────────────────────────
@@ -199,6 +209,28 @@ def add_data(src, dst):
     # PyInstaller wants ';' on Windows, ':' on macOS/Linux
     sep = ';' if os.name == 'nt' else ':'
     return f"{src}{sep}{dst}"
+
+def validate_build_environment():
+    """Validate that all required files exist before starting the build"""
+    required_files = [
+        "src/goal_score.py",
+        "src/ui/icons/icon_soft.ico",
+        "version.txt",
+        "requirements.txt"
+    ]
+    
+    missing_files = []
+    for file_path in required_files:
+        if not os.path.exists(file_path):
+            missing_files.append(file_path)
+    
+    if missing_files:
+        error_msg = f"Missing required files for build:\n" + "\n".join(f"  - {f}" for f in missing_files)
+        print(f"❌ {error_msg}")
+        raise RuntimeError(error_msg)
+    
+    print("✅ Build environment validation passed")
+    return True
 # ───────────────────────── UI ─────────────────────────
 
 class BuildWindow(ctk.CTk):
@@ -267,20 +299,26 @@ class BuildWindow(ctk.CTk):
 
         # Work
         t0 = time.perf_counter()
-        fn()
-        self._progress_done += weight
-        frac = min(1.0, self._progress_done / self._progress_total)
-        self.progress.set(frac)
+        try:
+            fn()
+            self._progress_done += weight
+            frac = min(1.0, self._progress_done / self._progress_total)
+            self.progress.set(frac)
 
-        # Throttle visual jitter
-        elapsed = time.perf_counter() - t0
-        if elapsed < 0.12:
-            time.sleep(0.12 - elapsed)
+            # Throttle visual jitter
+            elapsed = time.perf_counter() - t0
+            if elapsed < 0.12:
+                time.sleep(0.12 - elapsed)
 
-        # DONE toast (your success style)
-        notify("✅ Passo concluído",
-            f"{msg} concluído ({self._pct()}%).",
-            icon="✅", duration=2000, bg=COLOR_SUCCESS, group=group_id)
+            # DONE toast (your success style)
+            notify("✅ Passo concluído",
+                f"{msg} concluído ({self._pct()}%).",
+                icon="✅", duration=2000, bg=COLOR_SUCCESS, group=group_id)
+        except Exception as e:
+            print(f"❌ Step '{msg}' failed: {e}")
+            import traceback
+            traceback.print_exc()
+            raise  # Re-raise to be caught by the main error handler
             
     
     def run_build_steps(self):
@@ -289,6 +327,7 @@ class BuildWindow(ctk.CTk):
             DIST_PATHS = [Path("dist") / n for n in EXE_NAMES]
 
             STEPS = [ 
+                ("🔍 Validando ambiente…",     0.5, lambda: validate_build_environment()),
                 ("🛑 Aguardando fecho…",       1.0, lambda: wait_until_apps_closed(EXE_NAMES)),
                 ("🔖 Gerando version.txt…",    1.0, lambda: run_cmd_quiet([sys.executable, "version_gen.py"], name="version_gen")),
                 ("🧭 Definindo perfil: release", 0.2, lambda: set_build_profile("release")), 
@@ -299,12 +338,10 @@ class BuildWindow(ctk.CTk):
                     "--clean", "--onefile", "--noconsole", "--noconfirm",
                     "--hidden-import", "customtkinter",
                     "--hidden-import", "ctkmessagebox",
-                    "--add-data", add_data(".env.enc", "."),
-                    "--add-data", add_data("secret.key", "."),
-                    "--add-data", add_data("assets/icons", "assets/icons"),
-                    "--icon", "assets/icons/icon_soft.ico",
+                    "--add-data", add_data("src/ui/icons", "src/ui/icons"),
+                    "--icon", "src/ui/icons/icon_soft.ico",
                     "--version-file", "version.txt",
-                    "goal_score.py"
+                    "src/goal_score.py"
                 ], name="PyInstaller")),
                 ("⚽ A iniciar os jogos…",      1.5, lambda: time.sleep(0.2)),
                 ("🎯 Remate final…",           1.5, lambda: time.sleep(0.2)),
@@ -324,6 +361,12 @@ class BuildWindow(ctk.CTk):
             self.quit()
 
         except Exception as e:
+            # Print error to console for debugging
+            print(f"❌ BUILD ERROR: {e}")
+            print(f"Error type: {type(e).__name__}")
+            import traceback
+            traceback.print_exc()
+            
             notify("💥 Erro no Build", f"Ocorreu um erro:\n{e}", icon="❌", duration=7000, bg=COLOR_ERROR)
             self.label.configure(text="💥 Algo correu mal no feitiço...")
             self.last_error_text = f"Detalhes técnicos:\n{e}"

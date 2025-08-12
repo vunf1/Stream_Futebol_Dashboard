@@ -1,21 +1,71 @@
-MIT License
+PROPRIETARY SOFTWARE LICENSE AGREEMENT
 
-Copyright (c) 2023 Maia
+Copyright (c) 2023-2024 João Maia. All Rights Reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This software and associated documentation files (the "Software") are the proprietary 
+and confidential information of João Maia ("Licensor"). The Software is protected by 
+copyright laws and international copyright treaties, as well as other intellectual 
+property laws and treaties.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+IMPORTANT: By using, copying, or distributing this Software, you agree to be bound 
+by the terms of this License Agreement.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+GRANT OF LICENSE:
+Subject to the terms and conditions of this License Agreement, Licensor hereby grants 
+you a limited, non-exclusive, non-transferable, non-sublicensable license to use the 
+Software solely for your internal business purposes.
+
+RESTRICTIONS:
+You may NOT:
+1. Modify, alter, or create derivative works of the Software without explicit written 
+   permission from Licensor
+2. Reverse engineer, decompile, or disassemble the Software
+3. Remove or alter any proprietary notices or labels on the Software
+4. Use the Software for commercial purposes without obtaining a separate Commercial 
+   License Agreement
+5. Distribute, sublicense, or transfer the Software to any third party
+6. Use the Software in any manner that violates applicable laws or regulations
+
+COMMERCIAL USE:
+Commercial use of this Software requires a separate Commercial License Agreement. 
+Commercial use includes, but is not limited to:
+- Integration into commercial or proprietary products
+- Use in commercial services or SaaS applications
+- Distribution or resale of the Software
+- Use in revenue-generating activities
+
+CONTACT FOR LICENSING:
+For commercial licensing inquiries, modifications, or other permissions, contact:
+João Maia
+Email: epg.joaomaia@gmail.com
+
+TERMINATION:
+This license automatically terminates if you fail to comply with any of the terms 
+and conditions of this License Agreement. Upon termination, you must cease all use 
+of the Software and destroy all copies.
+
+DISCLAIMER OF WARRANTY:
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, 
+FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. LICENSOR DOES NOT WARRANT 
+THAT THE SOFTWARE WILL MEET YOUR REQUIREMENTS OR THAT THE OPERATION OF THE SOFTWARE 
+WILL BE UNINTERRUPTED OR ERROR-FREE.
+
+LIMITATION OF LIABILITY:
+IN NO EVENT SHALL LICENSOR BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, 
+CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO LOSS OF PROFITS, 
+LOSS OF BUSINESS, OR LOSS OF DATA, ARISING OUT OF OR RELATING TO THE USE OR 
+INABILITY TO USE THE SOFTWARE, EVEN IF LICENSOR HAS BEEN ADVISED OF THE 
+POSSIBILITY OF SUCH DAMAGES.
+
+GOVERNING LAW:
+This License Agreement shall be governed by and construed in accordance with the 
+laws of Portugal, without regard to its conflict of law principles.
+
+ENTIRE AGREEMENT:
+This License Agreement constitutes the entire agreement between you and Licensor 
+concerning the Software and supersedes all prior or contemporaneous agreements, 
+whether written or oral, relating to the subject matter hereof.
+
+By using this Software, you acknowledge that you have read this License Agreement, 
+understand it, and agree to be bound by its terms and conditions.
