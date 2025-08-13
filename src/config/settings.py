@@ -64,9 +64,15 @@ class AppConfig:
     # Dialog Window Settings
     DIALOG_WIDTH = 320
     DIALOG_HEIGHT = 200
-    DIALOG_EXPANDED_WIDTH = 380
+    DIALOG_EXPANDED_WIDTH = 400  # License modal width
     DIALOG_EXPANDED_HEIGHT = 200
     DIALOG_SLIDER_WIDTH = 220
+    
+    # License Modal Settings
+    LICENSE_MODAL_HEIGHT = 250
+    LICENSE_MODAL_PADDING = 20
+    LICENSE_MODAL_BUTTON_HEIGHT = 35
+    LICENSE_MODAL_CLOSE_BUTTON_SIZE = 24
     
     # Timer Settings
     TIMER_UPDATE_INTERVAL = 1000  # milliseconds

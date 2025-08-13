@@ -148,6 +148,9 @@ class LicenseValidator:
                     "expiresAt": license_doc.get("expiry", ""),
                     "machineHash": machine_hash,
                     "signature": self._create_mock_signature(clean_code, machine_hash, status),
+                    "user": license_doc.get("user", "Unknown User"),
+                    "email": license_doc.get("email", "No Email"),
+                    "company": license_doc.get("company", "No Company"),
                     "metadata": {
                         "type": "mongodb",
                         "version": "1.0.0",
@@ -256,6 +259,9 @@ class LicenseValidator:
             "expiresAt": expires_at.isoformat(),
             "machineHash": machine_hash,
             "signature": mock_signature,
+            "user": "Demo User",
+            "email": "demo@example.com",
+            "company": "Demo Company",
             "metadata": {
                 "type": "development",
                 "version": "1.0.0"

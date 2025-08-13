@@ -9,6 +9,7 @@ from .license_manager import LicenseManager
 from .license_validator import LicenseValidator
 from .license_modal import LicenseModal, LicenseActivationDialog
 from .license_blocker import LicenseBlocker
+from .license_details_window import show_license_details
 from .license_integration import (
     integrate_licensing,
     check_license_status,
@@ -23,6 +24,7 @@ __all__ = [
     'LicenseModal',
     'LicenseActivationDialog',
     'LicenseBlocker',
+    'show_license_details',
     'integrate_licensing',
     'check_license_status',
     'get_license_display_info',

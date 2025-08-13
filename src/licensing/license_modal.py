@@ -6,6 +6,8 @@ Modal window for entering and validating license codes.
 import customtkinter as ctk
 from typing import Callable, Optional
 from .license_validator import LicenseValidator
+from ..ui.make_drag_drop import make_it_drag_and_drop
+from ..config.settings import AppConfig
 
 class LicenseModal:
     """Modal window for license activation."""
@@ -23,34 +25,60 @@ class LicenseModal:
         self.validator = LicenseValidator()
         self.modal_window: Optional[ctk.CTkToplevel] = None
         self.result = None
+        self._modal_x = 0
+        self._modal_y = 0
         
     def show(self):
         """Show the license activation modal."""
         try:
-            # Create modal window
+            # Create modal window with optimized settings
             self.modal_window = ctk.CTkToplevel(self.parent)
             self.modal_window.title("License Activation")
-            self.modal_window.geometry("400x300")
-            self.modal_window.lift()
+            
+            # Remove window border for custom appearance
+            self.modal_window.overrideredirect(True)
+            
+            # Set window properties before showing to reduce flickering
+            self.modal_window.resizable(False, False)
+            self.modal_window.configure(fg_color=("gray95", "gray15"))
+            
+            # Make window appear on top of all other windows
             self.modal_window.attributes('-topmost', True)
             
-            # Create UI components first
+            # Hide window temporarily to prevent flickering during setup
+            self.modal_window.attributes('-alpha', 0.0)
+            
+            # Calculate position first to avoid repositioning
+            self._calculate_position()
+            
+            # Set geometry with position in one call
+            self.modal_window.geometry(f"{AppConfig.DIALOG_EXPANDED_WIDTH}x{AppConfig.LICENSE_MODAL_HEIGHT}+{self._modal_x}+{self._modal_y}")
+            
+            # Create UI components in background
             self._create_ui()
             
-            # Position modal in center of parent
-            self._center_modal()
-            
-            # Force update to ensure visibility BEFORE making it modal
-            self.modal_window.update()
+            # Ensure window is ready before making it modal
             self.modal_window.update_idletasks()
             
-            # Now make it modal (grab input) AFTER UI is created and visible
-            self.modal_window.grab_set()
+            # Make modal without multiple updates
             self.modal_window.transient(self.parent)
+            self.modal_window.grab_set()
             
-            # Focus on code entry and ensure it's enabled
+            # Ensure all widgets are fully rendered before showing
+            self.modal_window.update()
+            
+            # Now show the fully prepared window by restoring alpha
+            self.modal_window.attributes('-alpha', 1.0)
+            
+            # Make window draggable
+            make_it_drag_and_drop(self.modal_window)
+            
+            # Force the window to be visible
+            self.modal_window.lift()
+            self.modal_window.focus_force()
+            
+            # Focus on code entry
             self.code_entry.focus_set()
-            self.code_entry.configure(state="normal")
             
             # Wait for the modal to be closed
             self.modal_window.wait_window()
@@ -63,12 +91,9 @@ class LicenseModal:
             traceback.print_exc()
             return None
     
-    def _center_modal(self):
-        """Center the modal on the parent window."""
+    def _calculate_position(self):
+        """Calculate modal position to center it on the parent window."""
         try:
-            if not self.modal_window:
-                return
-                
             # Get parent window position and size
             parent_x = self.parent.winfo_x()
             parent_y = self.parent.winfo_y()
@@ -76,25 +101,22 @@ class LicenseModal:
             parent_height = self.parent.winfo_height()
             
             # Get modal size
-            modal_width = 400
-            modal_height = 300
+            modal_width = AppConfig.DIALOG_EXPANDED_WIDTH
+            modal_height = AppConfig.LICENSE_MODAL_HEIGHT
             
             # Calculate center position
-            x = parent_x + (parent_width - modal_width) // 2
-            y = parent_y + (parent_height - modal_height) // 2
+            self._modal_x = parent_x + (parent_width - modal_width) // 2
+            self._modal_y = parent_y  # Start at top of parent window
             
             # Ensure modal is on screen
-            x = max(0, x)
-            y = max(0, y)
-            
-            # Position modal
-            self.modal_window.geometry(f"{modal_width}x{modal_height}+{x}+{y}")
+            self._modal_x = max(0, self._modal_x)
+            self._modal_y = max(0, self._modal_y)
             
         except Exception as e:
-            print(f"Error centering modal: {e}")
+            print(f"Error calculating modal position: {e}")
             # Fallback to center of screen
-            if self.modal_window:
-                self.modal_window.geometry("400x300+100+100")
+            self._modal_x = 100
+            self._modal_y = 100
     
     def _create_ui(self):
         """Create the modal UI components."""
@@ -102,85 +124,100 @@ class LicenseModal:
             return
             
         try:
-            # Main frame
+            # Configure modal window appearance before creating widgets
+            self.modal_window.configure(fg_color=("gray95", "gray15"))
+            
+            # Disable window updates during widget creation to prevent flickering
+            self.modal_window.update_idletasks()
+            
+            # Main container frame
             main_frame = ctk.CTkFrame(self.modal_window)
-            main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+            main_frame.pack(fill="both", expand=True, padx=AppConfig.LICENSE_MODAL_PADDING, pady=AppConfig.LICENSE_MODAL_PADDING)
             
-            # Title
-            title_label = ctk.CTkLabel(
-                main_frame, 
-                text="Enter License Code", 
-                font=("Segoe UI", 18, "bold")
-            )
-            title_label.pack(pady=(20, 10))
+            # Content frame (non-scrollable) - removed expand to allow proper positioning
+            content_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+            content_frame.pack(fill="x", pady=(20, 0))
             
-            # Description
+            # Description (now the main title)
             desc_label = ctk.CTkLabel(
-                main_frame,
+                content_frame,
                 text="Please enter your license code to activate the application.",
-                font=("Segoe UI", 12),
+                font=(AppConfig.FONT_FAMILY, AppConfig.FONT_SIZE_DIALOG_BODY),
                 text_color="gray"
             )
-            desc_label.pack(pady=(0, 20))
+            desc_label.pack(pady=(10, 10))
             
             # License code entry
-            code_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-            code_frame.pack(fill="x", pady=(0, 10))
-            
-            code_label = ctk.CTkLabel(code_frame, text="License Code:", font=("Segoe UI", 12))
-            code_label.pack(anchor="w")
+            code_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+            code_frame.pack(fill="x", pady=(0, 5))
             
             self.code_entry = ctk.CTkEntry(
                 code_frame,
                 placeholder_text="Enter your license code here...",
-                font=("Segoe UI", 12),
-                height=35,
+                font=(AppConfig.FONT_FAMILY, AppConfig.FONT_SIZE_DIALOG_BODY),
+                height=AppConfig.LICENSE_MODAL_BUTTON_HEIGHT,
                 state="normal"  # Ensure entry is enabled
             )
             self.code_entry.pack(fill="x", pady=(5, 0))
             
             # Error label
             self.error_label = ctk.CTkLabel(
-                main_frame,
+                content_frame,
                 text="",
-                font=("Segoe UI", 11),
-                text_color="#dc3545"
+                font=(AppConfig.FONT_FAMILY, AppConfig.FONT_SIZE_DIALOG_BODY),
+                text_color=AppConfig.COLOR_ERROR
             )
             self.error_label.pack(pady=(5, 0))
             
-            # Buttons frame
-            button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-            button_frame.pack(fill="x", pady=(20, 0))
+            # Progress bar (hidden by default)
+            self.progress_bar = ctk.CTkProgressBar(content_frame)
+            self.progress_bar.pack(fill="x", pady=(10, 0))
+            self.progress_bar.set(0)
+            self.progress_bar.pack_forget()  # Hide initially
             
-            # Submit button
+            # Buttons frame - positioned right after content
+            button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+            button_frame.pack(fill="x", pady=(0, 0))
+            
+            # Submit button - centered
             self.submit_button = ctk.CTkButton(
                 button_frame,
                 text="Activate License",
                 command=self._activate_license,
-                font=("Segoe UI", 12, "bold"),
-                height=35,
-                fg_color="#28a745",
-                hover_color="#218838"
+                font=(AppConfig.FONT_FAMILY, AppConfig.FONT_SIZE_DIALOG_BODY, "bold"),
+                height=AppConfig.LICENSE_MODAL_BUTTON_HEIGHT,
+                fg_color=AppConfig.COLOR_SUCCESS,
+                hover_color=AppConfig.COLOR_ACTIVE
             )
-            self.submit_button.pack(side="left", fill="x", expand=True, padx=(0, 5))
+            self.submit_button.pack(expand=True, padx=100)
             
-            # Cancel button
-            cancel_button = ctk.CTkButton(
-                button_frame,
-                text="Cancel",
-                command=self._cancel,
-                font=("Segoe UI", 12),
-                height=35,
-                fg_color="#6c757d",
-                hover_color="#5a6268"
+            # Footer - positioned right after button
+            footer_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+            footer_frame.pack(fill="x", pady=(0, 0), padx=6)
+            
+            # Footer label (left side)
+            footer_label = ctk.CTkLabel(
+                footer_frame, 
+                text="© 2025 Vunf1", 
+                font=(AppConfig.FONT_FAMILY_EMOJI, 10), 
+                text_color="gray"
             )
-            cancel_button.pack(side="right", fill="x", expand=True, padx=(5, 0))
+            footer_label.pack(side="left")
             
-            # Progress bar (hidden by default)
-            self.progress_bar = ctk.CTkProgressBar(main_frame)
-            self.progress_bar.pack(fill="x", pady=(10, 0))
-            self.progress_bar.set(0)
-            self.progress_bar.pack_forget()  # Hide initially
+            # Close button (X) - Modern transparent design
+            close_button = ctk.CTkButton(
+                footer_frame, 
+                text="✕", 
+                width=AppConfig.LICENSE_MODAL_CLOSE_BUTTON_SIZE,
+                height=AppConfig.LICENSE_MODAL_CLOSE_BUTTON_SIZE,
+                font=(AppConfig.FONT_FAMILY_EMOJI, 12, "bold"),
+                fg_color="transparent",
+                hover_color=AppConfig.COLOR_SURFACE,
+                text_color=AppConfig.COLOR_TEXT_SECONDARY,
+                corner_radius=12,
+                command=self._cancel
+            )
+            close_button.pack(side="right", padx=(3, 0))
             
             # Bind Enter key to submit
             self.code_entry.bind("<Return>", lambda e: self._activate_license())

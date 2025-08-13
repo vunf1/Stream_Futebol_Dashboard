@@ -7,6 +7,7 @@ import customtkinter as ctk
 from src.utils import DateTimeProvider
 from src.licensing import LicenseManager
 from src.licensing import LicenseActivationDialog
+from src.licensing import show_license_details
 from typing import Optional
 
 
@@ -29,14 +30,55 @@ def add_footer_label(parent, text: str = "© 2025 Vunf1"):
     footer = ctk.CTkLabel(footer_frame, text="", font=("Segoe UI Emoji", 10), text_color="gray")
     footer.pack(side="left")
     
-    # License status label (center)
+    # License status label (center) - clickable
     license_status_label = ctk.CTkLabel(
         footer_frame, 
         text="", 
         font=("Segoe UI", 10, "bold"),
-        text_color="gray"
+        text_color="gray",
+        cursor="arrow"  # Default cursor, will be updated based on license status
     )
     license_status_label.pack(side="left", expand=True, fill="x", padx=(20, 0))
+    
+    # Add hover effect to make it clear it's clickable
+    def on_enter(e):
+        # Check if there's a license before allowing hover effects
+        current_text = license_status_label.cget("text")
+        if current_text == "NO LICENSE" or current_text == "LICENSE ERROR" or current_text == "BLOCKED":
+            return  # Don't show hover effects for no license or error states
+        
+        # Only change to white if not in pressed state
+        current_color = license_status_label.cget("text_color")
+        if current_color != "#4CAF50":  # Not in pressed state
+            license_status_label.configure(text_color="#ffffff")
+    
+    def on_leave(e):
+        # Check if there's a license before allowing hover effects
+        current_text = license_status_label.cget("text")
+        if current_text == "NO LICENSE" or current_text == "LICENSE ERROR" or current_text == "BLOCKED":
+            return  # Don't show hover effects for no license or error states
+        
+        # Only change back to gray if not in pressed state
+        current_color = license_status_label.cget("text_color")
+        if current_color != "#4CAF50":  # Not in pressed state
+            license_status_label.configure(text_color="gray")
+    
+    license_status_label.bind("<Enter>", on_enter)
+    license_status_label.bind("<Leave>", on_leave)
+    
+    # Make license status label clickable
+    def show_license_details_window():
+        """Show license details window when status label is clicked."""
+        # Check if there's a license before allowing click
+        current_text = license_status_label.cget("text")
+        if current_text == "NO LICENSE" or current_text == "LICENSE ERROR" or current_text == "BLOCKED":
+            return  # Don't allow click for no license or error states
+        
+        # Change color to indicate it's been pressed
+        license_status_label.configure(text_color="#4CAF50")  # Green color for pressed state
+        show_license_details(parent)
+    
+    license_status_label.bind("<Button-1>", lambda e: show_license_details_window())
     
     # Close button (X) - Modern transparent design
     # Find the root window to close the entire instance
@@ -75,8 +117,27 @@ def add_footer_label(parent, text: str = "© 2025 Vunf1"):
             display_text = license_manager.get_status_display_text(status)
             status_color = license_manager.get_status_color(status)
             
+            # Check if label is in pressed state (green color)
+            current_color = license_status_label.cget("text_color")
+            is_pressed = current_color == "#4CAF50"
+            
             # Update the license status label
-            license_status_label.configure(text=display_text, text_color=status_color)
+            # If pressed and license is valid, keep the green color; otherwise use the status color
+            if is_pressed and display_text not in ["NO LICENSE", "LICENSE ERROR", "BLOCKED"]:
+                final_color = "#4CAF50"  # Keep pressed state only for valid licenses
+            else:
+                final_color = status_color  # Use status color for invalid/no license
+                # Reset pressed state if license becomes invalid
+                if display_text in ["NO LICENSE", "LICENSE ERROR", "BLOCKED"]:
+                    is_pressed = False
+            
+            license_status_label.configure(text=display_text, text_color=final_color)
+            
+            # Update cursor based on license status
+            if display_text == "NO LICENSE" or display_text == "LICENSE ERROR" or display_text == "BLOCKED":
+                license_status_label.configure(cursor="arrow")  # Normal cursor for no license
+            else:
+                license_status_label.configure(cursor="hand2")  # Hand cursor for valid license
             
             # Show/hide activate button based on license status
             if is_valid:
@@ -88,7 +149,15 @@ def add_footer_label(parent, text: str = "© 2025 Vunf1"):
             
         except Exception as e:
             print(f"Error updating license status: {e}")
-            license_status_label.configure(text="LICENSE ERROR", text_color="#dc3545")
+            # Check if label is in pressed state
+            current_color = license_status_label.cget("text_color")
+            is_pressed = current_color == "#4CAF50"
+            
+            # For errors, always show error color (no pressed state preservation)
+            final_color = "#dc3545"
+            license_status_label.configure(text="LICENSE ERROR", text_color=final_color)
+            # Update cursor for error state
+            license_status_label.configure(cursor="arrow")
             # Show activate button on error
             activate_button.pack(side="left", padx=(10, 0))
     
