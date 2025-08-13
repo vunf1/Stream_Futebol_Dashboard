@@ -149,19 +149,39 @@ class LicenseBlocker:
             True if app should continue, False if blocked
         """
         try:
+            print("=== License Check Started ===")
             status, is_valid = self.license_manager.get_license_status()
+            print(f"License status: {status}, is_valid: {is_valid}")
+            
+            # Get detailed license info for debugging
+            license_details = self.license_manager.get_license_details()
+            if license_details:
+                print("License details:")
+                for key, value in license_details.items():
+                    if key != "_debug":  # Skip internal debug info
+                        print(f"  {key}: {value}")
+                if "_debug" in license_details:
+                    print("Debug info:")
+                    for key, value in license_details["_debug"].items():
+                        print(f"    {key}: {value}")
+            else:
+                print("No license details available")
             
             if is_valid:
                 # License is valid, remove any blocking
+                print("License is valid, removing blocking and continuing...")
                 self._remove_blocking()
                 return True
             else:
                 # License is invalid, show blocking
+                print(f"License is invalid (status: {status}), showing blocking UI...")
                 self._show_blocking(status)
                 return False
                 
         except Exception as e:
             print(f"Error checking license: {e}")
+            import traceback
+            traceback.print_exc()
             self._show_blocking("not_found")
             return False
     
@@ -286,6 +306,11 @@ class LicenseBlocker:
             
             def on_license_activated(license_data):
                 """Callback when license is successfully activated."""
+                print(f"🔍 License activation callback received data: {license_data}")
+                print(f"🔍 License data keys: {list(license_data.keys()) if isinstance(license_data, dict) else 'NOT A DICT'}")
+                print(f"🔍 expiresAt field in callback: {license_data.get('expiresAt', 'MISSING') if isinstance(license_data, dict) else 'NOT A DICT'}")
+                print(f"🔍 max_devices field in callback: {license_data.get('max_devices', 'MISSING') if isinstance(license_data, dict) else 'NOT A DICT'}")
+                
                 # Save the license
                 if self.license_manager.save_license(license_data):
                     # Remove blocking and continue
@@ -375,3 +400,17 @@ class LicenseBlocker:
         
         # Start the periodic check
         self.parent.after(interval_ms, periodic_check)
+
+    def debug_license_status(self):
+        """Debug method to test and display license validation details."""
+        print("\n" + "="*60)
+        print("LICENSE BLOCKER DEBUG")
+        print("="*60)
+        print(f"Parent widget: {self.parent}")
+        print(f"Is blocked: {self.is_blocked}")
+        print(f"Has callback: {self.on_license_valid is not None}")
+        
+        # Test license validation
+        self.license_manager.test_license_validation()
+        
+        print("="*60 + "\n")
