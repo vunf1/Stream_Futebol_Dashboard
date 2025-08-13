@@ -43,19 +43,9 @@ def prompt_for_pin(parent):
     """
     correct_pin = get_env("PIN")
     while True:
-        win = ctk.CTkToplevel(parent)
-        win.overrideredirect(True)
-        win.geometry("320x200")
-        win.attributes("-topmost", True)
-        win.grab_set()
-        
-        # Center the window on screen
-        win.update_idletasks()
-        screen_width = win.winfo_screenwidth()
-        screen_height = win.winfo_screenheight()
-        x = (screen_width - 320) // 2
-        y = (screen_height - 200) // 2
-        win.geometry(f"320x200+{x}+{y}")
+        # Create modal dialog using window utilities
+        from ..ui import create_modal_dialog
+        win = create_modal_dialog(parent, "PIN", 320, 200)
 
         # Main container with modern styling
         main_frame = ctk.CTkFrame(

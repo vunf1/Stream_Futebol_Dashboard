@@ -1,16 +1,12 @@
 import customtkinter as ctk
 from typing import Any, Dict, Optional
-from src.ui.colors import (
-    COLOR_ACTIVE, COLOR_BORDER, COLOR_SUCCESS, COLOR_ERROR,
-    COLOR_PAUSE, COLOR_STOP, COLOR_WARNING, COLOR_INFO,
-)
+from src.config.settings import AppConfig
 from src.ui import get_icon
 from src.core import GameInfoStore, DEFAULT_FIELD_STATE
 from src.notification import show_message_notification
 from src.core import get_config
 # Performance monitoring - removed old imports, using new performance system
 from src.ui import add_footer_label
-from src.ui.make_drag_drop import make_it_drag_and_drop
 
 # Constants
 BUTTON_PAD = dict(padx=5, pady=5)
@@ -43,10 +39,12 @@ class TimerComponent(ctk.CTkFrame):
             fg_color=("transparent"),
             corner_radius=18,
             border_width=0,
-            border_color=COLOR_BORDER,
+            border_color=AppConfig.COLOR_BORDER,
         )
         self.instance_number = instance_number
-        make_it_drag_and_drop(self)
+        # Apply drag and drop functionality
+        from src.ui.window_utils import apply_drag_and_drop
+        apply_drag_and_drop(self)
         
         self.configure(width=960, height=80)
         self.pack(side="top", fill="x", padx=8, pady=5)
@@ -128,7 +126,7 @@ class TimerComponent(ctk.CTkFrame):
                 width=w + FRAME_PAD * 2,
                 height=h + FRAME_PAD * 2,
                 fg_color="transparent",
-                hover_color=COLOR_BORDER,
+                hover_color=AppConfig.COLOR_BORDER,
                 corner_radius=CORNER,
                 command=lambda l=label: self._on_half(l),
             )
@@ -151,7 +149,7 @@ class TimerComponent(ctk.CTkFrame):
 
     def _highlight_half(self, selected: str):
         for part, btn in self.half_buttons.items():
-            btn.configure(fg_color=COLOR_ACTIVE if part == selected else "transparent")
+            btn.configure(fg_color=AppConfig.COLOR_ACTIVE if part == selected else "transparent")
 
     def _on_half(self, part: str):
         self._write_half(part)
@@ -160,7 +158,7 @@ class TimerComponent(ctk.CTkFrame):
             f"Campo - {self.instance_number}",
             f"Metade definida: {part}",
             icon="✅",
-            bg_color=COLOR_SUCCESS,
+            bg_color=AppConfig.COLOR_SUCCESS,
         )
 
     # ---------- UI ----------
@@ -174,9 +172,9 @@ class TimerComponent(ctk.CTkFrame):
             ("extra_entry", "Extra",  None,    None,    "red"),
         ]
         controls = [
-            ("play",  self.start_timer, COLOR_INFO),
-            ("pause", self.pause_timer, COLOR_WARNING),
-            ("stop",  self.reset_timer, COLOR_ERROR),
+            ("play",  self.start_timer, AppConfig.COLOR_INFO),
+            ("pause", self.pause_timer, AppConfig.COLOR_WARNING),
+            ("stop",  self.reset_timer, AppConfig.COLOR_ERROR),
         ]
 
         # layout: [half1][half2] [save] [max][timer][extra] [play][pause][stop]
@@ -211,7 +209,7 @@ class TimerComponent(ctk.CTkFrame):
                 image=img,
                 text="",
                 fg_color="transparent",
-                hover_color=COLOR_ACTIVE,
+                hover_color=AppConfig.COLOR_ACTIVE,
                 command=self.save_timers_from_entries,
             ).grid(row=0, column=col, sticky="nsew", padx=3, pady=3)
 
@@ -347,7 +345,7 @@ class TimerComponent(ctk.CTkFrame):
                     f"Campo - {self.instance_number} - Erro",
                     f"{label}: formato inválido. Usa 'MM:SS' ou 'MMM:SS' (segundos 00–59).",
                     icon="❌",
-                    bg_color=COLOR_ERROR,
+                    bg_color=AppConfig.COLOR_ERROR,
                 )
                 return
             if json_key == "max":
@@ -364,7 +362,7 @@ class TimerComponent(ctk.CTkFrame):
             f"Campo - {self.instance_number} - Guardado",
             "Tempos guardados.",
             icon="💾",
-            bg_color=COLOR_SUCCESS,
+            bg_color=AppConfig.COLOR_SUCCESS,
         )
 
     # ---------- Run loop ----------
@@ -389,7 +387,7 @@ class TimerComponent(ctk.CTkFrame):
             f"Campo - {self.instance_number} - Iniciado",
             "Cronómetro iniciado.",
             icon="⏳",
-            bg_color=COLOR_INFO,
+            bg_color=AppConfig.COLOR_INFO,
         )
 
     def _tick(self):
@@ -411,7 +409,7 @@ class TimerComponent(ctk.CTkFrame):
                     f"Campo - {self.instance_number} - Tempo Extra",
                     "Tempo Extra iniciado.",
                     icon="⏳",
-                    bg_color=COLOR_ERROR,
+                    bg_color=AppConfig.COLOR_ERROR,
                 )
                 self.timer_seconds_extra = 0
                 updates["extra"] = "00:00"
@@ -440,7 +438,7 @@ class TimerComponent(ctk.CTkFrame):
             f"Campo - {self.instance_number} - Pausado",
             "Cronómetro pausado.",
             icon="⏸",
-            bg_color=COLOR_PAUSE,
+            bg_color=AppConfig.COLOR_PAUSE,
         )
 
     def reset_timer(self):
@@ -461,18 +459,18 @@ class TimerComponent(ctk.CTkFrame):
             f"Campo - {self.instance_number} - Parado",
             "Cronómetro parado.",
             icon="🛑",
-            bg_color=COLOR_STOP,
+            bg_color=AppConfig.COLOR_STOP,
         )
 
     def _close_component(self):
         """Close the timer component and its parent window"""
         # Find the parent window and close it
-        current = self
-        while hasattr(current, 'winfo_toplevel'):
-            current = current.winfo_toplevel()
-            if hasattr(current, 'destroy'):
-                current.destroy()
-                break
+        parent_window = self.winfo_toplevel()
+        if parent_window and hasattr(parent_window, 'destroy'):
+            try:
+                parent_window.destroy()
+            except Exception as e:
+                print(f"Warning: Error closing window: {e}")
 
     def destroy(self):
         """Cleanup when component is destroyed"""

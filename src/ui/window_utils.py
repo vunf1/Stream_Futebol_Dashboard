@@ -1,0 +1,320 @@
+"""
+Window Utilities Module
+
+This module consolidates all window positioning, configuration, and styling utilities
+to eliminate code duplication across the application.
+"""
+
+import customtkinter as ctk
+from customtkinter import CTkToplevel, CTkBaseClass
+from typing import Optional, Tuple, Dict, Any, Callable, Union
+from ..config.settings import AppConfig
+
+
+class WindowConfig:
+    """Configuration class for window settings."""
+    
+    # Common window configurations
+    MODAL_DIALOG = {
+        "overrideredirect": True,
+        "topmost": True,
+        "grab_set": True,
+        "resizable": (False, False),
+        "focus_force": True,
+        "lift": True
+    }
+    
+    POPUP_DIALOG = {
+        "overrideredirect": True,
+        "topmost": True,
+        "grab_set": True,
+        "resizable": (False, False),
+        "focus_force": True,
+        "lift": True,
+        "transient": True
+    }
+    
+    MAIN_WINDOW = {
+        "overrideredirect": True,
+        "topmost": True,
+        "resizable": (False, False),
+        "focus_force": True,
+        "lift": True
+    }
+    
+    TOAST_WINDOW = {
+        "overrideredirect": True,
+        "topmost": True,
+        "resizable": (False, False)
+    }
+
+
+def center_window_on_screen(window: Union[ctk.CTk, CTkToplevel], width: int, height: int) -> None:
+    """
+    Center a window on the screen.
+    
+    Args:
+        window: The window to center
+        width: Window width
+        height: Window height
+    """
+    window.update_idletasks()
+    screen_width = window.winfo_screenwidth()
+    screen_height = window.winfo_screenheight()
+    x = (screen_width - width) // 2
+    y = (screen_height - height) // 2
+    window.geometry(f"{width}x{height}+{x}+{y}")
+
+
+def center_window_on_parent(child: CTkToplevel, parent: Union[ctk.CTk, CTkToplevel], 
+                          child_width: int, child_height: int, 
+                          y_offset: int = 20) -> None:
+    """
+    Center a child window relative to its parent.
+    
+    Args:
+        child: The child window to position
+        parent: The parent window
+        child_width: Child window width
+        child_height: Child window height
+        y_offset: Vertical offset from parent top
+    """
+    child.transient(parent)  # type: ignore
+    child.lift(parent)
+    child.focus_force()
+
+    parent.update_idletasks()
+    px = parent.winfo_x()
+    py = parent.winfo_y()
+    p_width = parent.winfo_width()
+    pos_x = px + (p_width - child_width) // 2
+    pos_y = py + y_offset
+    child.geometry(f"{child_width}x{child_height}+{pos_x}+{pos_y}")
+
+
+def configure_window(window: Union[ctk.CTk, CTkToplevel], config: Dict[str, Any], 
+                    parent: Optional[Union[ctk.CTk, CTkToplevel]] = None) -> None:
+    """
+    Apply window configuration settings.
+    
+    Args:
+        window: The window to configure
+        config: Configuration dictionary
+        parent: Parent window (required for transient setting)
+    """
+    if config.get("overrideredirect"):
+        window.overrideredirect(True)
+    
+    if config.get("topmost"):
+        window.attributes("-topmost", True)
+    
+    if config.get("grab_set"):
+        window.grab_set()
+    
+    if config.get("resizable"):
+        resizable = config["resizable"]
+        if isinstance(resizable, (list, tuple)) and len(resizable) == 2:
+            window.resizable(bool(resizable[0]), bool(resizable[1]))
+        else:
+            window.resizable(bool(resizable), bool(resizable))
+    
+    if config.get("focus_force"):
+        window.focus_force()
+    
+    if config.get("lift"):
+        if parent:
+            window.lift(parent)
+        else:
+            window.lift()
+    
+    if config.get("transient") and parent:
+        window.transient(parent)  # type: ignore
+
+
+def create_modal_dialog(parent: Union[ctk.CTk, CTkToplevel], title: str, width: int, height: int,
+                       config: Optional[Dict[str, Any]] = None) -> CTkToplevel:
+    """
+    Create a modal dialog window with standard configuration.
+    
+    Args:
+        parent: Parent window
+        title: Dialog title
+        width: Dialog width
+        height: Dialog height
+        config: Optional custom configuration
+        
+    Returns:
+        Configured CTkToplevel window
+    """
+    dialog = ctk.CTkToplevel(parent)
+    dialog.title(title)
+    dialog.geometry(f"{width}x{height}")
+    
+    # Apply configuration
+    base_config = WindowConfig.MODAL_DIALOG.copy()
+    if config:
+        base_config.update(config)
+    
+    configure_window(dialog, base_config, parent)
+    center_window_on_screen(dialog, width, height)
+    
+    return dialog
+
+
+def create_popup_dialog(parent: Union[ctk.CTk, CTkToplevel], title: str, width: int, height: int,
+                       config: Optional[Dict[str, Any]] = None) -> CTkToplevel:
+    """
+    Create a popup dialog window with standard configuration.
+    
+    Args:
+        parent: Parent window
+        title: Dialog title
+        width: Dialog width
+        height: Dialog height
+        config: Optional custom configuration
+        
+    Returns:
+        Configured CTkToplevel window
+    """
+    popup = ctk.CTkToplevel(parent)
+    popup.title(title)
+    popup.geometry(f"{width}x{height}")
+    
+    # Apply configuration
+    base_config = WindowConfig.POPUP_DIALOG.copy()
+    if config:
+        base_config.update(config)
+    
+    configure_window(popup, base_config, parent)
+    center_window_on_parent(popup, parent, width, height)
+    
+    return popup
+
+
+def create_toast_window(width: int, height: int, 
+                      config: Optional[Dict[str, Any]] = None) -> CTkToplevel:
+    """
+    Create a toast notification window.
+    
+    Args:
+        width: Toast width
+        height: Toast height
+        config: Optional custom configuration
+        
+    Returns:
+        Configured CTkToplevel window
+    """
+    toast = ctk.CTkToplevel()
+    toast.geometry(f"{width}x{height}")
+    
+    # Apply configuration
+    base_config = WindowConfig.TOAST_WINDOW.copy()
+    if config:
+        base_config.update(config)
+    
+    configure_window(toast, base_config)
+    
+    return toast
+
+
+def create_main_window(title: str, width: int, height: int,
+                     config: Optional[Dict[str, Any]] = None) -> ctk.CTk:
+    """
+    Create a main application window with standard configuration.
+    
+    Args:
+        title: Window title
+        width: Window width
+        height: Window height
+        config: Optional custom configuration
+        
+    Returns:
+        Configured CTk window
+    """
+    window = ctk.CTk()
+    window.title(title)
+    window.geometry(f"{width}x{height}")
+    
+    # Apply configuration
+    base_config = WindowConfig.MAIN_WINDOW.copy()
+    if config:
+        base_config.update(config)
+    
+    configure_window(window, base_config)
+    center_window_on_screen(window, width, height)
+    
+    return window
+
+
+def apply_drag_and_drop(window: Union[ctk.CTk, CTkToplevel, ctk.CTkFrame]) -> None:
+    """
+    Apply drag and drop functionality to a window or frame.
+    
+    Args:
+        window: The window or frame to make draggable
+    """
+    drag_state = {"offset_x": 0, "offset_y": 0}
+
+    def _start_drag(event):
+        # Calculate offset between pointer and top-left corner of window
+        drag_state["offset_x"] = event.x_root - window.winfo_x()
+        drag_state["offset_y"] = event.y_root - window.winfo_y()
+
+    def _on_drag(event):
+        # New window position to keep pointer at same offset
+        new_x = event.x_root - drag_state["offset_x"]
+        new_y = event.y_root - drag_state["offset_y"]
+        # For frames, we need to move the parent window
+        if hasattr(window, 'geometry'):
+            window.geometry(f"+{new_x}+{new_y}")
+        else:
+            # For frames, move the parent window
+            parent = window.winfo_toplevel()
+            if hasattr(parent, 'geometry'):
+                parent.geometry(f"+{new_x}+{new_y}")
+
+    window.bind("<Button-1>",  _start_drag, add=True)
+    window.bind("<B1-Motion>", _on_drag,    add=True)
+
+
+def apply_window_styling(window: ctk.CTkBaseClass, 
+                        fg_color: Optional[str] = None,
+                        bg_color: Optional[str] = None) -> None:
+    """
+    Apply standard window styling.
+    
+    Args:
+        window: The window to style
+        fg_color: Foreground color (defaults to AppConfig surface color)
+        bg_color: Background color
+    """
+    if fg_color is None:
+        fg_color = AppConfig.COLORS.get("surface", "#FFFFFF")
+    
+    window.configure(fg_color=fg_color)
+    if bg_color:
+        window.configure(bg_color=bg_color)
+
+
+# Legacy function for backward compatibility
+def top_centered_child_to_parent(win: CTkToplevel, parent: Union[ctk.CTk, CTkToplevel], 
+                                child_w: int, child_h: int, y_offset: int = 20) -> None:
+    """
+    Legacy function for backward compatibility.
+    Use center_window_on_parent() for new code.
+    """
+    center_window_on_parent(win, parent, child_w, child_h, y_offset)
+
+
+def close_window_safely(window: ctk.CTkBaseClass) -> None:
+    """
+    Safely close a window with proper cleanup.
+    
+    Args:
+        window: The window to close
+    """
+    try:
+        if window and hasattr(window, 'destroy'):
+            window.destroy()
+    except Exception as e:
+        print(f"Warning: Error closing window: {e}")

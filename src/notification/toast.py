@@ -10,6 +10,7 @@ import time
 import threading
 from queue import Queue
 
+
 # Initialized per process via init_notification_queue()
 notification_queue = None  # type: ignore
 
@@ -44,27 +45,13 @@ def prompt_notification(
     Modal, borderless Yes/No prompt. Returns True if 'Yes' is clicked.
     Uses CustomTkinter only (no tk import). Does not use the queue/server.
     """
-    # Window
-    prompt = ctk.CTkToplevel(master=parent)
-    prompt.overrideredirect(True)
-    prompt.attributes("-topmost", True)
+    # Window using window utilities
+    w, h = 260, 170
+    from src.ui import create_modal_dialog
+    prompt = create_modal_dialog(parent, "Prompt", w, h)
     prompt.attributes("-toolwindow", True)  # prevent taskbar icon
     prompt.configure(fg_color=bg_color or "black")
     # make_it_drag_and_drop(prompt) # Removed as per edit hint
-
-    # Size & position (center on parent, else primary screen)
-    w, h = 260, 170
-    prompt.update_idletasks()
-    if parent and parent.winfo_exists():
-        px, py = parent.winfo_rootx(), parent.winfo_rooty()
-        pw, ph = parent.winfo_width(), parent.winfo_height()
-        x = px + (pw - w) // 2
-        y = py + (ph - h) // 2
-    else:
-        sw, sh = prompt.winfo_screenwidth(), prompt.winfo_screenheight()
-        x = (sw - w) // 2
-        y = (sh - h) // 2
-    prompt.geometry(f"{w}x{h}+{x}+{y}")
 
     # Content
     container = ctk.CTkFrame(prompt, corner_radius=12, fg_color=bg_color or "black")

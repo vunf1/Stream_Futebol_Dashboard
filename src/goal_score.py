@@ -7,10 +7,10 @@ from multiprocessing import Process, Queue, freeze_support  # Process management
 # Third-party library imports
 import customtkinter as ctk              # Modern tkinter-based UI toolkit
 
-from src.ui.make_drag_drop import make_it_drag_and_drop
+
 from .core import GameInfoStore, MongoTeamManager
 from .utils import DateTimeProvider
-from .ui import get_icon_path, add_footer_label, ScoreUI, TeamInputManager, TopWidget
+from .ui import get_icon_path, add_footer_label, ScoreUI, TeamInputManager, TopWidget, create_main_window
 from .notification import init_notification_queue, server_main
 from .core import get_config
 from .licensing import LicenseBlocker
@@ -78,9 +78,10 @@ class ScoreApp:
         window_height = window_config['height']
         
         if instance_number == 1:
-            # First instance: center on screen
-            x = (screen_width - window_width) // 2
-            y = (screen_height - window_height) // 2
+            # First instance: center on screen using window utilities
+            from src.ui.window_utils import center_window_on_screen
+            center_window_on_screen(self.root, window_width, window_height)
+            return
         else:
             # Fast cascade positioning
             if instance_number - 1 in _instance_positions:
@@ -615,36 +616,14 @@ def ask_instance_count_ui() -> int:
         result["value"] = int(slider.get())
         window.destroy()
 
-    window = ctk.CTk()
+    # Create main window using window utilities
+    dialog_config = AppConfig.get_dialog_config()
+    window = create_main_window("Campos", dialog_config['expanded_width'], dialog_config['expanded_height'])
+    
     try:
         window.iconbitmap(get_icon_path("dice"))
     except:
         pass  # Silently ignore icon loading errors
-    window.title("Campos")
-    dialog_config = AppConfig.get_dialog_config()
-    window.geometry(f"{dialog_config['width']}x{dialog_config['height']}")
-    window.resizable(False, False)
-    make_it_drag_and_drop(window)
-    # Remove window border but ensure visibility
-    window.overrideredirect(True)
-    window.attributes("-toolwindow", False)  # Keep taskbar icon visible
-    window.attributes("-topmost", True)  # Ensure window appears on top
-    
-    # Set a visible background color for the borderless window
-    window.configure(fg_color=AppConfig.COLORS["surface"])
-    
-    # Center the dialog window on screen
-    window.update_idletasks()
-    screen_width = window.winfo_screenwidth()
-    screen_height = window.winfo_screenheight()
-    dialog_config = AppConfig.get_dialog_config()
-    x = (screen_width - dialog_config['width']) // 2
-    y = (screen_height - dialog_config['height']) // 2
-    window.geometry(f"{dialog_config['expanded_width']}x{dialog_config['expanded_height']}+{x}+{y}")
-    
-    # Ensure window gets focus and is visible
-    window.lift()
-    window.focus_force()
 
     ctk.CTkLabel(window, text="Quantos campos queres abrir?", font=(AppConfig.FONT_FAMILY_EMOJI, AppConfig.FONT_SIZE_DIALOG_TITLE)).pack(pady=(20, 10))
 

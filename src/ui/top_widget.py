@@ -2,8 +2,7 @@ import customtkinter as ctk
 from typing import Optional, Callable, Any
 from customtkinter import CTkFrame, CTkButton, CTkLabel, CTkToplevel
 
-from src.ui import add_footer_label
-from src.ui import get_icon
+from src.ui import add_footer_label, get_icon
 from src.core import GameInfoStore
 from src.core import MongoTeamManager
 
@@ -74,13 +73,16 @@ class TopWidget:
         backup_btn.grid(row=0, column=3, columnspan=2, sticky="nsew")
 
     def _open_timer_window(self):
-        win = CTkToplevel(self.parent)
-        
-        win.overrideredirect(True)
-        win.attributes("-topmost", True)
+        # Create timer window using window utilities
+        from src.ui import create_popup_dialog
+        win = create_popup_dialog(self.parent, f"Timer - Campo {self.instance_number}", 960, 120)  # Proper size for TimerComponent
         win.attributes("-toolwindow", True)
-        # make_it_drag_and_drop(win) # This line was removed from imports, so it's removed here.
-        self._timer_window = win  
+        
+        # Apply drag and drop to the window
+        from src.ui.window_utils import apply_drag_and_drop
+        apply_drag_and_drop(win)
+        
+        self._timer_window = win
         
         # Lazy import to avoid circular dependency
         from src.ui import TimerComponent

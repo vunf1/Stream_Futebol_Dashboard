@@ -3,9 +3,14 @@ import customtkinter as ctk
 from src.core import prompt_for_pin
 from src.ui import get_icon_path, get_icon
 from src.notification import show_message_notification
-from src.ui.colors import COLOR_WARNING, COLOR_SUCCESS, COLOR_STOP
+from src.config.settings import AppConfig
 from src.ui import top_centered_child_to_parent
 import re
+
+# Color constants from AppConfig
+COLOR_WARNING = AppConfig.COLOR_WARNING
+COLOR_SUCCESS = AppConfig.COLOR_SUCCESS
+COLOR_STOP = AppConfig.COLOR_STOP
 
 class TeamManagerWindow(ctk.CTkToplevel):
     def __init__(self, parent, mongo):
@@ -635,11 +640,9 @@ class EditTeamPopup(ctk.CTkToplevel):
         self.grab_set()
         self.attributes("-topmost", True)
         
-        # Center the popup
-        self.update_idletasks()
-        x = (self.winfo_screenwidth() // 2) - (400 // 2)
-        y = (self.winfo_screenheight() // 2) - (320 // 2)
-        self.geometry(f"400x320+{x}+{y}")
+        # Center the popup using window utilities
+        from src.ui.window_utils import center_window_on_screen
+        center_window_on_screen(self, 400, 320)
 
         self._build_form()
 
@@ -785,18 +788,9 @@ class EditTeamPopup(ctk.CTkToplevel):
 
     def _delete(self):
         """Delete team with confirmation"""
-        # Create confirmation dialog
-        dlg = ctk.CTkToplevel(self)
-        dlg.title("Confirm Deletion")
-        dlg.geometry("400x200")
-        dlg.grab_set()
-        dlg.attributes("-topmost", True)
-        
-        # Center the dialog
-        dlg.update_idletasks()
-        x = (dlg.winfo_screenwidth() // 2) - (400 // 2)
-        y = (dlg.winfo_screenheight() // 2) - (200 // 2)
-        dlg.geometry(f"400x200+{x}+{y}")
+        # Create confirmation dialog using window utilities
+        from src.ui import create_modal_dialog
+        dlg = create_modal_dialog(self, "Confirm Deletion", 400, 200)
 
         # Warning icon and message
         warning_frame = ctk.CTkFrame(dlg, fg_color="transparent")

@@ -25,7 +25,7 @@ from .ui import (
     add_footer_label,
     get_icon,
     get_icon_path,
-    make_it_drag_and_drop,
+    
     top_centered_child_to_parent,
     TopWidget,
     ScoreUI,
@@ -79,7 +79,7 @@ __all__ = [
     'add_footer_label',
     'get_icon',
     'get_icon_path',
-    'make_it_drag_and_drop',
+
     'top_centered_child_to_parent',
     'TopWidget',
     'ScoreUI',

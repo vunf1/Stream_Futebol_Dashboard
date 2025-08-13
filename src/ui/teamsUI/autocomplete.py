@@ -1,5 +1,6 @@
 import customtkinter as ctk
 from typing import Any, Callable, Dict, List, Optional
+from ..window_utils import create_popup_dialog
 
 class Autocomplete(ctk.CTkFrame):
     def __init__(
@@ -72,9 +73,9 @@ class Autocomplete(ctk.CTkFrame):
         popup = self.popup
         if popup is not None and popup.winfo_exists():
             return popup
-        popup = ctk.CTkToplevel(self)
-        popup.overrideredirect(True)
-        popup.attributes("-topmost", True)
+        
+        # Create popup using window utilities
+        popup = create_popup_dialog(self, "Autocomplete", 200, 150)
         self.popup = popup
 
         self.container = ctk.CTkScrollableFrame(popup, corner_radius=6)

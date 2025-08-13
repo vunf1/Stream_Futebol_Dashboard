@@ -7,7 +7,7 @@ import customtkinter as ctk
 from datetime import datetime, timezone
 from typing import Optional, Dict
 from .license_manager import LicenseManager
-from ..ui.make_drag_drop import make_it_drag_and_drop
+from ..ui.window_utils import apply_drag_and_drop
 from ..config.settings import AppConfig
 
 
@@ -25,32 +25,23 @@ class LicenseDetailsWindow:
             self.window.focus_force()
             return
             
-        # Create the window
-        self.window = ctk.CTkToplevel(self.parent)
-        self.window.title("License Details")
-        self.window.geometry(f"{AppConfig.DIALOG_WIDTH}x{AppConfig.DIALOG_HEIGHT + 175}")
-        self.window.resizable(False, False)
+        # Create the window using window utilities
+        from ..ui import create_modal_dialog
+        self.window = create_modal_dialog(
+            self.parent,
+            "License Details",
+            AppConfig.DIALOG_WIDTH,
+            AppConfig.DIALOG_HEIGHT + 175
+        )
         
         # Set window background color to match main frame
         self.window.configure(fg_color=AppConfig.COLORS["surface"])
         
-        # Remove window border
-        self.window.overrideredirect(True)
-        
-        # Center the window on parent
-        self.window.transient(self.parent)
-        self.window.grab_set()
-        
-        # Make window appear on top
-        if self.window:
-            self.window.attributes('-topmost', True)
-            self.window.after(100, lambda: self.window.attributes('-topmost', False) if self.window else None)
-            
-            # Configure window close event
-            self.window.protocol("WM_DELETE_WINDOW", self._on_close)
+        # Configure window close event
+        self.window.protocol("WM_DELETE_WINDOW", self._on_close)
         
         # Make window draggable
-        make_it_drag_and_drop(self.window)
+        apply_drag_and_drop(self.window)
         
         # Create the UI
         self._create_ui()

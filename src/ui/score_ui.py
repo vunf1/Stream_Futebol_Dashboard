@@ -1,5 +1,11 @@
 import customtkinter as ctk
-from src.ui.colors import COLOR_ACTIVE, COLOR_BORDER, COLOR_SUCCESS, COLOR_ERROR
+from src.config.settings import AppConfig
+
+# Color constants from AppConfig
+COLOR_ACTIVE = AppConfig.COLOR_ACTIVE
+COLOR_BORDER = AppConfig.COLOR_BORDER
+COLOR_SUCCESS = AppConfig.COLOR_SUCCESS
+COLOR_ERROR = AppConfig.COLOR_ERROR
 from src.ui import get_icon, get_icon_path
 from src.core import GameInfoStore, DEFAULT_FIELD_STATE
 from src.notification import show_message_notification, prompt_notification

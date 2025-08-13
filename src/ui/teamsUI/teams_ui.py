@@ -4,7 +4,11 @@ from src.notification import show_message_notification
 from src.core import load_teams_from_json, save_teams_to_json, GameInfoStore, MongoTeamManager, DEFAULT_FIELD_STATE
 from .autocomplete import Autocomplete
 from src.ui import TeamManagerWindow
-from src.ui.colors import COLOR_WARNING, COLOR_SUCCESS
+from src.config.settings import AppConfig
+
+# Color constants from AppConfig
+COLOR_WARNING = AppConfig.COLOR_WARNING
+COLOR_SUCCESS = AppConfig.COLOR_SUCCESS
 import tkinter.messagebox as messagebox
 
 BUTTON_PAD = dict(padx=5, pady=5)

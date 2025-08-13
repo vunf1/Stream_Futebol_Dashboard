@@ -12,7 +12,6 @@ from typing import Dict, Optional, Tuple
 import requests
 from src.core import SecureEnvLoader
 from src.core import get_env
-from src.core import _get_mongo_client
 from src.core.env_loader import ensure_env_loaded
 from src.core.models import LicenseRecord, LicenseStatus, LicenseType
 from src.utils.online_time_provider import get_current_utc_time, get_time_source_info
@@ -60,6 +59,8 @@ class LicenseValidator:
                 print("Warning: No MongoDB URI configured, using mock validation")
                 return None
                 
+            # Local import to avoid circular dependency
+            from src.core.mongodb import _get_mongo_client
             client = _get_mongo_client()
             db = client[self.mongo_db_name]
             collection = db[self.mongo_collection_name]

@@ -6,7 +6,7 @@ import time
 import os
 from pathlib import Path
 
-from src.ui.make_drag_drop import make_it_drag_and_drop
+from src.ui.window_utils import apply_drag_and_drop
 
 # ───────────────────────── Bootstrap (before CTk import) ─────────────────────────
 
@@ -83,7 +83,12 @@ generate_secret_key()
 
 import customtkinter as ctk
 from multiprocessing import Manager, Process
-from src.ui.colors import COLOR_SUCCESS, COLOR_ERROR, COLOR_INFO
+from src.config.settings import AppConfig
+
+# Color constants from AppConfig
+COLOR_SUCCESS = AppConfig.COLOR_SUCCESS
+COLOR_ERROR = AppConfig.COLOR_ERROR
+COLOR_INFO = AppConfig.COLOR_INFO
 
 # notifications (queue + server)
 from src.notification.toast import init_notification_queue, show_message_notification
@@ -236,7 +241,7 @@ class BuildWindow(ctk.CTk):
         super().__init__()  # type: ignore
         self.configure_gui()
         self.create_widgets()
-        make_it_drag_and_drop(self)  # type: ignore
+        apply_drag_and_drop(self)  # type: ignore
         self.attributes("-topmost", True)  # type: ignore
         threading.Thread(target=self.run_build_steps, daemon=True).start()
 

@@ -6,7 +6,7 @@ Modal window for entering and validating license codes.
 import customtkinter as ctk
 from typing import Callable, Optional
 from .license_validator import LicenseValidator
-from ..ui.make_drag_drop import make_it_drag_and_drop
+from ..ui.window_utils import apply_drag_and_drop
 from ..config.settings import AppConfig
 
 class LicenseModal:
@@ -31,38 +31,21 @@ class LicenseModal:
     def show(self):
         """Show the license activation modal."""
         try:
-            # Create modal window with optimized settings
-            self.modal_window = ctk.CTkToplevel(self.parent)
-            self.modal_window.title("License Activation")
+            # Create modal window using window utilities
+            from ..ui import create_modal_dialog
+            self.modal_window = create_modal_dialog(
+                self.parent, 
+                "License Activation", 
+                AppConfig.DIALOG_EXPANDED_WIDTH, 
+                AppConfig.LICENSE_MODAL_HEIGHT
+            )
             
-            # Remove window border for custom appearance
-            self.modal_window.overrideredirect(True)
-            
-            # Set window properties before showing to reduce flickering
-            self.modal_window.resizable(False, False)
+            # Configure additional properties
             self.modal_window.configure(fg_color=("gray95", "gray15"))
-            
-            # Make window appear on top of all other windows
-            self.modal_window.attributes('-topmost', True)
-            
-            # Hide window temporarily to prevent flickering during setup
-            self.modal_window.attributes('-alpha', 0.0)
-            
-            # Calculate position first to avoid repositioning
-            self._calculate_position()
-            
-            # Set geometry with position in one call
-            self.modal_window.geometry(f"{AppConfig.DIALOG_EXPANDED_WIDTH}x{AppConfig.LICENSE_MODAL_HEIGHT}+{self._modal_x}+{self._modal_y}")
+            self.modal_window.attributes('-alpha', 0.0)  # Hide temporarily
             
             # Create UI components in background
             self._create_ui()
-            
-            # Ensure window is ready before making it modal
-            self.modal_window.update_idletasks()
-            
-            # Make modal without multiple updates
-            self.modal_window.transient(self.parent)
-            self.modal_window.grab_set()
             
             # Ensure all widgets are fully rendered before showing
             self.modal_window.update()
@@ -71,11 +54,7 @@ class LicenseModal:
             self.modal_window.attributes('-alpha', 1.0)
             
             # Make window draggable
-            make_it_drag_and_drop(self.modal_window)
-            
-            # Force the window to be visible
-            self.modal_window.lift()
-            self.modal_window.focus_force()
+            apply_drag_and_drop(self.modal_window)
             
             # Focus on code entry
             self.code_entry.focus_set()
