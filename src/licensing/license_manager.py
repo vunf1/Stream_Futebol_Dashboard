@@ -18,6 +18,7 @@ from cryptography.hazmat.primitives.asymmetric import ed25519
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 import requests
 from ..config import AppConfig
+from ..utils.online_time_provider import get_current_utc_time, get_time_source_info
 
 # License status types
 LicenseStatus = Literal["active", "trial", "expired", "trial_expired", "blocked", "not_found"]
@@ -159,21 +160,25 @@ class LicenseManager:
                     if expires_at.tzinfo is None:
                         expires_at = expires_at.replace(tzinfo=timezone.utc)
                     
-                    current_time = datetime.now(timezone.utc)
+                    # Use online time provider with fallback to local time
+                    current_time = get_current_utc_time()
+                    time_source, is_online = get_time_source_info()
+                    print(f"🕐 License validation using: {time_source}")
+                    
                     if current_time > expires_at:
                         # License is expired - determine the appropriate expired status
                         original_status = data.get("status", "expired")
                         if original_status == "trial":
-                            print(f"Trial license expired on {expires_at}")
+                            print(f"Trial license expired on {expires_at} (checked with {time_source})")
                             return "trial_expired", False
                         else:
-                            print(f"License expired on {expires_at}")
+                            print(f"License expired on {expires_at} (checked with {time_source})")
                             return "expired", False
                     else:
                         # License is not expired, calculate days remaining for info
                         days_left = (expires_at - current_time).days
                         if days_left <= 7:
-                            print(f"License expires in {days_left} days")
+                            print(f"License expires in {days_left} days (checked with {time_source})")
                         
                 except Exception as e:
                     print(f"Error parsing expiration date: {e}")
@@ -231,7 +236,11 @@ class LicenseManager:
             
             # Add machine hash and timestamp
             license_data["machineHash"] = self.machine_hash
-            license_data["savedAt"] = datetime.now(timezone.utc).isoformat()
+            # Use online time provider for timestamp
+            current_time = get_current_utc_time()
+            time_source, is_online = get_time_source_info()
+            license_data["savedAt"] = current_time.isoformat()
+            license_data["timeSource"] = time_source
             
             # Encrypt and save
             encrypted_data = self._encrypt_license_data(license_data)

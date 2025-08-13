@@ -64,6 +64,11 @@ from .performance import (
 # General utilities
 from .utils import (
     DateTimeProvider,
+    OnlineTimeProvider,
+    get_current_utc_time,
+    get_current_portugal_time,
+    is_time_online,
+    get_time_source_info,
 )
 
 __all__ = [
@@ -109,6 +114,11 @@ __all__ = [
     
     # Utils
     'DateTimeProvider',
+    'OnlineTimeProvider',
+    'get_current_utc_time',
+    'get_current_portugal_time',
+    'is_time_online',
+    'get_time_source_info',
 ]
 
 __version__ = "2.0.0"

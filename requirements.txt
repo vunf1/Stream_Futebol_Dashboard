@@ -10,3 +10,4 @@ psutil
 Pillow
 reportlab
 requests
+pytz

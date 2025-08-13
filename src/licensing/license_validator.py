@@ -15,6 +15,7 @@ from src.core import get_env
 from src.core import _get_mongo_client
 from src.core.env_loader import ensure_env_loaded
 from src.core.models import LicenseRecord, LicenseStatus, LicenseType
+from src.utils.online_time_provider import get_current_utc_time, get_time_source_info
 
 class LicenseValidator:
     """Validates license codes against MongoDB and returns signed payloads."""
@@ -137,16 +138,21 @@ class LicenseValidator:
                     
                     print(f"🔍 Parsed expires_at datetime: {expires_at}")
                     
-                    if datetime.now(timezone.utc) > expires_at:
+                    # Use online time provider with fallback to local time
+                    current_time = get_current_utc_time()
+                    time_source, is_online = get_time_source_info()
+                    print(f"🕐 MongoDB license validation using: {time_source}")
+                    
+                    if current_time > expires_at:
                         status = license_doc.get("status", "expired")
                         if status == "trial":
-                            print(f"❌ Trial license expired on {expires_at}")
+                            print(f"❌ Trial license expired on {expires_at} (checked with {time_source})")
                             return {"error": "Trial license expired"}, "trial_expired"
                         else:
-                            print(f"❌ License expired on {expires_at}")
+                            print(f"❌ License expired on {expires_at} (checked with {time_source})")
                             return {"error": "License expired"}, "expired"
                     else:
-                        print(f"✅ License not expired, expires on {expires_at}")
+                        print(f"✅ License not expired, expires on {expires_at} (checked with {time_source})")
                         
                 except Exception as e:
                     print(f"❌ Error parsing expiration date '{expires_at}': {e}")
@@ -219,7 +225,7 @@ class LicenseValidator:
             payload = {
                 "code": code.strip().upper(),
                 "machineHash": machine_hash,
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": get_current_utc_time().isoformat()
             }
             
             # Add API key if available
