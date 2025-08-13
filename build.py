@@ -70,7 +70,7 @@ def generate_secret_key() -> None:
     if getattr(sys, "frozen", False):
         return
     try:
-        run_cmd_quiet([sys.executable, os.path.join("src", "security", "generate_secret.py")],
+        run_cmd_quiet([sys.executable, os.path.join("security", "generate_secret.py")],
                       name="generate_secret")
     except Exception as e:
         fallback_notify(f"Erro ao gerar chave secreta:\n{e}")
@@ -110,12 +110,21 @@ def notify(title, message, *, icon="ℹ️", duration=5000, bg=None, anchor=None
     """
     Wrapper for toasts. duration=0 => 'sticky' (~1h). User can click to dismiss.
     """
-    if duration == 0:
-        duration = 60 * 60 * 1000
-    show_message_notification(
-        title=title, message=message, duration=duration,
-        icon=icon, bg_color=bg, anchor=anchor, group=group
-    )
+    try:
+        if duration == 0:
+            duration = 60 * 60 * 1000
+        show_message_notification(
+            title=title, message=message, duration=duration,
+            icon=icon, bg_color=bg, anchor=anchor, group=group
+        )
+    except Exception as e:
+        # Fallback to console output if notification fails
+        print(f"📢 {title}: {message}")
+        if "bad window path" in str(e).lower():
+            # Ignore window cleanup errors
+            pass
+        else:
+            print(f"⚠️ Notification error: {e}")
 
 # ───────────────────────── Process / file guards ─────────────────────────
 
@@ -339,17 +348,10 @@ class BuildWindow(ctk.CTk):
                 ("📄 Gerando goal_score.spec…",  0.8, lambda: run_cmd_quiet([sys.executable, "spec_gen.py"], name="spec_gen")),
                 ("🧹 A limpar builds antigas…", 1.0, lambda: [delete_old_executable(p) for p in DIST_PATHS]),
                 ("⚙️ A montar com PyInstaller…", 5.0, lambda: run_cmd_quiet([
-                    sys.executable, "-m", "PyInstaller",
-                    "--clean", "--onefile", "--noconsole", "--noconfirm",
-                    "--hidden-import", "customtkinter",
-                    "--hidden-import", "ctkmessagebox",
-                    "--add-data", add_data("src/ui/icons", "src/ui/icons"),
-                    "--add-data", add_data(".env.enc", "."),
-                    "--add-data", add_data("secret.key", "."),
-                    "--icon", "src/ui/icons/icon_soft.ico",
-                    "--version-file", "version.txt",
-                    "src/goal_score.py"
-                ], name="PyInstaller")),
+                     sys.executable, "-m", "PyInstaller",
+                     "--clean", "--noconfirm",
+                     "goal_score.spec"
+                 ], name="PyInstaller")),
                 ("⚽ A iniciar os jogos…",      1.5, lambda: time.sleep(0.2)),
                 ("🎯 Remate final…",           1.5, lambda: time.sleep(0.2)),
             ]
@@ -400,7 +402,25 @@ if __name__ == "__main__":
 
     # stop toast server on exit
     import atexit
-    atexit.register(lambda: q.put(None))
+    def cleanup_notifications():
+        try:
+            q.put(None)
+            if _p and _p.is_alive():
+                _p.terminate()
+                _p.join(timeout=2)
+        except Exception:
+            pass
+    
+    atexit.register(cleanup_notifications)
 
-    app = BuildWindow()
-    app.mainloop()
+    try:
+        app = BuildWindow()
+        app.mainloop()
+    except KeyboardInterrupt:
+        print("\n🛑 Build interrupted by user")
+    except Exception as e:
+        print(f"❌ Build failed: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        cleanup_notifications()

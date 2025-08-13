@@ -6,19 +6,29 @@ from pathlib import Path
 CONFIG = {
     "spec_filename": "goal_score.spec",
     "app_name": "goal_score",
-    "entry_script": "goal_score.py",
-    "icon_path": "assets/icons/icon_soft.ico",
+    "entry_script": "src/goal_score.py",
+    "icon_path": "src/ui/icons/icon_soft.ico",
     "version_file": "version.txt",
 
     # Hidden imports actually needed
-    "hidden_imports": ["customtkinter", "ctkmessagebox"],
+    "hidden_imports": [
+        "customtkinter", 
+        "ctkmessagebox",
+        "src",
+        "src.core",
+        "src.ui", 
+        "src.utils",
+        "src.notification",
+        "src.licensing",
+        "src.config"
+    ],
 
     # Exclude modules you do NOT use (you confirmed these are safe)
     "excludes": [
-        "unittest", "pydoc_data", "test", "distutils", "lib2to3",
+        "unittest", "pydoc_data", "test", "lib2to3",
         "idlelib", "turtledemo",
-        "email", "http", "html",
-        "asyncio", "sqlite3",
+        "html",
+        "sqlite3",
         "tkinter.test", "tkinter.tests",
     ],
 
@@ -26,6 +36,7 @@ CONFIG = {
     "datas": [
         (".env.enc", "."),
         ("secret.key", "."),
+        ("src/ui/icons", "src/ui/icons"),
     ],
 
     # Tk/Tcl pruning (keeps only EN/PT msg catalogs & drops demos)
@@ -152,7 +163,7 @@ exe_kwargs = dict(
     upx=({str(CONFIG["enable_upx_in_dev"])} if IS_DEV else {str(CONFIG["enable_upx_in_release"])}),
     upx_exclude={upx_exclude},
     console={str(CONFIG["console"])},
-    disable_windowed_traceback=not IS_DEV,
+    disable_windowed_traceback=False,  # Always enable tracebacks for debugging
     version=VER,
 )
 

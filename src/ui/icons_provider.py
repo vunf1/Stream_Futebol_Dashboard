@@ -34,11 +34,11 @@ def _icons_dir() -> Path:
         # 1) onefile: extracted to a temp dir exposed as sys._MEIPASS
         meipass = getattr(sys, "_MEIPASS", None)
         if meipass:
-            candidates.append(Path(meipass) / "helpers" / "ui" / "icons")
+            candidates.append(Path(meipass) / "src" / "ui" / "icons")
         # 2) onedir: files live next to the executable
-        candidates.append(Path(sys.executable).parent / "helpers" / "ui" / "icons")
+        candidates.append(Path(sys.executable).parent / "src" / "ui" / "icons")
 
-    # 3) dev: helpers/ui/ → ./icons (same directory as this file)
+    # 3) dev: src/ui/ → ./icons (same directory as this file)
     candidates.append(Path(__file__).resolve().parent / "icons")
 
     for c in candidates:

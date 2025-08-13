@@ -48,7 +48,7 @@ def prompt_notification(
     # Window using window utilities
     w, h = 260, 170
     from src.ui import create_modal_dialog
-    prompt = create_modal_dialog(parent, "Prompt", w, h)
+    prompt = create_modal_dialog(parent or ctk.CTk(), "Prompt", w, h)
     prompt.attributes("-toolwindow", True)  # prevent taskbar icon
     prompt.configure(fg_color=bg_color or "black")
     # make_it_drag_and_drop(prompt) # Removed as per edit hint
@@ -183,7 +183,7 @@ def _build_toast_window(
 
     # ---------- Top-level window ----------
     from src.ui.window_utils import create_toast_window, configure_window, WindowConfig
-    toast = create_toast_window(TOAST_WIDTH, 80)  # Height will be adjusted dynamically
+    toast = create_toast_window(TOAST_WIDTH, 100)  # Height will be adjusted dynamically
     toast.attributes("-alpha", 0.0)  # start fully transparent for fade-in
     toast.attributes("-toolwindow", True)  # prevent taskbar icon
 
