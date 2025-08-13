@@ -265,12 +265,12 @@ def apply_drag_and_drop(window: Union[ctk.CTk, CTkToplevel, ctk.CTkFrame]) -> No
         new_x = event.x_root - drag_state["offset_x"]
         new_y = event.y_root - drag_state["offset_y"]
         # For frames, we need to move the parent window
-        if hasattr(window, 'geometry'):
+        if isinstance(window, (ctk.CTk, CTkToplevel)):
             window.geometry(f"+{new_x}+{new_y}")
         else:
             # For frames, move the parent window
             parent = window.winfo_toplevel()
-            if hasattr(parent, 'geometry'):
+            if isinstance(parent, (ctk.CTk, CTkToplevel)):
                 parent.geometry(f"+{new_x}+{new_y}")
 
     window.bind("<Button-1>",  _start_drag, add=True)
@@ -300,8 +300,15 @@ def apply_window_styling(window: ctk.CTkBaseClass,
 def top_centered_child_to_parent(win: CTkToplevel, parent: Union[ctk.CTk, CTkToplevel], 
                                 child_w: int, child_h: int, y_offset: int = 20) -> None:
     """
-    Legacy function for backward compatibility.
-    Use center_window_on_parent() for new code.
+    Configure stacking, focus and position of a child Toplevel window centered
+    at the top of its parent.
+
+    Args:
+        win: The child CTkToplevel window.
+        parent: The parent CTk window.
+        child_w: Desired child window width.
+        child_h: Desired child window height.
+        y_offset: Vertical offset from the top of the parent.
     """
     center_window_on_parent(win, parent, child_w, child_h, y_offset)
 

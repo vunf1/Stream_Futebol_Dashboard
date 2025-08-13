@@ -4,7 +4,7 @@ from src.core import prompt_for_pin
 from src.ui import get_icon_path, get_icon
 from src.notification import show_message_notification
 from src.config.settings import AppConfig
-from src.ui import top_centered_child_to_parent
+from src.ui.window_utils import top_centered_child_to_parent
 import re
 
 # Color constants from AppConfig - using AppConfig directly

@@ -8,7 +8,7 @@ and UI-related helper functions.
 from .footer_label import add_footer_label
 from .icons_provider import get_icon, get_icon_path
 
-from .top_c_child_parent import top_centered_child_to_parent
+from .window_utils import top_centered_child_to_parent
 from .top_widget import TopWidget
 from .score_ui import ScoreUI
 from .timer_ui import TimerComponent
@@ -29,7 +29,7 @@ from .window_utils import (
     apply_drag_and_drop,
     apply_window_styling,
     close_window_safely,
-    top_centered_child_to_parent as legacy_top_centered_child_to_parent
+    top_centered_child_to_parent
 )
 
 from .window_base import (
