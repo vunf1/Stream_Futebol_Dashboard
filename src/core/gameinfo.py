@@ -6,6 +6,7 @@ import threading
 from typing import Any, Dict
 
 from ..config import AppConfig
+from .file_cache import read_json_cached, write_json_async, write_json_sync, batch_write_json, invalidate_file_cache
 
 # ───────────────── Base path & file ─────────────────
 BASE_FOLDER_PATH = os.path.join(
@@ -24,7 +25,7 @@ TIME_PATTERN = re.compile(r"^(?:\d{2}|[1-9]\d{2,}):[0-5]\d$")
 DEFAULT_FIELD_STATE: Dict[str, Any] = AppConfig.DEFAULT_FIELD_STATE
 ALLOWED_KEYS = set(DEFAULT_FIELD_STATE.keys())
 
-# Global write buffer for batching operations
+# Legacy write buffer (kept for backward compatibility)
 _write_buffer = {}
 _write_buffer_lock = threading.Lock()
 _write_timer = None
@@ -41,11 +42,12 @@ def _schedule_write():
         def delayed_write():
             _flush_write_buffer()
         
-        _write_timer = threading.Timer(0.1, delayed_write)  # 100ms delay
+        # Reduced delay for more responsive writes with multiple timers
+        _write_timer = threading.Timer(0.05, delayed_write)  # 50ms delay
         _write_timer.start()
 
 def _flush_write_buffer():
-    """Flush all pending writes to disk"""
+    """Flush all pending writes to disk using new caching system"""
     global _write_buffer
     
     with _write_buffer_lock:
@@ -61,32 +63,13 @@ def _flush_write_buffer():
                 files_to_write[path][field_key] = {}
             files_to_write[path][field_key][key] = value
         
-        # Write each file
+        # Use new batch write system - combine all field updates into one call
         for path, field_data in files_to_write.items():
-            try:
-                # Read current file
-                try:
-                    with open(path, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-                    if not isinstance(data, dict):
-                        data = {}
-                except Exception:
-                    data = {}
-                
-                # Apply all changes for this file
-                for field_key, changes in field_data.items():
-                    if field_key not in data:
-                        data[field_key] = {}
-                    data[field_key].update(changes)
-                
-                # Atomic write
-                tmp = path + ".tmp"
-                with open(tmp, "w", encoding="utf-8") as f:
-                    json.dump(data, f, ensure_ascii=False, indent=2)
-                os.replace(tmp, path)
-                
-            except Exception as e:
-                print(f"Error flushing write buffer for {path}: {e}")
+            # Combine all field updates into a single batch write
+            all_updates = {}
+            for field_key, changes in field_data.items():
+                all_updates[field_key] = changes
+            batch_write_json(path, all_updates)
         
         # Clear buffer
         _write_buffer.clear()
@@ -141,14 +124,8 @@ class GameInfoStore:
                 json.dump({}, f, ensure_ascii=False, indent=2)
 
     def _load_from_disk(self) -> Dict[str, Any]:
-        try:
-            with open(self.path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            if not isinstance(data, dict):
-                data = {}
-        except Exception as e:
-            self._log("load_from_disk error:", repr(e))
-            data = {}
+        # Use cached file reading
+        data = read_json_cached(self.path, {})
         self._data = data
         self._loaded = True
 
@@ -162,7 +139,8 @@ class GameInfoStore:
                 changed = True
         self._data[self.field_key] = blk
         if changed:
-            self._atomic_write(self._data)
+            # Use sync write for immediate persistence
+            write_json_sync(self.path, self._data)
             self._log("seeded defaults")
 
         self._log("loaded", f"path={self.path}", f"keys={list(blk.keys())}")
@@ -173,10 +151,8 @@ class GameInfoStore:
             self._load_from_disk()
 
     def _atomic_write(self, data: Dict[str, Any]):
-        tmp = self.path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        os.replace(tmp, self.path)
+        # Use sync write to ensure immediate persistence and prevent blocking
+        write_json_sync(self.path, data)
         self._log("write ->", self.path)
 
     # ----- public API -----
@@ -238,14 +214,8 @@ class GameInfoStore:
         return True
     
     def _read_disk_raw(self) -> Dict[str, Any]:
-        try:
-            with open(self.path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            if not isinstance(data, dict):
-                data = {}
-        except Exception:
-            data = {}
-        return data
+        # Use cached file reading
+        return read_json_cached(self.path, {})
     
     def _file_lock(self, timeout=2.0, poll=0.02):
         lock = self.path + ".lock"
@@ -292,11 +262,8 @@ class GameInfoStore:
             # Keep other fields intact, only replace this field's object
             data[self.field_key] = blk
 
-            # Atomic write
-            tmp = self.path + ".tmp"
-            with open(tmp, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-            os.replace(tmp, self.path)
+            # Use sync write for immediate persistence
+            write_json_sync(self.path, data)
             self._log("write ->", self.path)
 
             # Update cache to reflect on-disk snapshot

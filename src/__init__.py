@@ -60,7 +60,7 @@ from .notification import (
 # General utilities
 from .utils import (
     DateTimeProvider,
-    OnlineTimeProvider,
+    LocalTimeProvider,
     get_current_utc_time,
     get_current_portugal_time,
     is_time_online,
@@ -107,7 +107,7 @@ __all__ = [
     # Performance monitoring removed - keeping core optimizations
     # Utils
     'DateTimeProvider',
-    'OnlineTimeProvider',
+    'LocalTimeProvider',
     'get_current_utc_time',
     'get_current_portugal_time',
     'is_time_online',

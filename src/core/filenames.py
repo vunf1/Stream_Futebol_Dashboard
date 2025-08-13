@@ -28,6 +28,7 @@ def get_env(name: str) -> str:
     return value
 
 from ..config import AppConfig
+from .file_cache import read_json_cached, write_json_async, write_json_sync
 
 # Full path to the FUTEBOL-SCORE-DASHBOARD folder on the Desktop
 BASE_FOLDER_PATH = os.path.join(
@@ -97,6 +98,23 @@ def get_file_value(
     full_path = os.path.join(folder, f'{stem}{ext}')
 
     print(f'🔍 Reading Field {instance_number} - {stem}{ext} (default={default})')
+    
+    # Use caching for JSON files
+    if ext.lower() == '.json':
+        try:
+            data = read_json_cached(full_path, {})
+            if data:
+                return str(data)
+            else:
+                print(f'⚠️ Field {instance_number} - {stem}{ext} JSON is empty; writing and returning default={default}')
+                write_json_sync(full_path, {"value": default})
+                return default
+        except Exception as e:
+            print(f'❌ Error reading JSON {full_path}: {e}; writing and returning default={default}')
+            write_json_sync(full_path, {"value": default})
+            return default
+    
+    # Regular file handling for non-JSON files
     try:
         with open(full_path, 'r', encoding='utf-8') as f:
             text = f.read().strip()

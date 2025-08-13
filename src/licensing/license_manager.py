@@ -160,9 +160,9 @@ class LicenseManager:
                     if expires_at.tzinfo is None:
                         expires_at = expires_at.replace(tzinfo=timezone.utc)
                     
-                    # Use online time provider with fallback to local time
+                    # Use local time provider
                     current_time = get_current_utc_time()
-                    time_source, is_online = get_time_source_info()
+                    time_source = get_time_source_info()
                     print(f"🕐 License validation using: {time_source}")
                     
                     if current_time > expires_at:
@@ -290,9 +290,9 @@ class LicenseManager:
             
             # Add machine hash and timestamp
             license_data["machineHash"] = self.machine_hash
-            # Use online time provider for timestamp
+            # Use local time provider for timestamp
             current_time = get_current_utc_time()
-            time_source, is_online = get_time_source_info()
+            time_source = get_time_source_info()
             license_data["savedAt"] = current_time.isoformat()
             license_data["timeSource"] = time_source
             

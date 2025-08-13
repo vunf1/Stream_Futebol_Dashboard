@@ -1,4 +1,6 @@
 import customtkinter as ctk
+import threading
+import time
 from typing import Any, Dict, Optional
 from src.config.settings import AppConfig
 from src.ui import get_icon
@@ -33,7 +35,7 @@ def _format_time(seconds: int) -> str:
 
 
 class TimerComponent(ctk.CTkFrame):
-    def __init__(self, parent, instance_number: int, json: GameInfoStore):
+    def __init__(self, parent, instance_number: int, json: GameInfoStore, on_close_callback=None):
         super().__init__(
             parent,
             fg_color=("transparent"),
@@ -52,6 +54,9 @@ class TimerComponent(ctk.CTkFrame):
 
         # JSON store (shared gameinfo.json, per-field block)
         self.state = json
+        
+        # Callback for when component is closed
+        self.on_close_callback = on_close_callback
 
         # Performance configuration
         self.ui_update_debounce = get_config("ui_update_debounce", 50)
@@ -71,6 +76,10 @@ class TimerComponent(ctk.CTkFrame):
         self.timer_seconds_extra = 0
         self.timer_seconds_max = 0
         self.timer_running = False
+        
+        # Non-blocking timer implementation
+        self._timer_thread = None
+        self._timer_stop_event = threading.Event()
         
         # Performance optimization: debounced updates
         self._update_pending = False
@@ -382,7 +391,13 @@ class TimerComponent(ctk.CTkFrame):
         }, persist=True)
 
         self.timer_running = True
-        self._tick()
+        
+        # Start background timer thread if not already running
+        if self._timer_thread is None or not self._timer_thread.is_alive():
+            self._timer_stop_event.clear()
+            self._timer_thread = threading.Thread(target=self._timer_worker, daemon=True)
+            self._timer_thread.start()
+        
         show_message_notification(
             f"Campo - {self.instance_number} - Iniciado",
             "Cronómetro iniciado.",
@@ -391,7 +406,7 @@ class TimerComponent(ctk.CTkFrame):
         )
 
     def _tick(self):
-        """Optimized timer tick with batched updates"""
+        """Non-blocking timer tick using background thread"""
         if not self.timer_running:
             return
 
@@ -405,12 +420,13 @@ class TimerComponent(ctk.CTkFrame):
             needs_ui_update = True
 
             if self.timer_seconds_main == self.timer_seconds_max:
-                show_message_notification(
+                # Schedule notification on main thread
+                self.after(0, lambda: show_message_notification(
                     f"Campo - {self.instance_number} - Tempo Extra",
                     "Tempo Extra iniciado.",
                     icon="⏳",
                     bg_color=AppConfig.COLOR_ERROR,
-                )
+                ))
                 self.timer_seconds_extra = 0
                 updates["extra"] = "00:00"
                 needs_ui_update = True
@@ -427,8 +443,17 @@ class TimerComponent(ctk.CTkFrame):
         if needs_ui_update:
             self._schedule_ui_update()
 
-        if self.timer_running:
-            self.after(self.timer_update_interval, self._tick)
+    def _timer_worker(self):
+        """Background thread worker for non-blocking timer"""
+        while not self._timer_stop_event.is_set():
+            if self.timer_running:
+                # Schedule tick on main thread
+                self.after(0, self._tick)
+                # Sleep in background thread - proper 1-second timer
+                time.sleep(1.0)
+            else:
+                # Sleep longer when timer is not running
+                time.sleep(0.1)
 
     def pause_timer(self):
         if not self.timer_running:
@@ -461,9 +486,23 @@ class TimerComponent(ctk.CTkFrame):
             icon="🛑",
             bg_color=AppConfig.COLOR_STOP,
         )
+        
+    def _cleanup_timer(self):
+        """Clean up timer thread when component is destroyed"""
+        self.timer_running = False
+        self._timer_stop_event.set()
+        if self._timer_thread and self._timer_thread.is_alive():
+            self._timer_thread.join(timeout=1.0)
 
     def _close_component(self):
         """Close the timer component and its parent window"""
+        # Call the close callback if provided
+        if self.on_close_callback:
+            try:
+                self.on_close_callback()
+            except Exception as e:
+                print(f"Warning: Error in close callback: {e}")
+        
         # Find the parent window and close it
         parent_window = self.winfo_toplevel()
         if parent_window and hasattr(parent_window, 'destroy'):
@@ -474,6 +513,7 @@ class TimerComponent(ctk.CTkFrame):
 
     def destroy(self):
         """Cleanup when component is destroyed"""
+        self._cleanup_timer()
         if self._update_timer:
             self.after_cancel(self._update_timer)
         super().destroy()

@@ -73,22 +73,55 @@ class TopWidget:
         backup_btn.grid(row=0, column=3, columnspan=2, sticky="nsew")
 
     def _open_timer_window(self):
-        # Create timer window using window utilities
-        from src.ui import create_popup_dialog
-        win = create_popup_dialog(self.parent, f"Timer - Campo {self.instance_number}", 960, 85)  # Proper size for TimerComponent
+        # Check if timer window is already open for this instance
+        if self._timer_window is not None and self._timer_window.winfo_exists():
+            # Window exists, bring it to focus
+            self._timer_window.lift()
+            self._timer_window.focus_force()
+            return
+        
+        # Create timer window as non-modal popup
+        win = ctk.CTkToplevel(self.parent)
+        win.title(f"Timer - Campo {self.instance_number}")
+        win.geometry("960x85")
         win.attributes("-toolwindow", True)
+        
+        # Ensure window is non-modal and doesn't block parent
+        win.transient(self.parent)  # Make it a transient window (non-modal)
+        win.grab_release()  # Ensure no grab is set
+        
+        # Apply window configuration without modal behavior
+        from src.ui.window_utils import configure_window, center_window_on_parent
+        non_modal_config = {
+            "overrideredirect": True,
+            "topmost": True,
+            "grab_set": False,  # Non-modal
+            "resizable": (False, False),
+            "focus_force": True,
+            "lift": True,
+            "transient": True
+        }
+        configure_window(win, non_modal_config, self.parent)
+        center_window_on_parent(win, self.parent, 960, 85)
         
         # Apply drag and drop to the window
         from src.ui.window_utils import apply_drag_and_drop
         apply_drag_and_drop(win)
+        
+        # Handle window close event to clean up references
+        def on_window_close():
+            self._timer_window = None
+            self._timer_component = None
+        
+        win.protocol("WM_DELETE_WINDOW", on_window_close)
         
         self._timer_window = win
         
         # Lazy import to avoid circular dependency
         from src.ui import TimerComponent
         
-        # Instantiate the TimerComponent in the Toplevel
-        tc = TimerComponent(win, self.instance_number, self.json)
+        # Instantiate the TimerComponent in the Toplevel with close callback
+        tc = TimerComponent(win, self.instance_number, self.json, on_close_callback=on_window_close)
         self._timer_component = tc
 
     def _trigger_backup_with_feedback(self):

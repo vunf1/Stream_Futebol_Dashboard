@@ -139,9 +139,9 @@ class LicenseValidator:
                     
                     print(f"🔍 Parsed expires_at datetime: {expires_at}")
                     
-                    # Use online time provider with fallback to local time
+                    # Use local time provider
                     current_time = get_current_utc_time()
-                    time_source, is_online = get_time_source_info()
+                    time_source = get_time_source_info()
                     print(f"🕐 MongoDB license validation using: {time_source}")
                     
                     # Ensure both times are timezone-aware for comparison
