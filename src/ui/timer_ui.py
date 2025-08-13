@@ -10,6 +10,7 @@ from src.notification import show_message_notification
 from src.core import get_config
 # Performance monitoring - removed old imports, using new performance system
 from src.ui import add_footer_label
+from src.ui.make_drag_drop import make_it_drag_and_drop
 
 # Constants
 BUTTON_PAD = dict(padx=5, pady=5)
@@ -45,7 +46,7 @@ class TimerComponent(ctk.CTkFrame):
             border_color=COLOR_BORDER,
         )
         self.instance_number = instance_number
-        
+        make_it_drag_and_drop(self)
         
         self.configure(width=960, height=80)
         self.pack(side="top", fill="x", padx=8, pady=5)

@@ -221,12 +221,66 @@ class LicenseManager:
             if not self._verify_license_signature(license_data, signature):
                 return "blocked", False
             
-            # Validate license data
+            # Always refresh from database first to get latest status
+            self._refresh_license_from_database(license_data)
+            
+            # Re-read the updated license data
+            if self.license_file.exists():
+                encrypted_data = self.license_file.read_bytes()
+                updated_license_data = self._decrypt_license_data(encrypted_data)
+                if updated_license_data:
+                    # Validate the updated license data
+                    return self._validate_license_data(updated_license_data)
+            
+            # Fallback to original validation if refresh failed
             return self._validate_license_data(license_data)
             
         except Exception as e:
             print(f"Error getting license status: {e}")
             return "not_found", False
+    
+    def _refresh_license_from_database(self, current_license_data: dict) -> bool:
+        """Refresh license data from database and update local file if changed."""
+        try:
+            # Get license code from current data
+            license_code = current_license_data.get("code")
+            if not license_code:
+                return False
+            
+            # Import here to avoid circular imports
+            from .license_validator import LicenseValidator
+            
+            # Create validator and check database
+            validator = LicenseValidator()
+            machine_hash = current_license_data.get("machineHash", self.machine_hash)
+            
+            # Validate against database
+            db_license_data, db_status = validator.validate_license_code(license_code, machine_hash)
+            
+            if db_license_data:
+                # Check if database status is different from local status
+                local_status = current_license_data.get("status")
+                db_license_status = db_license_data.get("status")
+                
+                if local_status != db_license_status:
+                    print(f"🔄 License status changed from {local_status} to {db_license_status}, updating local file...")
+                    
+                    # Update the license data with database values
+                    updated_license_data = current_license_data.copy()
+                    updated_license_data.update(db_license_data)
+                    
+                    # Save updated license to local file
+                    return self.save_license(updated_license_data)
+                else:
+                    print(f"✅ License status unchanged: {db_license_status}")
+                    return True
+            else:
+                print(f"❌ License not found in database: {db_status}")
+                return False
+                
+        except Exception as e:
+            print(f"Error refreshing license from database: {e}")
+            return False
     
     def save_license(self, license_data: dict) -> bool:
         """Save encrypted license data to file."""

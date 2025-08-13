@@ -187,95 +187,112 @@ class LicenseBlocker:
     
     def _show_blocking(self, status: LicenseStatus):
         """Show blocking overlay for invalid license."""
-        if self.is_blocked:
-            return
+        try:
+            if self.is_blocked:
+                print("Already blocked, skipping...")
+                return
+                
+            print(f"Showing blocking UI for status: {status}")
+            self.is_blocked = True
             
-        self.is_blocked = True
-        
-        # Create blocking overlay
-        self.blocking_frame = ctk.CTkFrame(
-            self.parent,
-            fg_color="#1a1a1a"  # Dark background instead of rgba
-        )
-        self.blocking_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
-        
-        # Center content frame
-        content_frame = ctk.CTkFrame(
-            self.blocking_frame,
-            fg_color="#2b2b2b",
-            corner_radius=15
-        )
-        content_frame.place(relx=0.5, rely=0.5, anchor="center")
-        
-        # Status icon
-        if status in ["active", "trial"]:
-            icon_text = "✅"
-            icon_color = "#28a745"
-        else:
-            icon_text = "❌"
-            icon_color = "#dc3545"
-        
-        icon_label = ctk.CTkLabel(
-            content_frame,
-            text=icon_text,
-            font=("Segoe UI Emoji", 48),
-            text_color=icon_color
-        )
-        icon_label.pack(pady=(30, 20))
-        
-        # Status title
-        status_text = self.license_manager.get_status_display_text(status)
-        title_label = ctk.CTkLabel(
-            content_frame,
-            text=status_text,
-            font=("Segoe UI", 24, "bold"),
-            text_color="white"
-        )
-        title_label.pack(pady=(0, 10))
-        
-        # Status description
-        description = self._get_status_description(status)
-        desc_label = ctk.CTkLabel(
-            content_frame,
-            text=description,
-            font=("Segoe UI", 14),
-            text_color="gray",
-            wraplength=400
-        )
-        desc_label.pack(pady=(0, 30))
-        
-        # Action buttons
-        button_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
-        button_frame.pack(pady=(0, 30))
-        
-        if status in ["expired", "trial_expired", "blocked", "not_found"]:
-            # Show activation button
-            activate_button = ctk.CTkButton(
-                button_frame,
-                text="Activate License",
-                command=self._activate_license,
-                font=("Segoe UI", 14, "bold"),
-                height=40,
-                fg_color="#007bff",
-                hover_color="#0056b3"
+            # Ensure parent widget exists and is ready
+            if not self.parent or not self.parent.winfo_exists():
+                print("Parent widget not available for blocking UI")
+                return
+            
+            # Create blocking overlay
+            self.blocking_frame = ctk.CTkFrame(
+                self.parent,
+                fg_color="#1a1a1a"  # Dark background instead of rgba
             )
-            activate_button.pack(side="left", padx=(0, 10))
-        
-        # Exit button
-        exit_button = ctk.CTkButton(
-            button_frame,
-            text="Exit Application",
-            command=self._exit_app,
-            font=("Segoe UI", 14),
-            height=40,
-            fg_color="#6c757d",
-            hover_color="#5a6268"
-        )
-        exit_button.pack(side="left")
-        
-        # Make blocking frame modal
-        self.blocking_frame.focus_set()
-        self.blocking_frame.grab_set()
+            self.blocking_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
+            
+            # Center content frame
+            content_frame = ctk.CTkFrame(
+                self.blocking_frame,
+                fg_color="#2b2b2b",
+                corner_radius=15
+            )
+            content_frame.place(relx=0.5, rely=0.5, anchor="center")
+            
+            # Status icon
+            if status in ["active", "trial"]:
+                icon_text = "✅"
+                icon_color = "#28a745"
+            else:
+                icon_text = "❌"
+                icon_color = "#dc3545"
+            
+            icon_label = ctk.CTkLabel(
+                content_frame,
+                text=icon_text,
+                font=("Segoe UI Emoji", 48),
+                text_color=icon_color
+            )
+            icon_label.pack(pady=(30, 20))
+            
+            # Status title
+            status_text = self.license_manager.get_status_display_text(status)
+            title_label = ctk.CTkLabel(
+                content_frame,
+                text=status_text,
+                font=("Segoe UI", 24, "bold"),
+                text_color="white"
+            )
+            title_label.pack(pady=(0, 10))
+            
+            # Status description
+            description = self._get_status_description(status)
+            desc_label = ctk.CTkLabel(
+                content_frame,
+                text=description,
+                font=("Segoe UI", 14),
+                text_color="gray",
+                wraplength=400
+            )
+            desc_label.pack(pady=(0, 30))
+            
+            # Action buttons
+            button_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+            button_frame.pack(pady=(0, 30))
+            
+            if status in ["expired", "trial_expired", "blocked", "not_found"]:
+                # Show activation button
+                activate_button = ctk.CTkButton(
+                    button_frame,
+                    text="Activate License",
+                    command=self._activate_license,
+                    font=("Segoe UI", 14, "bold"),
+                    height=40,
+                    fg_color="#007bff",
+                    hover_color="#0056b3"
+                )
+                activate_button.pack(side="left", padx=(0, 10))
+            
+            # Exit button
+            exit_button = ctk.CTkButton(
+                button_frame,
+                text="Exit Application",
+                command=self._exit_app,
+                font=("Segoe UI", 14),
+                height=40,
+                fg_color="#6c757d",
+                hover_color="#5a6268"
+            )
+            exit_button.pack(side="left")
+            
+            # Make blocking frame modal
+            self.blocking_frame.focus_set()
+            self.blocking_frame.grab_set()
+            
+            print("Blocking UI displayed successfully")
+            
+        except Exception as e:
+            print(f"Error showing blocking UI: {e}")
+            import traceback
+            traceback.print_exc()
+            # Reset blocked state if UI creation failed
+            self.is_blocked = False
     
     def _remove_blocking(self):
         """Remove blocking overlay."""
@@ -382,18 +399,30 @@ class LicenseBlocker:
 
     def start_periodic_check(self, interval_ms: int = 30000):
         """
-        Start periodic license checking to ensure app stays blocked if license becomes invalid.
+        Start periodic license checking to ensure app stays blocked if license becomes invalid
+        and unblocks if license becomes valid again.
         
         Args:
             interval_ms: Check interval in milliseconds (default: 30 seconds)
         """
         def periodic_check():
+            # Always check license status, regardless of current blocking state
+            status, is_valid = self.license_manager.get_license_status()
+            
             if not self.is_blocked:
-                # Only check if not currently blocked
-                status, is_valid = self.license_manager.get_license_status()
+                # App is not blocked, check if it should be blocked
                 if not is_valid:
                     print("License became invalid during runtime, blocking app...")
-                    self._show_blocking(status)
+                    # Use after() to ensure UI operations happen in the main thread
+                    self.parent.after(0, lambda: self._show_blocking(status))
+            else:
+                # App is blocked, check if it should be unblocked
+                if is_valid:
+                    print("License became valid during runtime, unblocking app...")
+                    # Use after() to ensure UI operations happen in the main thread
+                    self.parent.after(0, lambda: self._remove_blocking())
+                    if self.on_license_valid:
+                        self.parent.after(0, self.on_license_valid)
             
             # Schedule next check
             self.parent.after(interval_ms, periodic_check)

@@ -7,6 +7,7 @@ from multiprocessing import Process, Queue, freeze_support  # Process management
 # Third-party library imports
 import customtkinter as ctk              # Modern tkinter-based UI toolkit
 
+from src.ui.make_drag_drop import make_it_drag_and_drop
 from .core import GameInfoStore, MongoTeamManager
 from .utils import DateTimeProvider
 from .ui import get_icon_path, add_footer_label, ScoreUI, TeamInputManager, TopWidget
@@ -328,7 +329,7 @@ class ScoreApp:
         """Step 3: Initialize score UI and team manager"""
         try:
             # Ensure components are initialized
-            if not self.mongo or not self.json:
+            if not self.mongo or not self.json or not self.ui_container:
                 print("❌ Components not initialized yet")
                 return
             
@@ -355,7 +356,7 @@ class ScoreApp:
         """Step 4: Finalize UI setup"""
         try:
             # Ensure components are initialized
-            if not self.mongo or not self.json:
+            if not self.mongo or not self.json or not self.ui_container:
                 print("❌ Components not initialized yet")
                 return
                 
@@ -385,7 +386,8 @@ class ScoreApp:
         """Complete the fast loading process and show the UI"""
         try:
             # Show the UI container
-            self.ui_container.pack(fill="both", expand=True)
+            if self.ui_container:
+                self.ui_container.pack(fill="both", expand=True)
             
             # Hide loading indicator
             self._hide_loading_indicator()
@@ -417,7 +419,7 @@ class ScoreApp:
         self.root.configure(fg_color=("gray95", "gray15"))
         
         # Show the UI container
-        if hasattr(self, 'ui_container'):
+        if hasattr(self, 'ui_container') and self.ui_container:
             self.ui_container.pack(fill="both", expand=True)
         
         # Smooth fade transition
@@ -558,6 +560,9 @@ class ScoreApp:
         if hasattr(self, 'license_blocker'):
             self.license_blocker._remove_blocking()
         
+        # Clean up existing UI components to prevent duplication
+        self._cleanup_existing_ui()
+        
         # Show loading indicator again since it was hidden during license check
         self._show_fast_loading_indicator()
         
@@ -566,6 +571,27 @@ class ScoreApp:
         
         # Continue with app setup
         self._initialize_components_after_license()
+
+    def _cleanup_existing_ui(self):
+        """Clean up existing UI components to prevent duplication during license reactivation"""
+        try:
+            # Clean up UI container if it exists
+            if hasattr(self, 'ui_container') and self.ui_container:
+                if self.ui_container.winfo_exists():
+                    self.ui_container.destroy()
+                self.ui_container = None
+            
+            # Clean up score UI if it exists
+            if hasattr(self, 'score_ui'):
+                delattr(self, 'score_ui')
+            
+            # Clean up any other UI components that might have been created
+            # This prevents duplicate components when license is reactivated
+            
+            print("Existing UI components cleaned up")
+            
+        except Exception as e:
+            print(f"Error cleaning up existing UI: {e}")
 
 
 def start_instance(instance_number: int):
@@ -598,7 +624,7 @@ def ask_instance_count_ui() -> int:
     dialog_config = AppConfig.get_dialog_config()
     window.geometry(f"{dialog_config['width']}x{dialog_config['height']}")
     window.resizable(False, False)
-    
+    make_it_drag_and_drop(window)
     # Remove window border but ensure visibility
     window.overrideredirect(True)
     window.attributes("-toolwindow", False)  # Keep taskbar icon visible

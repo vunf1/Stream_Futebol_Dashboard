@@ -114,7 +114,7 @@ class LicenseValidator:
             # Check if license is blocked (assuming blocked status is in the status field)
             if license_doc.get("status") == "blocked":
                 print("❌ License is blocked")
-                return {"error": "License is blocked"}, "blocked"
+                # Don't return early, continue to create license data with blocked status
             
             # Check expiration using the actual field name from your schema
             expires_at = license_doc.get("expires_at")
@@ -143,16 +143,75 @@ class LicenseValidator:
                     time_source, is_online = get_time_source_info()
                     print(f"🕐 MongoDB license validation using: {time_source}")
                     
+                    # Ensure both times are timezone-aware for comparison
+                    if expires_at.tzinfo is None:
+                        expires_at = expires_at.replace(tzinfo=timezone.utc)
+                    
                     if current_time > expires_at:
-                        status = license_doc.get("status", "expired")
-                        if status == "trial":
+                        current_status = license_doc.get("status", "expired")
+                        if current_status == "trial":
+                            # Update database status to trial_expired
+                            new_status = "trial_expired"
                             print(f"❌ Trial license expired on {expires_at} (checked with {time_source})")
-                            return {"error": "Trial license expired"}, "trial_expired"
+                            print(f"🔄 Updating database status from '{current_status}' to '{new_status}'")
+                            
+                            # Update the database
+                            try:
+                                collection.update_one(
+                                    {"license_key": clean_code},
+                                    {
+                                        "$set": {
+                                            "status": new_status,
+                                            "last_updated": datetime.now(timezone.utc)
+                                        }
+                                    }
+                                )
+                                print(f"✅ Database updated: status changed to '{new_status}'")
+                            except Exception as db_error:
+                                print(f"⚠️ Failed to update database status: {db_error}")
+                            
+                            return {"error": "Trial license expired"}, new_status
                         else:
+                            # Update database status to expired
+                            new_status = "expired"
                             print(f"❌ License expired on {expires_at} (checked with {time_source})")
-                            return {"error": "License expired"}, "expired"
+                            print(f"🔄 Updating database status from '{current_status}' to '{new_status}'")
+                            
+                            # Update the database
+                            try:
+                                collection.update_one(
+                                    {"license_key": clean_code},
+                                    {
+                                        "$set": {
+                                            "status": new_status,
+                                            "last_updated": datetime.now(timezone.utc)
+                                        }
+                                    }
+                                )
+                                print(f"✅ Database updated: status changed to '{new_status}'")
+                            except Exception as db_error:
+                                print(f"⚠️ Failed to update database status: {db_error}")
+                            
+                            return {"error": "License expired"}, new_status
                     else:
                         print(f"✅ License not expired, expires on {expires_at} (checked with {time_source})")
+                        # If license is not expired but database shows expired status, update it
+                        current_status = license_doc.get("status", "active")
+                        if current_status in ["expired", "trial_expired"]:
+                            print(f"🔄 License not expired but database shows '{current_status}', updating to 'active'")
+                            try:
+                                collection.update_one(
+                                    {"license_key": clean_code},
+                                    {
+                                        "$set": {
+                                            "status": "active",
+                                            "last_updated": datetime.now(timezone.utc)
+                                        }
+                                    }
+                                )
+                                print(f"✅ Database updated: status corrected to 'active'")
+                            except Exception as db_error:
+                                print(f"⚠️ Failed to update database status: {db_error}")
                         
                 except Exception as e:
                     print(f"❌ Error parsing expiration date '{expires_at}': {e}")
@@ -161,58 +220,59 @@ class LicenseValidator:
             else:
                 print("⚠️ No expires_at field found in MongoDB document")
             
+            # Re-fetch the license document in case status was updated during expiration check
+            updated_license_doc = collection.find_one({"license_key": clean_code})
+            if updated_license_doc:
+                license_doc = updated_license_doc
+            
             # Get license status
             status = license_doc.get("status", "not_found")
             print(f"🔍 License status: {status}")
             
-            if status in ["active", "trial"]:
-                # First, create a proper LicenseRecord object for validation
-                license_record = self._create_license_record_from_mongodb(license_doc, clean_code)
-                if not license_record:
-                    print("❌ Failed to create valid LicenseRecord from MongoDB data")
-                    return {"error": "Invalid license data structure"}, "not_found"
-                
-                # Create license payload using the validated LicenseRecord
-                license_data = {
-                    "status": license_record.status.value,
-                    "code": clean_code,
-                    "features": license_doc.get("features", ["basic"]),
-                    "issuedAt": license_record.created_at.isoformat(),
-                    "expiresAt": license_record.expires_at.isoformat() if license_record.expires_at else "",
-                    "machineHash": machine_hash,
-                    "signature": self._create_mock_signature(clean_code, machine_hash, status),
-                    "user": license_record.user or "Unknown User",
-                    "email": license_record.email or "No Email",
-                    "company": license_record.company or "No Company",
-                    "max_devices": license_record.max_devices,
-                    "metadata": {
-                        "type": "mongodb",
-                        "version": "1.0.0",
-                        "licenseId": str(license_doc.get("_id", "")),
-                        "licenseRecord": {
-                            "is_trial": license_record.is_trial,
-                            "license_type": license_record.license_type.value if license_record.license_type else None,
-                            "product": license_record.product,
-                            "devices_count": len(license_record.devices) if license_record.devices else 0
-                        }
+            # Create a proper LicenseRecord object for validation (for all statuses)
+            license_record = self._create_license_record_from_mongodb(license_doc, clean_code)
+            if not license_record:
+                print("❌ Failed to create valid LicenseRecord from MongoDB data")
+                return {"error": "Invalid license data structure"}, "not_found"
+            
+            # Create license payload using the validated LicenseRecord
+            license_data = {
+                "status": license_record.status.value,
+                "code": clean_code,
+                "features": license_doc.get("features", ["basic"]),
+                "issuedAt": license_record.created_at.isoformat(),
+                "expiresAt": license_record.expires_at.isoformat() if license_record.expires_at else "",
+                "machineHash": machine_hash,
+                "signature": self._create_mock_signature(clean_code, machine_hash, status),
+                "user": license_record.user or "Unknown User",
+                "email": license_record.email or "No Email",
+                "company": license_record.company or "No Company",
+                "max_devices": license_record.max_devices,
+                "metadata": {
+                    "type": "mongodb",
+                    "version": "1.0.0",
+                    "licenseId": str(license_doc.get("_id", "")),
+                    "licenseRecord": {
+                        "is_trial": license_record.is_trial,
+                        "license_type": license_record.license_type.value if license_record.license_type else None,
+                        "product": license_record.product,
+                        "devices_count": len(license_record.devices) if license_record.devices else 0
                     }
                 }
-                
-                # Debug: Show field mapping using the validated LicenseRecord
-                print(f"🔍 Field mapping (using validated LicenseRecord):")
-                print(f"  created_at -> issuedAt: {license_record.created_at}")
-                print(f"  expires_at -> expiresAt: {license_record.expires_at or 'NO EXPIRATION'}")
-                print(f"  max_devices -> max_devices: {license_record.max_devices}")
-                print(f"  user -> user: {license_record.user or 'NO USER'}")
-                print(f"  company -> company: {license_record.company or 'NO COMPANY'}")
-                print(f"  is_trial: {license_record.is_trial}")
-                print(f"  devices_count: {len(license_record.devices) if license_record.devices else 0}")
-                
-                return license_data, status
-            else:
-                error_msg = f"License status: {status}"
-                print(f"❌ Invalid license status: {status}")
-                return {"error": error_msg}, status
+            }
+            
+            # Debug: Show field mapping using the validated LicenseRecord
+            print(f"🔍 Field mapping (using validated LicenseRecord):")
+            print(f"  created_at -> issuedAt: {license_record.created_at}")
+            print(f"  expires_at -> expiresAt: {license_record.expires_at or 'NO EXPIRATION'}")
+            print(f"  max_devices -> max_devices: {license_record.max_devices}")
+            print(f"  user -> user: {license_record.user or 'NO USER'}")
+            print(f"  company -> company: {license_record.company or 'NO COMPANY'}")
+            print(f"  is_trial: {license_record.is_trial}")
+            print(f"  devices_count: {len(license_record.devices) if license_record.devices else 0}")
+            
+            # Return the license data for all statuses, let the caller handle validation
+            return license_data, status
                 
         except Exception as e:
             print(f"MongoDB validation error: {e}")
@@ -347,6 +407,9 @@ class LicenseValidator:
             license_data = self.create_mock_license(code, machine_hash, status)
             return license_data, status
         else:
+            # Treat trial_expired as expired
+            if status == "trial_expired":
+                status = "expired"
             error_msg = f"License {status.replace('_', ' ')}"
             return {"error": error_msg}, status
 

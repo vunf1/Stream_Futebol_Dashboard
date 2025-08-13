@@ -2,7 +2,7 @@ from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 from src.core.env_loader import ensure_env_loaded
 from src.core import get_env
-from src.core import save_teams_to_json
+from src.core import save_teams_to_json, load_teams_from_json
 from src.notification import show_message_notification
 # Performance monitoring removed - keeping core optimizations
 import threading
@@ -44,7 +44,7 @@ class SmartTeamCache:
     def is_valid(self) -> bool:
         """Check if cache is still valid"""
         current_time = time.time()
-        return (self._cache and 
+        return (bool(self._cache) and 
                 (current_time - self._cache_timestamp) < self.get_ttl())
     
     def get_team(self, team_name: str) -> Optional[str]:
