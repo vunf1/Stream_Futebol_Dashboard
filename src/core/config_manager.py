@@ -27,6 +27,17 @@ class ConfigManager:
             "mongo_cache_ttl": 300,     # 5 minutes cache TTL
             "mongo_pool_size": 10,      # Connection pool size
             
+            # Teams cache settings
+            "teams_cache": {
+                "base_ttl": 300,           # Base cache TTL
+                "max_ttl": 1800,           # Maximum cache TTL
+                "min_ttl": 60,             # Minimum cache TTL
+                "batch_update_delay": 0.5, # Delay for batching updates
+                "background_sync": True,    # Enable background JSON sync
+                "preload_json": True,      # Preload JSON during startup
+                "incremental_updates": True # Use incremental cache updates
+            },
+            
             # Memory management
             "memory_cleanup_interval": 300,  # 5 minutes
             "memory_threshold": 0.8,         # 80% memory usage threshold

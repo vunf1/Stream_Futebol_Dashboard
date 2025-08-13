@@ -91,6 +91,9 @@ class TeamInputManager(ctk.CTkFrame):
 
         # Defer UI building for smooth loading
         self.after(100, self._deferred_build_ui)  # Faster (was 200ms, now 100ms)
+        
+        # Preload teams JSON in background for faster autocomplete
+        self._preload_teams_json()
 
     def _deferred_build_ui(self):
         """Deferred UI building to ensure smooth loading"""
@@ -116,22 +119,46 @@ class TeamInputManager(ctk.CTkFrame):
         self.away_abbrev_entry.delete(0, "end"); self.away_abbrev_entry.insert(0, away_abbr)
 
     def _fetch_teams_cached(self) -> Dict[str, str]:
-        """Return teams mapping from cache; if empty, load from JSON file; if still empty, ask Mongo and backup to JSON."""
-        if self._teams_cache:
-            return self._teams_cache
-
+        """Return teams mapping from smart cache; if empty, load from JSON file; if still empty, ask Mongo and backup to JSON."""
+        # Try smart cache first (most efficient)
+        teams = self.mongo.load_teams()  # This now uses the smart cache system
+        
+        if teams:
+            # Update local cache for autocomplete
+            self._teams_cache = teams
+            return teams
+        
+        # Fallback to JSON file
         teams = load_teams_from_json()
         if teams is False or not teams:
-            # Fall back to Mongo, then persist a local cache
-            teams = self.mongo.load_teams()  # expected {name: abbr}
+            # Last resort: load from Mongo and backup to JSON
+            teams = self.mongo.load_teams()
             try:
                 save_teams_to_json(teams)
             except Exception:
                 pass
-
+        
         # Normalize keys once for better matching
         self._teams_cache = {str(k).upper(): str(v).upper() for k, v in (teams or {}).items()}
         return self._teams_cache
+
+    def _preload_teams_json(self):
+        """Preload teams JSON in background for faster autocomplete"""
+        import threading
+        
+        def load_json_background():
+            try:
+                teams = load_teams_from_json()
+                if teams:
+                    # Pre-populate local cache
+                    self._teams_cache = {str(k).upper(): str(v).upper() for k, v in teams.items()}
+                    print("🚀 Teams JSON preloaded in background")
+            except Exception as e:
+                print(f"⚠️ Background JSON preload failed: {e}")
+        
+        # Start background loading immediately
+        preload_thread = threading.Thread(target=load_json_background, daemon=True)
+        preload_thread.start()
 
     # -------------------------- UI --------------------------
     def _build_ui(self):

@@ -8,7 +8,7 @@ from src.ui import get_icon
 from src.core import GameInfoStore, DEFAULT_FIELD_STATE
 from src.notification import show_message_notification
 from src.core import get_config
-from src.performance import time_ui_update, time_json_operation
+# Performance monitoring - removed old imports, using new performance system
 from src.ui import add_footer_label
 
 # Constants
@@ -312,7 +312,6 @@ class TimerComponent(ctk.CTkFrame):
         self._update_pending = True
         self._update_timer = self.after(self.ui_update_debounce, self._perform_ui_update)
 
-    @time_ui_update
     def _perform_ui_update(self):
         """Perform the actual UI update"""
         self._update_pending = False
@@ -330,7 +329,6 @@ class TimerComponent(ctk.CTkFrame):
             self._set_entry_text(self.extra_entry, extra_text)
             self._last_values["extra"] = extra_text
 
-    @time_json_operation
     def save_timers_from_entries(self):
         fields = [
             ("Tempo Máximo",    "max_entry",   "max"),
@@ -393,7 +391,6 @@ class TimerComponent(ctk.CTkFrame):
             bg_color=COLOR_INFO,
         )
 
-    @time_ui_update
     def _tick(self):
         """Optimized timer tick with batched updates"""
         if not self.timer_running:

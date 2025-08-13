@@ -61,17 +61,17 @@ class TopWidget:
         
 
         icon = get_icon("reload", 68)
-        # Create the "Open Timer" button
-        open_timer_btn = CTkButton(
+        # Create the backup button
+        backup_btn = CTkButton(
             header,
             image=icon,
             text="",
             fg_color="transparent",
             corner_radius=20,
-            command=self.mongo.backup_to_json,  # Backup teams to JSON
+            command=lambda: self._trigger_backup_with_feedback(),  # Backup teams to JSON
             hover_color=bg,  
         )
-        open_timer_btn.grid(row=0, column=3, columnspan=2, sticky="nsew")
+        backup_btn.grid(row=0, column=3, columnspan=2, sticky="nsew")
 
     def _open_timer_window(self):
         win = CTkToplevel(self.parent)
@@ -89,9 +89,18 @@ class TopWidget:
         tc = TimerComponent(win, self.instance_number, self.json)
         self._timer_component = tc
 
+    def _trigger_backup_with_feedback(self):
+        """Trigger backup with user feedback"""
+        try:
+            # Show immediate feedback
+            self.mongo.backup_to_json()
+            print("✅ Manual backup completed")
+        except Exception as e:
+            print(f"❌ Manual backup failed: {e}")
+
         # Check if timer was running before
-        if self._was_running:
-            tc.start_timer()
+        if self._was_running and hasattr(self, '_timer_component') and self._timer_component:
+            self._timer_component.start_timer()
 
 
 

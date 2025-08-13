@@ -49,20 +49,17 @@ class ScoreApp:
         
         self.instance_number = instance_number
         
+        # Initialize attributes that will be set later
+        from typing import Optional
+        from src.core.gameinfo import GameInfoStore
+        from src.core.mongodb import MongoTeamManager
+        
+        self.json: Optional[GameInfoStore] = None
+        self.mongo: Optional[MongoTeamManager] = None
+        self.decrement_buttons_enabled = False
+        
         # Check license BEFORE initializing any components
         self._check_license_first()
-        
-        # Database initialization moved to after license validation
-        # self.json = GameInfoStore(instance_number, debug=get_config("debug_mode"))
-        # self.decrement_buttons_enabled = True
-        # self.mongo = MongoTeamManager()
-        
-        # Defer backup operation to avoid blocking UI
-        # animation_config = AppConfig.get_animation_config()
-        # self.root.after(animation_config['backup_delay'], self._deferred_backup)
-        
-        # UI setup will be handled by license check callback
-        # self.root.after(animation_config['ui_setup_delay'], self._fast_setup_ui)
 
     def _position_window(self, instance_number: int):
         """Position the window in center for first instance, cascade for subsequent ones"""
@@ -260,7 +257,8 @@ class ScoreApp:
 
     def _deferred_backup(self):
         """Defer the backup operation to avoid blocking UI"""
-        self.mongo.backup_to_json()
+        if self.mongo:
+            self.mongo.backup_to_json()
 
     def _fast_setup_ui(self):
         """Faster UI setup to ensure smooth loading"""
@@ -329,6 +327,11 @@ class ScoreApp:
     def _setup_step_3(self):
         """Step 3: Initialize score UI and team manager"""
         try:
+            # Ensure components are initialized
+            if not self.mongo or not self.json:
+                print("❌ Components not initialized yet")
+                return
+            
             # Initialize components
             TopWidget(self.ui_container, self.instance_number, self.mongo, self.json)
             
@@ -351,6 +354,11 @@ class ScoreApp:
     def _setup_step_4(self):
         """Step 4: Finalize UI setup"""
         try:
+            # Ensure components are initialized
+            if not self.mongo or not self.json:
+                print("❌ Components not initialized yet")
+                return
+                
             TeamInputManager(
                 parent=self.ui_container,
                 mongo=self.mongo,
@@ -510,20 +518,38 @@ class ScoreApp:
             self._initialize_components_after_license()
 
     def _initialize_components_after_license(self):
-        """Initialize GameInfoStore and MongoTeamManager after license validation"""
+        """Initialize components in parallel for faster startup"""
+        import threading
+        
         # Update loading message to show license validation success
         self._update_loading_message("License validated, initializing components...")
         
-        self.json = GameInfoStore(self.instance_number, debug=get_config("debug_mode"))
-        self.decrement_buttons_enabled = True
-        self.mongo = MongoTeamManager()
-
-        # Defer backup operation to avoid blocking UI
-        animation_config = AppConfig.get_animation_config()
-        self.root.after(animation_config['backup_delay'], self._deferred_backup)
+        # Start database connection in background
+        def init_database():
+            self.mongo = MongoTeamManager()
+            # Trigger immediate backup for first run
+            self.mongo.backup_to_json()
         
-        # UI setup will be handled by license check callback
-        self.root.after(animation_config['ui_setup_delay'], self._fast_setup_ui)
+        # Start UI setup in parallel
+        def init_ui():
+            self.json = GameInfoStore(self.instance_number, debug=get_config("debug_mode"))
+            self.decrement_buttons_enabled = True
+        
+        # Run both in parallel
+        db_thread = threading.Thread(target=init_database, daemon=True)
+        ui_thread = threading.Thread(target=init_ui, daemon=True)
+        
+        db_thread.start()
+        ui_thread.start()
+        
+        # Wait for both to complete
+        db_thread.join()
+        ui_thread.join()
+        
+        # Continue with UI setup
+        animation_config = AppConfig.get_animation_config()
+        # Use a small delay for UI setup to ensure smooth transition
+        self.root.after(100, self._fast_setup_ui)
     
     def _on_license_activated(self):
         """Handle successful license activation and continue with app setup"""

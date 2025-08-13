@@ -55,11 +55,7 @@ from .notification import (
     init_notification_queue,
 )
 
-# Performance utilities
-from .performance import (
-    time_ui_update,
-    time_json_operation,
-)
+# Performance monitoring removed - keeping core optimizations
 
 # General utilities
 from .utils import (
@@ -108,10 +104,7 @@ __all__ = [
     'server_main',
     'init_notification_queue',
     
-    # Performance
-    'time_ui_update',
-    'time_json_operation',
-    
+    # Performance monitoring removed - keeping core optimizations
     # Utils
     'DateTimeProvider',
     'OnlineTimeProvider',
