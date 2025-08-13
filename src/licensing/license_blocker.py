@@ -23,7 +23,124 @@ class LicenseBlocker:
         self.blocking_frame = None
         self.is_blocked = False
         self.on_license_valid = on_license_valid
+        self._listener_active = True
         
+        # Start listening for license activation notifications from other instances
+        self._start_license_notification_listener()
+        
+    def _start_license_notification_listener(self):
+        """Start listening for license activation notifications from other instances."""
+        def check_for_license_updates():
+            try:
+                # Check if listener should continue
+                if not self._listener_active:
+                    return
+                
+                # Check if license status has changed (e.g., another instance activated it)
+                if self.is_blocked:
+                    # First check the signal file from other instances
+                    if self._check_license_activation_signal():
+                        print("License activation signal detected from another instance, checking status...")
+                        # Small delay to ensure the license file is fully written
+                        self.parent.after(500, self._check_and_continue_if_valid)
+                        return
+                    
+                    # Also check direct license status
+                    status, is_valid = self.license_manager.get_license_status()
+                    if is_valid:
+                        print("License became valid (detected by direct check), unblocking...")
+                        self._remove_blocking()
+                        if self.on_license_valid:
+                            self.on_license_valid()
+                        return
+                
+                # Continue listening if still active
+                if self._listener_active:
+                    self.parent.after(1000, check_for_license_updates)  # Check every second
+            except Exception as e:
+                print(f"Error in license notification listener: {e}")
+                # Continue listening even if there's an error
+                if self._listener_active:
+                    self.parent.after(1000, check_for_license_updates)
+        
+        # Start the listener
+        self.parent.after(1000, check_for_license_updates)
+    
+    def stop_notification_listener(self):
+        """Stop the notification listener."""
+        self._listener_active = False
+        print("License notification listener stopped")
+    
+    def _check_license_activation_signal(self) -> bool:
+        """Check if another instance has activated a license."""
+        try:
+            import os
+            import tempfile
+            
+            temp_dir = tempfile.gettempdir()
+            signal_file = os.path.join(temp_dir, "license_activated_signal")
+            
+            if os.path.exists(signal_file):
+                # Check if the signal file is recent (within last 10 seconds)
+                import time
+                current_time = time.time()
+                
+                try:
+                    with open(signal_file, 'r') as f:
+                        signal_time = float(f.read().strip())
+                    
+                    # If signal is recent, consider it valid
+                    if current_time - signal_time < 10:
+                        return True
+                    else:
+                        # Remove old signal file
+                        os.remove(signal_file)
+                except (ValueError, IOError):
+                    # Remove corrupted signal file
+                    try:
+                        os.remove(signal_file)
+                    except:
+                        pass
+                        
+            return False
+            
+        except Exception as e:
+            print(f"Error checking license activation signal: {e}")
+            return False
+    
+    def _check_and_continue_if_valid(self):
+        """Check license status and continue if valid."""
+        try:
+            # Clean up the signal file first
+            self._cleanup_license_activation_signal()
+            
+            status, is_valid = self.license_manager.get_license_status()
+            if is_valid:
+                print("License confirmed valid after signal detection, unblocking...")
+                self._remove_blocking()
+                if self.on_license_valid:
+                    self.on_license_valid()
+            else:
+                print("License still invalid after signal detection, continuing to listen...")
+        except Exception as e:
+            print(f"Error checking license status after signal: {e}")
+    
+    def _cleanup_license_activation_signal(self):
+        """Clean up the license activation signal file."""
+        try:
+            import os
+            import tempfile
+            
+            temp_dir = tempfile.gettempdir()
+            signal_file = os.path.join(temp_dir, "license_activated_signal")
+            
+            if os.path.exists(signal_file):
+                os.remove(signal_file)
+                print("License activation signal file cleaned up")
+                
+        except Exception as e:
+            print(f"Error cleaning up license activation signal: {e}")
+    
     def check_and_block(self) -> bool:
         """
         Check license status and block if invalid.
@@ -146,6 +263,9 @@ class LicenseBlocker:
             self.blocking_frame.destroy()
             self.blocking_frame = None
         self.is_blocked = False
+        
+        # Stop the notification listener since we're no longer blocked
+        self.stop_notification_listener()
     
     def _get_status_description(self, status: LicenseStatus) -> str:
         """Get description text for a given status."""
@@ -172,6 +292,9 @@ class LicenseBlocker:
                     self._remove_blocking()
                     print("License activated successfully!")
                     
+                    # Broadcast license activation to other instances
+                    self._broadcast_license_activation()
+                    
                     # Execute callback to continue app setup if provided
                     if self.on_license_valid:
                         print("Executing license valid callback...")
@@ -186,6 +309,28 @@ class LicenseBlocker:
             print(f"Error showing license activation: {e}")
             import traceback
             traceback.print_exc()
+    
+    def _broadcast_license_activation(self):
+        """Broadcast license activation to other instances."""
+        try:
+            # Create a temporary file or use a shared mechanism to signal other instances
+            # This is a simple approach using a file-based signal
+            import os
+            import tempfile
+            
+            # Create a temporary file in a known location that other instances can check
+            temp_dir = tempfile.gettempdir()
+            signal_file = os.path.join(temp_dir, "license_activated_signal")
+            
+            # Write a timestamp to indicate when the license was activated
+            import time
+            with open(signal_file, 'w') as f:
+                f.write(str(time.time()))
+            
+            print(f"License activation broadcasted to other instances via signal file: {signal_file}")
+            
+        except Exception as e:
+            print(f"Error broadcasting license activation: {e}")
     
     def _exit_app(self):
         """Exit the application."""

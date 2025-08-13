@@ -44,20 +44,25 @@ class ScoreApp:
         self.opacity = AppConfig.WINDOW_OPACITY
         self.root.attributes("-alpha", self.opacity)  # Start with configured opacity
         
-        # Show minimal loading indicator for fast loading
+        # Show minimal loading indicator for fast loading FIRST
         self._show_fast_loading_indicator()
         
         self.instance_number = instance_number
-        self.json = GameInfoStore(instance_number, debug=get_config("debug_mode"))
-        self.decrement_buttons_enabled = True
-        self.mongo = MongoTeamManager()
+        
+        # Check license BEFORE initializing any components
+        self._check_license_first()
+        
+        # Database initialization moved to after license validation
+        # self.json = GameInfoStore(instance_number, debug=get_config("debug_mode"))
+        # self.decrement_buttons_enabled = True
+        # self.mongo = MongoTeamManager()
         
         # Defer backup operation to avoid blocking UI
-        animation_config = AppConfig.get_animation_config()
-        self.root.after(animation_config['backup_delay'], self._deferred_backup)
+        # animation_config = AppConfig.get_animation_config()
+        # self.root.after(animation_config['backup_delay'], self._deferred_backup)
         
-        # Faster UI setup with minimal delay
-        self.root.after(animation_config['ui_setup_delay'], self._fast_setup_ui)
+        # UI setup will be handled by license check callback
+        # self.root.after(animation_config['ui_setup_delay'], self._fast_setup_ui)
 
     def _position_window(self, instance_number: int):
         """Position the window in center for first instance, cascade for subsequent ones"""
@@ -143,6 +148,10 @@ class ScoreApp:
     def _on_closing(self):
         """Handle window closing event"""
         global _instance_positions
+        
+        # Stop license blocker notification listener if it exists
+        if hasattr(self, 'license_blocker'):
+            self.license_blocker.stop_notification_listener()
         
         # Stop spinner animation and hide loading indicator
         if hasattr(self, 'spinner_active'):
@@ -256,43 +265,16 @@ class ScoreApp:
     def _fast_setup_ui(self):
         """Faster UI setup to ensure smooth loading"""
         try:
-            # Step 0: Check license before proceeding
-            self._update_loading_message("Checking license...")
+            # License already checked and valid, proceed with setup
+            self._update_loading_message("Initializing database...")
             animation_config = AppConfig.get_animation_config()
-            self.root.after(animation_config['license_check_delay'], lambda: self._check_license_and_setup())
+            self.root.after(animation_config['loading_step_delay'], lambda: self._setup_step_1())
             
         except Exception as e:
             print(f"Error during UI setup: {e}")
             # Fallback: show UI immediately if there's an error
             self._hide_loading_indicator()
             self.root.attributes("-alpha", self.opacity)
-    
-    def _check_license_and_setup(self):
-        """Check license and proceed with setup if valid"""
-        try:
-            # Initialize license blocker with callback to continue setup
-            self.license_blocker = LicenseBlocker(
-                self.root, 
-                on_license_valid=self._continue_app_setup
-            )
-            
-            # Check license status
-            if self.license_blocker.check_and_block():
-                # License is valid, proceed with normal setup
-                print("License validated, proceeding with app setup...")
-                self._continue_app_setup()
-            else:
-                # License is invalid, app is blocked
-                print("License validation failed, app is blocked")
-                # The license blocker will handle showing the blocking overlay
-                # and license activation modal
-                return
-                
-        except Exception as e:
-            print(f"Error checking license: {e}")
-            # If license check fails, proceed with normal setup for development
-            print("License check failed, proceeding with development mode...")
-            self._continue_app_setup()
     
     def _continue_app_setup(self):
         """Continue with the app setup after license validation"""
@@ -407,6 +389,8 @@ class ScoreApp:
             if hasattr(self, 'license_blocker'):
                 self.license_blocker.start_periodic_check(AppConfig.LICENSE_CHECK_INTERVAL)
                 print("Periodic license checking started")
+            else:
+                print("No license blocker found, skipping periodic checks")
             
             print(f"Campo {self.instance_number} loaded successfully!")
             
@@ -494,6 +478,69 @@ class ScoreApp:
         self.root.bind("<B1-Motion>", on_mouse_move)
 
     # Old loading methods removed for faster startup
+
+    def _check_license_first(self):
+        """Check license and initialize GameInfoStore and MongoTeamManager if valid"""
+        try:
+            # Update loading message to show license check
+            self._update_loading_message("Checking license...")
+            
+            self.license_blocker = LicenseBlocker(
+                self.root,
+                on_license_valid=self._on_license_activated
+            )
+            
+            # Check license status
+            if self.license_blocker.check_and_block():
+                # License is valid, continue with setup
+                print("License validated, proceeding with app setup...")
+                self._initialize_components_after_license()
+            else:
+                # License is invalid, hide loading indicator and show blocking UI
+                print("License validation failed, app is blocked.")
+                self._hide_loading_indicator()
+                # The license blocker will handle showing the blocking overlay
+                # and license activation modal - app stays open but blocked
+                return
+                
+        except Exception as e:
+            print(f"Error checking license during initialization: {e}")
+            # If license check fails, proceed with development mode
+            print("License check failed, proceeding with development mode...")
+            self._initialize_components_after_license()
+
+    def _initialize_components_after_license(self):
+        """Initialize GameInfoStore and MongoTeamManager after license validation"""
+        # Update loading message to show license validation success
+        self._update_loading_message("License validated, initializing components...")
+        
+        self.json = GameInfoStore(self.instance_number, debug=get_config("debug_mode"))
+        self.decrement_buttons_enabled = True
+        self.mongo = MongoTeamManager()
+
+        # Defer backup operation to avoid blocking UI
+        animation_config = AppConfig.get_animation_config()
+        self.root.after(animation_config['backup_delay'], self._deferred_backup)
+        
+        # UI setup will be handled by license check callback
+        self.root.after(animation_config['ui_setup_delay'], self._fast_setup_ui)
+    
+    def _on_license_activated(self):
+        """Handle successful license activation and continue with app setup"""
+        print("License activated successfully, continuing with app setup...")
+        # Remove any blocking UI
+        if hasattr(self, 'license_blocker'):
+            self.license_blocker._remove_blocking()
+        
+        # Show loading indicator again since it was hidden during license check
+        self._show_fast_loading_indicator()
+        
+        # Update loading message to show license activation success
+        self._update_loading_message("License activated, continuing setup...")
+        
+        # Continue with app setup
+        self._initialize_components_after_license()
+
 
 def start_instance(instance_number: int):
     """
