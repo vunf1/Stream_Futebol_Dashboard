@@ -73,29 +73,23 @@ class LicenseModal:
     def _calculate_position(self):
         """Calculate modal position to center it on the parent window."""
         try:
-            # Get parent window position and size
-            parent_x = self.parent.winfo_x()
-            parent_y = self.parent.winfo_y()
-            parent_width = self.parent.winfo_width()
-            parent_height = self.parent.winfo_height()
-            
-            # Get modal size
-            modal_width = AppConfig.DIALOG_EXPANDED_WIDTH
-            modal_height = AppConfig.LICENSE_MODAL_HEIGHT
-            
-            # Calculate center position
-            self._modal_x = parent_x + (parent_width - modal_width) // 2
-            self._modal_y = parent_y  # Start at top of parent window
-            
-            # Ensure modal is on screen
-            self._modal_x = max(0, self._modal_x)
-            self._modal_y = max(0, self._modal_y)
-            
+            # Use window utilities for positioning
+            from src.ui.window_utils import center_window_on_parent
+            center_window_on_parent(
+                self.modal_window, 
+                self.parent, 
+                AppConfig.DIALOG_EXPANDED_WIDTH, 
+                AppConfig.LICENSE_MODAL_HEIGHT
+            )
         except Exception as e:
             print(f"Error calculating modal position: {e}")
             # Fallback to center of screen
-            self._modal_x = 100
-            self._modal_y = 100
+            from src.ui.window_utils import center_window_on_screen
+            center_window_on_screen(
+                self.modal_window,
+                AppConfig.DIALOG_EXPANDED_WIDTH,
+                AppConfig.LICENSE_MODAL_HEIGHT
+            )
     
     def _create_ui(self):
         """Create the modal UI components."""

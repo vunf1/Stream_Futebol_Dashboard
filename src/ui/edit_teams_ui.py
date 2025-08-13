@@ -7,10 +7,7 @@ from src.config.settings import AppConfig
 from src.ui import top_centered_child_to_parent
 import re
 
-# Color constants from AppConfig
-COLOR_WARNING = AppConfig.COLOR_WARNING
-COLOR_SUCCESS = AppConfig.COLOR_SUCCESS
-COLOR_STOP = AppConfig.COLOR_STOP
+# Color constants from AppConfig - using AppConfig directly
 
 class TeamManagerWindow(ctk.CTkToplevel):
     def __init__(self, parent, mongo):
@@ -29,13 +26,15 @@ class TeamManagerWindow(ctk.CTkToplevel):
             self.destroy()
             return
         
-        # Configure window properties before showing
+        # Configure window properties using window utilities
         child_w, child_h = 500, 600  # Increased size for better layout
         self.title("Team Manager")
         self.geometry("500x600")
         self.iconbitmap(get_icon_path("gear"))
-        # Stagger window operations for smooth appearance
-        self.after(50, lambda: self.attributes("-topmost", True))  # Faster (was 100ms, now 50ms)
+        
+        # Apply window configuration using utilities
+        from src.ui.window_utils import configure_window, WindowConfig
+        configure_window(self, WindowConfig.MODAL_DIALOG, parent)
         
         # Center the child window at the top of the parent
         top_centered_child_to_parent(self, parent, child_w, child_h)
@@ -591,7 +590,7 @@ class TeamManagerWindow(ctk.CTkToplevel):
             error_frame,
             text="❌",
             font=("Segoe UI", 48),
-            text_color=COLOR_STOP
+            text_color=AppConfig.COLOR_STOP
         )
         error_label.pack()
         
@@ -600,7 +599,7 @@ class TeamManagerWindow(ctk.CTkToplevel):
             error_frame,
             text="Failed to load teams",
             font=("Segoe UI", 16, "bold"),
-            text_color=COLOR_STOP
+            text_color=AppConfig.COLOR_STOP
         )
         message_label.pack(pady=(10, 5))
         
@@ -618,7 +617,7 @@ class TeamManagerWindow(ctk.CTkToplevel):
             error_frame,
             text="Retry",
             command=self._deferred_load_teams,
-            fg_color=COLOR_WARNING,
+            fg_color=AppConfig.COLOR_WARNING,
             hover_color=("orange", "darkorange")
         )
         retry_btn.pack(pady=(20, 0))
@@ -637,11 +636,10 @@ class EditTeamPopup(ctk.CTkToplevel):
         self.title("Edit Team")
         self.geometry("400x320")
         self.iconbitmap(get_icon_path("icon_soft")) 
-        self.grab_set()
-        self.attributes("-topmost", True)
         
-        # Center the popup using window utilities
-        from src.ui.window_utils import center_window_on_screen
+        # Apply window configuration using utilities
+        from src.ui.window_utils import configure_window, WindowConfig, center_window_on_screen
+        configure_window(self, WindowConfig.MODAL_DIALOG)
         center_window_on_screen(self, 400, 320)
 
         self._build_form()
@@ -719,7 +717,7 @@ class EditTeamPopup(ctk.CTkToplevel):
             font=("Segoe UI", 12, "bold"),
             height=40,
             corner_radius=8,
-            fg_color=COLOR_SUCCESS,
+            fg_color=AppConfig.COLOR_SUCCESS,
             hover_color=("green", "darkgreen"),
             command=self._save
         )
@@ -732,7 +730,7 @@ class EditTeamPopup(ctk.CTkToplevel):
             font=("Segoe UI", 12, "bold"),
             height=40,
             corner_radius=8,
-            fg_color=COLOR_STOP,
+            fg_color=AppConfig.COLOR_STOP,
             hover_color=("red", "darkred"),
             command=self._delete
         )
@@ -765,7 +763,7 @@ class EditTeamPopup(ctk.CTkToplevel):
                 "⚠️ Validation Error",
                 "Both team name and abbreviation are required.",
                 icon="⚠️",
-                bg_color=COLOR_WARNING
+                bg_color=AppConfig.COLOR_WARNING
             )
             return
 
@@ -780,7 +778,7 @@ class EditTeamPopup(ctk.CTkToplevel):
             "✅ Team Updated",
             f"Team '{new_name}' has been successfully updated.",
             icon="✅",
-            bg_color=COLOR_SUCCESS
+            bg_color=AppConfig.COLOR_SUCCESS
         )
 
         self.destroy()
@@ -800,7 +798,7 @@ class EditTeamPopup(ctk.CTkToplevel):
             warning_frame,
             text="⚠️",
             font=("Segoe UI", 48),
-            text_color=COLOR_WARNING
+            text_color=AppConfig.COLOR_WARNING
         )
         warning_label.pack()
         
@@ -874,7 +872,7 @@ class EditTeamPopup(ctk.CTkToplevel):
             font=("Segoe UI", 11, "bold"),
             height=35,
             corner_radius=6,
-            fg_color=COLOR_STOP,
+            fg_color=AppConfig.COLOR_STOP,
             hover_color=("red", "darkred"),
             command=on_submit
         ).pack(side="left", fill="x", expand=True, padx=(5, 0))
@@ -890,7 +888,7 @@ class EditTeamPopup(ctk.CTkToplevel):
             "❌ Team Deleted",
             f"Team '{self.orig_name}' has been permanently removed.",
             icon="❌",
-            bg_color=COLOR_STOP
+            bg_color=AppConfig.COLOR_STOP
         )
         
         self.destroy()

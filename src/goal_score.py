@@ -10,7 +10,7 @@ import customtkinter as ctk              # Modern tkinter-based UI toolkit
 
 from .core import GameInfoStore, MongoTeamManager
 from .utils import DateTimeProvider
-from .ui import get_icon_path, add_footer_label, ScoreUI, TeamInputManager, TopWidget, create_main_window
+from .ui import get_icon_path, add_footer_label, ScoreUI, TeamInputManager, TopWidget, create_main_window, apply_drag_and_drop
 from .notification import init_notification_queue, server_main
 from .core import get_config
 from .licensing import LicenseBlocker
@@ -25,14 +25,14 @@ class ScoreApp:
         self.root.iconbitmap(get_icon_path("field"))
         self.root.title(f"{instance_number} Campo")
         
-        # Configure window properties for fast loading
+        # Configure window properties using window utilities
         window_config = AppConfig.get_window_config()
         self.root.geometry(f"{window_config['width']}x{window_config['height']}")
-        self.root.attributes("-topmost", True)
         self.root.minsize(window_config['min_width'], window_config['min_height'])
         
-        # Remove window border but keep taskbar icon
-        self.root.overrideredirect(True)
+        # Apply window configuration using utilities
+        from src.ui.window_utils import configure_window, WindowConfig
+        configure_window(self.root, WindowConfig.MAIN_WINDOW)
         self.root.attributes("-toolwindow", False)  # Keep taskbar icon visible
         
         # Set dark theme for consistent appearance
@@ -40,6 +40,9 @@ class ScoreApp:
         
         # Position the window using cascade logic
         self._position_window(instance_number)
+        
+        # Apply drag and drop functionality
+        apply_drag_and_drop(self.root)
         
         # Fast loading - minimal transparency effect
         self.opacity = AppConfig.WINDOW_OPACITY
@@ -472,21 +475,9 @@ class ScoreApp:
                 pass
 
     def _make_body_draggable(self):
-        """Make the window body draggable"""
-        def on_mouse_down(event):
-            self.root.x = event.x
-            self.root.y = event.y
-
-        def on_mouse_move(event):
-            deltax = event.x - self.root.x
-            deltay = event.y - self.root.y
-            x = self.root.winfo_x() + deltax
-            y = self.root.winfo_y() + deltay
-            self.root.geometry(f"+{x}+{y}")
-
-        # Bind mouse events to the root window for dragging
-        self.root.bind("<Button-1>", on_mouse_down)
-        self.root.bind("<B1-Motion>", on_mouse_move)
+        """Make the window body draggable - now handled by apply_drag_and_drop"""
+        # This method is now redundant as drag and drop is handled by window utilities
+        pass
 
     # Old loading methods removed for faster startup
 

@@ -6,9 +6,7 @@ from .autocomplete import Autocomplete
 from src.ui import TeamManagerWindow
 from src.config.settings import AppConfig
 
-# Color constants from AppConfig
-COLOR_WARNING = AppConfig.COLOR_WARNING
-COLOR_SUCCESS = AppConfig.COLOR_SUCCESS
+# Color constants from AppConfig - using AppConfig directly
 import tkinter.messagebox as messagebox
 
 BUTTON_PAD = dict(padx=5, pady=5)
@@ -41,27 +39,27 @@ def append_team_to_mongo(name: str, abrev: str, instance: int):
             if result:
                 try:
                     mongo.save_team(name, abrev)
-                    show_message_notification(f"✅Campo {instance} - Atualizado", f"Equipa '{name}' atualizada para '{abrev}'.", bg_color=COLOR_SUCCESS)
+                    show_message_notification(f"✅Campo {instance} - Atualizado", f"Equipa '{name}' atualizada para '{abrev}'.", bg_color=AppConfig.COLOR_SUCCESS)
                 except Exception as e:
                     messagebox.showerror("Erro", f"Erro ao atualizar equipa: {e}")
             else:
-                show_message_notification(f"❌ Campo {instance} - Cancelado", f"A sigla de '{name}' não foi alterada.", bg_color=COLOR_WARNING)
+                show_message_notification(f"❌ Campo {instance} - Cancelado", f"A sigla de '{name}' não foi alterada.", bg_color=AppConfig.COLOR_WARNING)
             return
         else:
-            show_message_notification(f"ℹ️ Campo {instance} - Mantido", f"A sigla de '{name}' já é '{abrev}'.", bg_color=COLOR_WARNING)
+            show_message_notification(f"ℹ️ Campo {instance} - Mantido", f"A sigla de '{name}' já é '{abrev}'.", bg_color=AppConfig.COLOR_WARNING)
             return
 
     # Check if abbreviation is already used by another team (informative, not blocking)
     all_teams = mongo.load_teams()
     for other_name, other_abrev in all_teams.items():
         if other_name != name and other_abrev == abrev:
-            show_message_notification(f"⚠️ Campo {instance} - Reutilização", f"A abreviação '{abrev}' já está em uso por '{other_name}', mas será reutilizada.", bg_color=COLOR_WARNING)
+            show_message_notification(f"⚠️ Campo {instance} - Reutilização", f"A abreviação '{abrev}' já está em uso por '{other_name}', mas será reutilizada.", bg_color=AppConfig.COLOR_WARNING)
             break  # Just log, don't stop
 
     # Save new team
     try:
         mongo.save_team(name, abrev)
-        show_message_notification(f"✅ Campo {instance} - Gravado", f"Equipa '{name}' gravada com sucesso.", duration=1500, bg_color=COLOR_SUCCESS)
+        show_message_notification(f"✅ Campo {instance} - Gravado", f"Equipa '{name}' gravada com sucesso.", duration=1500, bg_color=AppConfig.COLOR_SUCCESS)
     except Exception as e:
         messagebox.showerror("Erro", f"Erro ao guardar equipa na base de dados: {e}")
 
@@ -264,5 +262,5 @@ class TeamInputManager(ctk.CTkFrame):
             f"✅ Campo {self.instance_number} - Gravado",
             "Informações da equipa foram guardadas",
             icon="✅",
-            bg_color=COLOR_SUCCESS
+            bg_color=AppConfig.COLOR_SUCCESS
         )

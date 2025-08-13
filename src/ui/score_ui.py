@@ -1,11 +1,7 @@
 import customtkinter as ctk
 from src.config.settings import AppConfig
 
-# Color constants from AppConfig
-COLOR_ACTIVE = AppConfig.COLOR_ACTIVE
-COLOR_BORDER = AppConfig.COLOR_BORDER
-COLOR_SUCCESS = AppConfig.COLOR_SUCCESS
-COLOR_ERROR = AppConfig.COLOR_ERROR
+# Color constants from AppConfig - using AppConfig directly
 from src.ui import get_icon, get_icon_path
 from src.core import GameInfoStore, DEFAULT_FIELD_STATE
 from src.notification import show_message_notification, prompt_notification
@@ -216,7 +212,7 @@ class ScoreUI:
                 f"Campo {self.instance}",
                 f"Lock : {not self.decrement_enabled}",
                 icon='🔒' if not self.decrement_enabled else '🔓',
-                bg_color=COLOR_SUCCESS if self.decrement_enabled else COLOR_ERROR
+                bg_color=AppConfig.COLOR_SUCCESS if self.decrement_enabled else AppConfig.COLOR_ERROR
             )
         
         # Delay notification to prevent interference with UI updates
@@ -244,7 +240,7 @@ class ScoreUI:
                 self._update_labels()
                 show_message_notification(
                     f"✅ Campo {self.instance}",
-                    f"Casa←{a} | Fora←{h}", icon='🔄', bg_color=COLOR_SUCCESS
+                    f"Casa←{a} | Fora←{h}", icon='🔄', bg_color=AppConfig.COLOR_SUCCESS
                 )
         except Exception as e:
             print(f"❌ Erro ao trocar placares: {e}")

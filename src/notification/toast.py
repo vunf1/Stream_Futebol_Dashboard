@@ -182,9 +182,8 @@ def _build_toast_window(
     timers: list[int] = []
 
     # ---------- Top-level window ----------
-    toast = ctk.CTkToplevel()
-    toast.overrideredirect(True)   # borderless
-    toast.attributes("-topmost", True)
+    from src.ui.window_utils import create_toast_window, configure_window, WindowConfig
+    toast = create_toast_window(TOAST_WIDTH, 80)  # Height will be adjusted dynamically
     toast.attributes("-alpha", 0.0)  # start fully transparent for fade-in
     toast.attributes("-toolwindow", True)  # prevent taskbar icon
 

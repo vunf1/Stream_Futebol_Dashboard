@@ -75,7 +75,7 @@ class TopWidget:
     def _open_timer_window(self):
         # Create timer window using window utilities
         from src.ui import create_popup_dialog
-        win = create_popup_dialog(self.parent, f"Timer - Campo {self.instance_number}", 960, 120)  # Proper size for TimerComponent
+        win = create_popup_dialog(self.parent, f"Timer - Campo {self.instance_number}", 960, 85)  # Proper size for TimerComponent
         win.attributes("-toolwindow", True)
         
         # Apply drag and drop to the window

@@ -12,10 +12,7 @@ from .top_c_child_parent import top_centered_child_to_parent
 from .top_widget import TopWidget
 from .score_ui import ScoreUI
 from .timer_ui import TimerComponent
-from .colors import (
-    COLOR_ACTIVE, COLOR_BORDER, COLOR_SUCCESS, COLOR_ERROR,
-    COLOR_PAUSE, COLOR_STOP, COLOR_WARNING, COLOR_INFO
-)
+
 from .edit_teams_ui import TeamManagerWindow, EditTeamPopup
 from .teamsUI.teams_ui import TeamInputManager
 
@@ -55,8 +52,7 @@ __all__ = [
     'TopWidget',
     'ScoreUI',
     'TimerComponent',
-    'COLOR_ACTIVE', 'COLOR_BORDER', 'COLOR_SUCCESS', 'COLOR_ERROR',
-    'COLOR_PAUSE', 'COLOR_STOP', 'COLOR_WARNING', 'COLOR_INFO',
+
     'TeamManagerWindow',
     'EditTeamPopup',
     'TeamInputManager',

@@ -85,10 +85,7 @@ import customtkinter as ctk
 from multiprocessing import Manager, Process
 from src.config.settings import AppConfig
 
-# Color constants from AppConfig
-COLOR_SUCCESS = AppConfig.COLOR_SUCCESS
-COLOR_ERROR = AppConfig.COLOR_ERROR
-COLOR_INFO = AppConfig.COLOR_INFO
+# Color constants from AppConfig - using AppConfig directly
 
 # notifications (queue + server)
 from src.notification.toast import init_notification_queue, show_message_notification
@@ -191,13 +188,13 @@ def wait_until_apps_closed(exe_names: list[str], poll_ms: int = 800):
         if not shown:
             notify("❗ Fecha a app",
                    f"Fecha {label} antes de continuar!",
-                   icon="❌", duration=0, bg=COLOR_ERROR, group=group_id)
+                   icon="❌", duration=0, bg=AppConfig.COLOR_ERROR, group=group_id)
             shown = True
         time.sleep(max(0.1, poll_ms / 1000.0))
 
     if shown:
         notify("✅ Fechado", f"{label} foi fechado.",
-               icon="✅", duration=2000, bg=COLOR_SUCCESS, group=group_id)
+               icon="✅", duration=2000, bg=AppConfig.COLOR_SUCCESS, group=group_id)
 
 def delete_old_executable(path: Path, poll_ms: int = 700):
     """
@@ -299,7 +296,7 @@ class BuildWindow(ctk.CTk):
         # START toast (sticky)
         notify(f"🔧 {msg}",
             f"Progresso: {self._pct()}%",
-            icon="ℹ️", duration=0, bg=COLOR_INFO, group=group_id)
+            icon="ℹ️", duration=0, bg=AppConfig.COLOR_INFO, group=group_id)
 
         # UI
         self.label.configure(text=msg)
@@ -321,7 +318,7 @@ class BuildWindow(ctk.CTk):
             # DONE toast (your success style)
             notify("✅ Passo concluído",
                 f"{msg} concluído ({self._pct()}%).",
-                icon="✅", duration=2000, bg=COLOR_SUCCESS, group=group_id)
+                icon="✅", duration=2000, bg=AppConfig.COLOR_SUCCESS, group=group_id)
         except Exception as e:
             print(f"❌ Step '{msg}' failed: {e}")
             import traceback
@@ -366,7 +363,7 @@ class BuildWindow(ctk.CTk):
 
             self.label.configure(text="🏆 Golo! Build concluída com sucesso!")
             notify("🎉 Sucesso", "O executável foi criado com sucesso!",
-                   icon="🎯", duration=6000, bg=COLOR_SUCCESS)
+                   icon="🎯", duration=6000, bg=AppConfig.COLOR_SUCCESS)
             time.sleep(0.6)
             self.quit()
 
@@ -377,7 +374,7 @@ class BuildWindow(ctk.CTk):
             import traceback
             traceback.print_exc()
             
-            notify("💥 Erro no Build", f"Ocorreu um erro:\n{e}", icon="❌", duration=7000, bg=COLOR_ERROR)
+            notify("💥 Erro no Build", f"Ocorreu um erro:\n{e}", icon="❌", duration=7000, bg=AppConfig.COLOR_ERROR)
             self.label.configure(text="💥 Algo correu mal no feitiço...")
             self.last_error_text = f"Detalhes técnicos:\n{e}"
             self.error_label.configure(text=self.last_error_text)
@@ -392,7 +389,7 @@ class BuildWindow(ctk.CTk):
             return
         self.clipboard_clear()
         self.clipboard_append(self.last_error_text)
-        notify("📋 Copiado", "O erro foi copiado.", icon="✅", duration=3000, bg=COLOR_SUCCESS)
+        notify("📋 Copiado", "O erro foi copiado.", icon="✅", duration=3000, bg=AppConfig.COLOR_SUCCESS)
 
 
 # ───────────────────────── Entrypoint ─────────────────────────
