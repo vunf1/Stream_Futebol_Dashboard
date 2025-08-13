@@ -42,11 +42,12 @@ class LicenseDetailsWindow:
         self.window.grab_set()
         
         # Make window appear on top
-        self.window.attributes('-topmost', True)
-        self.window.after(100, lambda: self.window.attributes('-topmost', False))
-        
-        # Configure window close event
-        self.window.protocol("WM_DELETE_WINDOW", self._on_close)
+        if self.window:
+            self.window.attributes('-topmost', True)
+            self.window.after(100, lambda: self.window.attributes('-topmost', False) if self.window else None)
+            
+            # Configure window close event
+            self.window.protocol("WM_DELETE_WINDOW", self._on_close)
         
         # Make window draggable
         make_it_drag_and_drop(self.window)
