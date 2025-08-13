@@ -57,10 +57,8 @@ from .notification import (
 
 # Performance utilities
 from .performance import (
-    time_tick,
     time_ui_update,
     time_json_operation,
-    get_timer_monitor,
 )
 
 # General utilities
@@ -106,10 +104,8 @@ __all__ = [
     'init_notification_queue',
     
     # Performance
-    'time_tick',
     'time_ui_update',
     'time_json_operation',
-    'get_timer_monitor',
     
     # Utils
     'DateTimeProvider',

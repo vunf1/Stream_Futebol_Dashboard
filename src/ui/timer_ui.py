@@ -8,7 +8,7 @@ from src.ui import get_icon
 from src.core import GameInfoStore, DEFAULT_FIELD_STATE
 from src.notification import show_message_notification
 from src.core import get_config
-from src.performance import get_timer_monitor, time_tick, time_ui_update, time_json_operation
+from src.performance import time_ui_update, time_json_operation
 from src.ui import add_footer_label
 
 # Constants
@@ -393,7 +393,7 @@ class TimerComponent(ctk.CTkFrame):
             bg_color=COLOR_INFO,
         )
 
-    @time_tick
+    @time_ui_update
     def _tick(self):
         """Optimized timer tick with batched updates"""
         if not self.timer_running:

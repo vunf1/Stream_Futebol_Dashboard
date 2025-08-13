@@ -298,16 +298,6 @@ class AppConfig:
         }
     
     @classmethod
-    def get_env_file_config(cls) -> Dict[str, Any]:
-        """Get environment file configuration as dictionary."""
-        return {
-            "encrypted_filename": cls.ENV_ENCRYPTED_FILENAME,
-            "secret_key_filename": cls.SECRET_KEY_FILENAME,
-            "meipass_attribute": cls.MEIPASS_ATTRIBUTE,
-            "env_dir_envvar": cls.ENV_DIR_ENVVAR
-        }
-    
-    @classmethod
     def get_file_stems_config(cls) -> Dict[str, str]:
         """Get file stem mappings configuration."""
         return cls.BASE_FILE_STEMS.copy()

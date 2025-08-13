@@ -27,18 +27,4 @@ class DateTimeProvider:
             or (now_ts - cls._last_update) >= cls._refresh_sec):
             cls._cached_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             cls._last_update = now_ts
-        return cls._cached_str 
-
-    @classmethod
-    def get_date(cls) -> str:
-        """
-        "YYYY-MM-DD".
-        """
-        return cls.get_datetime().split(" ")[0]
-
-    @classmethod
-    def get_time(cls) -> str:
-        """
-        "HH:MM:SS".
-        """
-        return cls.get_datetime().split(" ")[1]
+        return cls._cached_str
