@@ -10,6 +10,9 @@ import time
 import threading
 from queue import Queue
 
+# Import settings
+from src.config.settings import AppConfig
+
 
 # Initialized per process via init_notification_queue()
 notification_queue = None  # type: ignore
@@ -46,7 +49,7 @@ def prompt_notification(
     Uses CustomTkinter only (no tk import). Does not use the queue/server.
     """
     # Window using window utilities
-    w, h = 260, 170
+    w, h = 260, 180
     from src.ui import create_modal_dialog
     prompt = create_modal_dialog(parent or ctk.CTk(), "Prompt", w, h)
     prompt.attributes("-toolwindow", True)  # prevent taskbar icon
@@ -140,7 +143,7 @@ def show_message_notification(
     notification_queue.put(payload)
 
 # Keep width shared with the server
-TOAST_WIDTH = 320  # bump to 340–360 if you want fewer wraps
+TOAST_WIDTH = AppConfig.DIALOG_WIDTH  # Use dialog width from settings instead of hardcoded 320
 
 
 def _build_toast_window(
@@ -170,16 +173,16 @@ def _build_toast_window(
 
     # ---------- Visual constants ----------
     RADIUS    = 12
-    SURFACE   = bg_color or "#198754"  # your green by default
-    TITLE_FONT= ("Segoe UI", 12, "bold")
-    MSG_FONT  = ("Segoe UI", 10)
-    ICON_FONT = ("Segoe UI", 16)
+    SURFACE   = bg_color or AppConfig.COLORS["success"]  # Use success color from settings instead of hardcoded green
+    TITLE_FONT= (AppConfig.FONT_FAMILY, AppConfig.FONT_SIZE_DIALOG_TITLE, "bold")  # Use font settings
+    MSG_FONT  = (AppConfig.FONT_FAMILY, AppConfig.FONT_SIZE_DIALOG_BODY)  # Use font settings
+    ICON_FONT = (AppConfig.FONT_FAMILY_EMOJI, 16)  # Use emoji font family from settings
     WRAP      = TOAST_WIDTH - 86       # text wrap width, leaves room for icon
     INNER_PAD = 10
-    FADE_IN_MS, FADE_OUT_MS = 220, 160
+    FADE_IN_MS, FADE_OUT_MS = AppConfig.FADE_STEP_INTERVAL * AppConfig.FADE_STEPS, AppConfig.FADE_STEP_INTERVAL * (AppConfig.FADE_STEPS // 2)  # Use animation settings
 
     # Track all `after()` callbacks so we can cancel them on manual dismiss
-    timers: list[int] = []
+    timers: list[Any] = []
 
     # ---------- Top-level window ----------
     from src.ui.window_utils import create_toast_window, configure_window, WindowConfig
@@ -260,7 +263,7 @@ def _build_toast_window(
         # Slightly lighter progress over a darker track for visibility
         prog_bar = ctk.CTkProgressBar(
             card, height=3, corner_radius=2,
-            fg_color="#0e5d38", progress_color="#d6ffe9"
+            fg_color=AppConfig.COLORS["surface"], progress_color=AppConfig.COLORS["primary"]  # Use color settings instead of hardcoded colors
         )
         prog_bar.grid(row=2, column=0, sticky="ew", padx=INNER_PAD, pady=(0, INNER_PAD - 6))
         prog_bar.set(1.0)
@@ -304,7 +307,7 @@ def _build_toast_window(
 
         x, y = toast.winfo_x(), toast.winfo_y()
         y_end = y + 8  # small downward motion
-        frames = max(1, FADE_OUT_MS // 16)
+        frames = max(1, FADE_OUT_MS // AppConfig.FADE_STEP_INTERVAL)  # Use animation step interval from settings
 
         def tick(i=0):
             if not toast.winfo_exists():
@@ -315,7 +318,7 @@ def _build_toast_window(
             yi = int(y + (y_end - y) * t)
             toast.geometry(f"+{toast.winfo_x()}+{yi}")
             if t < 1.0:
-                timers.append(toast.after(12, lambda: tick(i + 1))) # type: ignore[no-untyped-call] # Faster (was 16ms, now 12ms)
+                timers.append(toast.after(AppConfig.FADE_STEP_INTERVAL, lambda: tick(i + 1)))  # Use animation step interval from settings
             else:
                 try:
                     toast.destroy()
@@ -345,7 +348,7 @@ def _build_toast_window(
         visible_ms = max(0, duration - FADE_IN_MS - FADE_OUT_MS)
         if prog_bar is None or visible_ms <= 0:
             # No bar: just schedule the fade-out
-            timers.append(toast.after(visible_ms, fade_out)) # type: ignore[no-untyped-call]
+            timers.append(toast.after(visible_ms, fade_out))
             return
 
         # Single controller loop: progress + deadline = same heartbeat
@@ -362,12 +365,13 @@ def _build_toast_window(
                 return
             # Update bar (clamped 0..1)
             try:
-                prog_bar.set(max(0.0, min(1.0, remaining / total_s))) # type: ignore[no-untyped-call]
+                if prog_bar is not None:
+                    prog_bar.set(max(0.0, min(1.0, remaining / total_s)))
             except Exception:
                 pass
-            timers.append(toast.after(12, step))# type: ignore # ~83 fps (was 16ms, now 12ms)
+            timers.append(toast.after(AppConfig.FADE_STEP_INTERVAL, step))  # Use animation step interval from settings
 
-        timers.append(toast.after(12, step)) # type: ignore[no-untyped-call] # Faster (was 16ms, now 12ms)
+        timers.append(toast.after(AppConfig.FADE_STEP_INTERVAL, step))  # Use animation step interval from settings
 
     def fade_in():
         """Fade-in + optional small lift/slide from the server-placed target (bottom-right)."""
@@ -389,7 +393,7 @@ def _build_toast_window(
         if (x0, y0) != (x_final, y_final):
             toast.geometry(f"+{x0}+{y0}")
 
-        frames = max(1, FADE_IN_MS // 16)
+        frames = max(1, FADE_IN_MS // AppConfig.FADE_STEP_INTERVAL)  # Use animation step interval from settings
 
         def tick(i=0):
             if not toast.winfo_exists():
@@ -402,10 +406,10 @@ def _build_toast_window(
                 yi = int(y0 + (y_final - y0) * a)
                 toast.geometry(f"+{xi}+{yi}")
             if t < 1.0:
-                timers.append(toast.after(12, lambda: tick(i + 1))) # type: ignore[no-untyped-call] # Faster (was 16ms, now 12ms)
+                timers.append(toast.after(AppConfig.FADE_STEP_INTERVAL, lambda: tick(i + 1)))  # Use animation step interval from settings
             else:
                 toast.attributes("-alpha", 1.0)
-                # Only start the visible-time countdown after we’re fully in
+                # Only start the visible-time countdown after we're fully in
                 start_progress_and_schedule_dismiss()
 
         tick()

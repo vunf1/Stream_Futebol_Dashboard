@@ -5,8 +5,8 @@ This module provides base classes for common window types to reduce code duplica
 """
 
 import customtkinter as ctk
-from customtkinter import CTkToplevel, CTkBaseClass
-from typing import Optional, Dict, Any, Callable
+from customtkinter import CTkToplevel, CTk, CTkFrame, CTkBaseClass
+from typing import Optional, Dict, Any, Callable, Union, cast
 from .window_utils import WindowConfig, configure_window, center_window_on_screen, center_window_on_parent
 
 
@@ -28,7 +28,7 @@ class BaseWindow:
         self.width = width
         self.height = height
         self.config = config or {}
-        self.window: Optional[ctk.CTkBaseClass] = None
+        self.window: Optional[Union[CTk, CTkToplevel, CTkFrame]] = None
     
     def create_window(self) -> ctk.CTkBaseClass:
         """Create the window. Must be implemented by subclasses."""
@@ -36,12 +36,12 @@ class BaseWindow:
     
     def configure_window(self) -> None:
         """Configure the window with standard settings."""
-        if self.window and self.config:
+        if self.window and self.config and isinstance(self.window, (ctk.CTk, ctk.CTkToplevel)):
             configure_window(self.window, self.config)
     
     def center_window(self) -> None:
         """Center the window on screen."""
-        if self.window:
+        if self.window and isinstance(self.window, (ctk.CTk, ctk.CTkToplevel)):
             center_window_on_screen(self.window, self.width, self.height)
     
     def apply_styling(self, fg_color: Optional[str] = None, 
@@ -49,7 +49,7 @@ class BaseWindow:
         """Apply window styling."""
         if self.window:
             from .window_utils import apply_window_styling
-            apply_window_styling(self.window, fg_color, bg_color)
+            apply_window_styling(cast(CTkBaseClass, self.window), fg_color, bg_color)
     
     def apply_drag_and_drop(self) -> None:
         """Apply drag and drop functionality."""
@@ -106,8 +106,8 @@ class BasePopupDialog(BaseDialog):
     
     def center_window(self) -> None:
         """Center the popup relative to its parent."""
-        if self.window:
-            center_window_on_parent(self.window, self.parent, self.width, self.height)
+        if self.window and isinstance(self.window, CTkToplevel):
+            center_window_on_parent(cast(CTkToplevel, self.window), cast(Union[CTk, CTkToplevel], self.parent), self.width, self.height)
 
 
 class BaseToastWindow(BaseWindow):
@@ -141,7 +141,7 @@ class ModalDialog(CTkToplevel):
         if config:
             base_config.update(config)
         
-        configure_window(self, base_config, parent)
+        configure_window(self, base_config, cast(Union[CTk, CTkToplevel], parent))
         center_window_on_screen(self, width, height)
     
     def show(self) -> None:
@@ -165,8 +165,8 @@ class PopupDialog(CTkToplevel):
         if config:
             base_config.update(config)
         
-        configure_window(self, base_config, parent)
-        center_window_on_parent(self, parent, width, height)
+        configure_window(self, base_config, cast(Union[CTk, CTkToplevel], parent))
+        center_window_on_parent(self, cast(Union[CTk, CTkToplevel], parent), width, height)
     
     def show(self) -> None:
         """Show the popup and wait for it to close."""

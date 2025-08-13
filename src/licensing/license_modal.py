@@ -72,6 +72,9 @@ class LicenseModal:
     
     def _calculate_position(self):
         """Calculate modal position to center it on the parent window."""
+        if not self.modal_window:
+            return
+            
         try:
             # Use window utilities for positioning
             from src.ui.window_utils import center_window_on_parent

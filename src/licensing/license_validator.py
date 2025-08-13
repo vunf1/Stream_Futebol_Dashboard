@@ -117,14 +117,19 @@ class LicenseValidator:
                 print("❌ License is blocked")
                 # Don't return early, continue to create license data with blocked status
             
-            # Check expiration using the actual field name from your schema
+                        # Check expiration using the actual field name from your schema
             expires_at = license_doc.get("expires_at")
             print(f"🔍 Raw expires_at value: {expires_at}")
             print(f"🔍 expires_at type: {type(expires_at)}")
             
             if expires_at:
                 try:
-                    if isinstance(expires_at, str):
+                    # MongoDB datetime objects are already timezone-naive, convert to UTC
+                    if isinstance(expires_at, datetime):
+                        if expires_at.tzinfo is None:
+                            # MongoDB datetime is naive, assume UTC
+                            expires_at = expires_at.replace(tzinfo=timezone.utc)
+                    elif isinstance(expires_at, str):
                         # Handle different date formats
                         if expires_at.count('-') == 2:  # YYYY-MM-DD format
                             # Add time component to make it a full datetime

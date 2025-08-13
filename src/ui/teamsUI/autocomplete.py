@@ -75,7 +75,7 @@ class Autocomplete(ctk.CTkFrame):
             return popup
         
         # Create popup using window utilities
-        popup = create_popup_dialog(self, "Autocomplete", 200, 150)
+        popup = create_popup_dialog(self.winfo_toplevel(), "Autocomplete", 200, 150)  # type: ignore
         self.popup = popup
 
         self.container = ctk.CTkScrollableFrame(popup, corner_radius=6)

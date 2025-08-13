@@ -138,12 +138,12 @@ class ConfigEditor:
         # Slider
         slider = ctk.CTkSlider(
             frame, 
-            from_=min_val, 
-            to=max_val, 
+            from_=int(min_val * 100), 
+            to=int(max_val * 100), 
             number_of_steps=int((max_val - min_val) / step),
-            command=lambda v: self._update_setting_value(key, v)
+            command=lambda v: self._update_setting_value(key, v / 100)
         )
-        slider.set(current_value)
+        slider.set(int(current_value * 100))
         slider.pack(side="left", padx=5, pady=5, fill="x", expand=True)
         
         # Value label
@@ -158,7 +158,7 @@ class ConfigEditor:
         }
         
         # Update value label when slider changes
-        slider.configure(command=lambda v: self._update_setting_value(key, v))
+        slider.configure(command=lambda v: self._update_setting_value(key, v / 100))
         
     def _update_setting_value(self, key: str, value: float):
         """Update setting value and display."""
