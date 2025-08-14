@@ -1,11 +1,11 @@
 """
-Application configuration and settings for Stream Futebol Dashboard.
+Application configuration and settings for Apito Final.
 """
 import os
 from typing import Dict, Any
 
 class AppConfig:
-    """Application configuration class for Stream Futebol Dashboard."""
+    """Application configuration class for Apito Final."""
     
     # MongoDB Configuration
     MONGO_URI = os.getenv("MONGO_URI", "")
@@ -13,16 +13,16 @@ class AppConfig:
     MONGO_COLLECTION = os.getenv("MONGO_COLLECTION", "")
     
     # Application Settings
-    APP_TITLE = "Stream Futebol Dashboard"
-    APP_VERSION = "2.0.0"
-    APP_AUTHOR = "Stream Futebol Dashboard Team"
+    APP_TITLE = "Apito Final"
+    APP_VERSION = "12.5.0"
+    APP_AUTHOR = "Apito Final Team"
     
     # Window Configuration
     WINDOW_WIDTH = 420
     WINDOW_HEIGHT = 520
     WINDOW_MIN_WIDTH = 190
     WINDOW_MIN_HEIGHT = 255
-    WINDOW_OPACITY = 0.95  # Default transparency level
+    WINDOW_OPACITY = 0.85  # Default transparency level
     
     # UI Configuration
     THEME_MODE = "dark"
@@ -55,7 +55,7 @@ class AppConfig:
     MIN_TEAM_NAME_LENGTH = 2
     
     # Field/Instance Settings
-    MAX_FIELDS = 20
+    MAX_FIELDS = 2
     MIN_FIELDS = 1
     DEFAULT_FIELDS = 1
     FIELD_CASCADE_OFFSET = 40
@@ -86,14 +86,14 @@ class AppConfig:
     WRITE_BUFFER_SIZE = 100
     
     # Animation and Timing Settings
-    SPINNER_ANIMATION_INTERVAL = 300  # milliseconds
-    FADE_STEP_INTERVAL = 20  # milliseconds
-    FADE_STEPS = 10
-    LOADING_STEP_DELAY = 100  # milliseconds
-    LICENSE_CHECK_DELAY = 50  # milliseconds
-    BACKUP_DELAY = 100  # milliseconds
-    UI_SETUP_DELAY = 10  # milliseconds
-    COMPLETION_DELAY = 200  # milliseconds
+    SPINNER_ANIMATION_INTERVAL = 150  # milliseconds
+    FADE_STEP_INTERVAL = 10  # milliseconds
+    FADE_STEPS = 5
+    LOADING_STEP_DELAY = 50  # milliseconds
+    LICENSE_CHECK_DELAY = 25  # milliseconds
+    BACKUP_DELAY = 25  # milliseconds
+    UI_SETUP_DELAY = 5  # milliseconds
+    COMPLETION_DELAY = 100  # milliseconds
     
     # Notification Settings
     NOTIFICATION_POLL_INTERVAL = 80  # milliseconds
@@ -101,7 +101,7 @@ class AppConfig:
     
     # Security Settings
     ADMIN_PIN = os.getenv("PIN", "")
-    LICENSE_CHECK_INTERVAL = 30000  # milliseconds (30 seconds)
+    LICENSE_CHECK_INTERVAL = 15000  # milliseconds (15 seconds)
     
     # Boundary and Spacing Settings
     SCREEN_BOUNDARY_MARGIN = 50

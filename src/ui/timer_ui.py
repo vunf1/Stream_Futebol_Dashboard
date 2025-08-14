@@ -312,28 +312,54 @@ class TimerComponent(ctk.CTkFrame):
 
     def _schedule_ui_update(self):
         """Debounced UI update to reduce unnecessary refreshes"""
-        if self._update_pending:
-            return
-        
-        self._update_pending = True
-        self._update_timer = self.after(self.ui_update_debounce, self._perform_ui_update)
+        try:
+            # Check if widget still exists before scheduling
+            if not self.winfo_exists():
+                self._update_pending = False
+                self._update_timer = None
+                return
+                
+            if self._update_pending:
+                return
+            
+            self._update_pending = True
+            self._update_timer = self.after(self.ui_update_debounce, self._perform_ui_update)
+        except Exception as e:
+            # Widget was destroyed or error occurred, stop updates
+            print(f"Timer UI schedule error (likely widget destroyed): {e}")
+            self._update_pending = False
+            self._update_timer = None
 
     def _perform_ui_update(self):
         """Perform the actual UI update"""
-        self._update_pending = False
-        self._update_timer = None
-        
-        # Update entries only if values changed
-        timer_text = _format_time(self.timer_seconds_main)
-        extra_text = _format_time(self.timer_seconds_extra)
-        
-        if timer_text != self._last_values["timer"]:
-            self._set_entry_text(self.timer_entry, timer_text)
-            self._last_values["timer"] = timer_text
-        
-        if extra_text != self._last_values["extra"]:
-            self._set_entry_text(self.extra_entry, extra_text)
-            self._last_values["extra"] = extra_text
+        try:
+            # Check if widget still exists before performing operations
+            if not self.winfo_exists():
+                # Widget was destroyed, stop updates
+                self._update_pending = False
+                self._update_timer = None
+                return
+            
+            self._update_pending = False
+            self._update_timer = None
+            
+            # Update entries only if values changed
+            timer_text = _format_time(self.timer_seconds_main)
+            extra_text = _format_time(self.timer_seconds_extra)
+            
+            if timer_text != self._last_values["timer"]:
+                self._set_entry_text(self.timer_entry, timer_text)
+                self._last_values["timer"] = timer_text
+            
+            if extra_text != self._last_values["extra"]:
+                self._set_entry_text(self.extra_entry, extra_text)
+                self._last_values["extra"] = extra_text
+                
+        except Exception as e:
+            # Widget was destroyed or error occurred, stop updates
+            print(f"Timer UI update error (likely widget destroyed): {e}")
+            self._update_pending = False
+            self._update_timer = None
 
     def save_timers_from_entries(self):
         fields = [
