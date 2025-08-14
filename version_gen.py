@@ -1,25 +1,23 @@
 #!/usr/bin/env python3
 from datetime import datetime, timezone
+from src.config.settings import AppConfig
 
 # ──────── Configuration ────────
 
-# 1) Semantic version string
-version_str = "11.0.0"
-# 2) Parse into a tuple of ints (must be 4-tuple for PyInstaller)
-version_tuple = tuple(int(x) for x in version_str.split(".")) + (0,)
 
-# 3) Static fields for this build
-company_name       = "Maia Soluções Informáticas"
+# 1) Static fields for this build
+company_name       = AppConfig.APP_AUTHOR
 file_description   = "Sport Tracking for Streaming Services"
-internal_name      = "Futebol_Dashboard"
-legal_copyright    = "© 2025 Maia Soluções Informáticas"
-original_filename  = "Futebol_Dashboard.exe"
-product_name       = "Futebol Dashboard"
-product_version    = version_str
+internal_name      = f"{AppConfig.APP_TITLE}"
+legal_copyright    = f"© 2025 {AppConfig.APP_AUTHOR}"
+original_filename  = f"{AppConfig.APP_TITLE}.exe"
+product_name       = AppConfig.APP_TITLE
+product_version    = AppConfig.APP_VERSION
 
-# (omit Comments, SpecialBuild, etc.)
+# 2) Parse version string into tuple of ints (must be 4-tuple for PyInstaller)
+version_tuple = tuple(int(x) for x in product_version.split(".")) + (0,)
 
-# 4) Language-codepage for StringTable — 0x0409 is English (US), 1252 is Western
+# 3) Language-codepage for StringTable — 0x0409 is English (US), 1252 is Western
 lang_codepage = "040904B0"
 translation   = [0x081E, 1252]  # 0x081E == 2070
 
@@ -28,7 +26,7 @@ translation   = [0x081E, 1252]  # 0x081E == 2070
 fields = [
     ("CompanyName",      company_name),
     ("FileDescription",  file_description),
-    ("FileVersion",      version_str),
+    ("FileVersion",      product_version),
     ("InternalName",     internal_name),
     ("LegalCopyright",   legal_copyright),
     ("OriginalFilename", original_filename),

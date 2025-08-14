@@ -4,7 +4,7 @@
 param(
     [Parameter()][ValidateNotNullOrEmpty()][string]$BuildScript = ".\build.py",
     [Parameter()][ValidateNotNullOrEmpty()][string]$DistFolder  = ".\dist",
-    [Parameter()][ValidateNotNullOrEmpty()][string]$ExeName     = "goal_score.exe",
+    [Parameter()][ValidateNotNullOrEmpty()][string]$ExeName     = "Apitofinal.exe",
     [Parameter()][ValidateNotNullOrEmpty()][string]$TargetRoot  = "$Env:USERPROFILE\Desktop\FUTEBOL-SCORE-DASHBOARD\",
     [Parameter()][ValidateNotNullOrEmpty()][string]$TargetExe   = "Apito Final.exe"
 )

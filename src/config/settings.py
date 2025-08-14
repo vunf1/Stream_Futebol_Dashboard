@@ -15,7 +15,7 @@ class AppConfig:
     # Application Settings
     APP_TITLE = "Apito Final"
     APP_VERSION = "12.5.0"
-    APP_AUTHOR = "Apito Final Team"
+    APP_AUTHOR = "JM Soluções Informáticas"
     
     # Window Configuration
     WINDOW_WIDTH = 420

@@ -229,7 +229,6 @@ def validate_build_environment():
     required_files = [
         "src/goal_score.py",
         "src/ui/icons/icon_soft.ico",
-        "version.txt",
         "requirements.txt"
     ]
     
@@ -305,7 +304,7 @@ class BuildWindow(ctk.CTk):
         # START toast (sticky)
         notify(f"🔧 {msg}",
             f"Progresso: {self._pct()}%",
-            icon="ℹ️", duration=0, bg=AppConfig.COLOR_INFO, group=group_id)
+            icon="ℹ️", duration=1000, bg=AppConfig.COLOR_INFO, group=group_id)
 
         # UI
         self.label.configure(text=msg)
@@ -341,16 +340,16 @@ class BuildWindow(ctk.CTk):
             DIST_PATHS = [Path("dist") / n for n in EXE_NAMES]
 
             STEPS = [ 
-                ("🔍 Validando ambiente…",     0.5, lambda: validate_build_environment()),
-                ("🛑 Aguardando fecho…",       1.0, lambda: wait_until_apps_closed(EXE_NAMES)),
-                ("🔖 Gerando version.txt…",    1.0, lambda: run_cmd_quiet([sys.executable, "version_gen.py"], name="version_gen")),
-                ("🧭 Definindo perfil: release", 0.2, lambda: set_build_profile("release")), 
-                ("📄 Gerando goal_score.spec…",  0.8, lambda: run_cmd_quiet([sys.executable, "spec_gen.py"], name="spec_gen")),
+                ("🔍 Validar ambiente…",     0.5, lambda: validate_build_environment()),
+                ("🛑 Aguardar fecho…",       1.0, lambda: wait_until_apps_closed(EXE_NAMES)),
+                ("🔖 A gerar - version.txt…",    1.0, lambda: run_cmd_quiet([sys.executable, "version_gen.py"], name="version_gen")),
+                ("🧭 Definir perfil: release", 0.2, lambda: set_build_profile("release")), 
+                ("📄 A gerar - goal_score.spec…",  0.8, lambda: run_cmd_quiet([sys.executable, "spec_gen.py"], name="spec_gen")),
                 ("🧹 A limpar builds antigas…", 1.0, lambda: [delete_old_executable(p) for p in DIST_PATHS]),
-                ("⚙️ A montar com PyInstaller…", 5.0, lambda: run_cmd_quiet([
+                ("⚙️ Transformar em executável…", 5.0, lambda: run_cmd_quiet([
                      sys.executable, "-m", "PyInstaller",
                      "--clean", "--noconfirm",
-                     "goal_score.spec"
+                     "Apitofinal.spec"
                  ], name="PyInstaller")),
                 ("⚽ A iniciar os jogos…",      1.5, lambda: time.sleep(0.2)),
                 ("🎯 Remate final…",           1.5, lambda: time.sleep(0.2)),
@@ -365,7 +364,7 @@ class BuildWindow(ctk.CTk):
 
             self.label.configure(text="🏆 Golo! Build concluída com sucesso!")
             notify("🎉 Sucesso", "O executável foi criado com sucesso!",
-                   icon="🎯", duration=6000, bg=AppConfig.COLOR_SUCCESS)
+                   icon="🎯", duration=4000, bg=AppConfig.COLOR_SUCCESS)
             time.sleep(0.6)
             self.quit()
 

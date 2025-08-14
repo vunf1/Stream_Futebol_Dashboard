@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-# spec_gen.py — writes goal_score.spec from easy-to-edit variables
+# spec_gen.py — writes Apitofinal.spec from easy-to-edit variables
 from pathlib import Path
 
 # ── CONFIG (edit here) ──────────────────────────────────────────────────────────
 CONFIG = {
-    "spec_filename": "goal_score.spec",
-    "app_name": "goal_score",
+    "spec_filename": "Apitofinal.spec",
+    "app_name": "Apitofinal",
     "entry_script": "src/goal_score.py",
     "icon_path": "src/ui/icons/icon_soft.ico",
     "version_file": "version.txt",
