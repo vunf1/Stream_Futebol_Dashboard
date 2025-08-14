@@ -311,14 +311,26 @@ def apply_drag_and_drop(window: Union[ctk.CTk, CTkToplevel, ctk.CTkFrame]) -> No
     Args:
         window: The window or frame to make draggable
     """
-    drag_state = {"offset_x": 0, "offset_y": 0}
+    drag_state = {"offset_x": 0, "offset_y": 0, "is_dragging": False}
 
     def _start_drag(event):
         # Calculate offset between pointer and top-left corner of window
-        drag_state["offset_x"] = event.x_root - window.winfo_x()
-        drag_state["offset_y"] = event.y_root - window.winfo_y()
+        # Use root coordinates for accurate positioning
+        if isinstance(window, (ctk.CTk, CTkToplevel)):
+            drag_state["offset_x"] = event.x_root - window.winfo_rootx()
+            drag_state["offset_y"] = event.y_root - window.winfo_rooty()
+        else:
+            # For frames, get the parent window's root position
+            parent = window.winfo_toplevel()
+            if isinstance(parent, (ctk.CTk, CTkToplevel)):
+                drag_state["offset_x"] = event.x_root - parent.winfo_rootx()
+                drag_state["offset_y"] = event.y_root - parent.winfo_rooty()
+        drag_state["is_dragging"] = True
 
     def _on_drag(event):
+        if not drag_state["is_dragging"]:
+            return
+            
         # New window position to keep pointer at same offset
         new_x = event.x_root - drag_state["offset_x"]
         new_y = event.y_root - drag_state["offset_y"]
@@ -331,8 +343,12 @@ def apply_drag_and_drop(window: Union[ctk.CTk, CTkToplevel, ctk.CTkFrame]) -> No
             if isinstance(parent, (ctk.CTk, CTkToplevel)):
                 parent.geometry(f"+{new_x}+{new_y}")
 
+    def _stop_drag(event):
+        drag_state["is_dragging"] = False
+
     window.bind("<Button-1>",  _start_drag, add=True)
     window.bind("<B1-Motion>", _on_drag,    add=True)
+    window.bind("<ButtonRelease-1>", _stop_drag, add=True)
 
 
 def apply_window_styling(window: ctk.CTkBaseClass, 

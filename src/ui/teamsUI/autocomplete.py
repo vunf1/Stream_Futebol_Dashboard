@@ -29,20 +29,31 @@ class Autocomplete(ctk.CTkFrame):
         self._debounce_job: Optional[str] = None
         self._selected_index: int = -1
         self._last_text: str = ""  # for restore when empty
+        self._binding_tag = f"autocomplete_{id(self)}"  # Unique binding tag
+        self._monitoring = False  # Track if we're monitoring the popup
 
         # Bindings
         self.entry.bind("<KeyRelease>", self._on_key)
-        self.entry.bind("<FocusOut>", self._on_focus_out, add=True)
         self.entry.bind("<Down>", self._nav_down)
         self.entry.bind("<Up>", self._nav_up)
         self.entry.bind("<Return>", self._nav_enter)
         self.entry.bind("<Escape>", self._restore_last_immediately)
+        self.entry.bind("<FocusIn>", self._on_focus_in)
 
     # ---------------- Events / Debounce ----------------
     def _on_key(self, event):
         # Ignore nav keys here (handled separately)
         if event.keysym in ("Up", "Down", "Return", "Escape"):
             return
+        
+        # Clear matches if text is completely cleared
+        current_text = (self.entry.get() or "").strip()
+        if not current_text:
+            self.matches.clear()
+            self._selected_index = -1
+            self._hide_popup()
+            return
+            
         if self._debounce_job:
             self.after_cancel(self._debounce_job)
         self._debounce_job = self.after(self.debounce_ms, self._query_and_show)
@@ -54,7 +65,12 @@ class Autocomplete(ctk.CTkFrame):
             self._hide_popup()
             return
 
-        data = self.fetch_suggestions() or {}
+        # Always fetch fresh data to ensure consistency
+        try:
+            data = self.fetch_suggestions() or {}
+        except Exception:
+            return
+
         qcf = q.casefold()
         labels = list(data.keys())
         self.matches = [lbl for lbl in labels if qcf in lbl.casefold()]
@@ -64,36 +80,106 @@ class Autocomplete(ctk.CTkFrame):
             return
 
         self._selected_index = -1
-        popup = self._ensure_popup()
-        self._position_popup(popup)
-        self._populate_popup(data)
+        try:
+            popup = self._ensure_popup()
+            self._position_popup(popup)
+            self._populate_popup(data)
+        except Exception:
+            pass
 
     # ---------------- Popup helpers ----------------
     def _ensure_popup(self) -> ctk.CTkToplevel:
         popup = self.popup
-        if popup is not None and popup.winfo_exists():
-            return popup
+        if popup is not None:
+            try:
+                if popup.winfo_exists():
+                    return popup
+            except Exception:
+                pass
         
-        # Create popup using window utilities
-        popup = create_popup_dialog(self.winfo_toplevel(), "Autocomplete", 200, 150)  # type: ignore
-        self.popup = popup
+        # Create popup with custom configuration to allow proper focus handling
+        try:
+            popup = create_popup_dialog(
+                self.winfo_toplevel(),  # type: ignore
+                "Autocomplete", 
+                200, 
+                150,
+                config={
+                    "grab_set": False,  # Don't grab focus to allow proper click outside detection
+                    "transient": True,   # Make it transient to the parent
+                    "overrideredirect": True,
+                    "topmost": True
+                }
+            )
+            self.popup = popup
 
-        self.container = ctk.CTkScrollableFrame(popup, corner_radius=6)
-        self.container.pack(fill="both", expand=True)
+            self.container = ctk.CTkScrollableFrame(popup, corner_radius=6)
+            self.container.pack(fill="both", expand=True)
 
-        # Global click to close
-        self.winfo_toplevel().bind_all("<Button-1>", self._on_global_click, "+")
-        return popup
+            # Bind popup-specific events for better click outside detection
+            popup.bind("<FocusOut>", self._on_popup_focus_out)
+            popup.bind("<Button-1>", self._on_popup_click)
+            
+            # Bind to the main window for click outside detection
+            try:
+                main_window = self.winfo_toplevel()
+                main_window.bind("<Button-1>", self._on_main_window_click, add="+")
+            except Exception:
+                pass
+            
+            # Start a timer to periodically check if popup should be closed
+            self._start_popup_monitor()
+            
+            return popup
+        except Exception as e:
+            raise
+
+    def _start_popup_monitor(self):
+        """Start monitoring the popup to detect when it should be closed"""
+        if self._monitoring:
+            return  # Already monitoring
+        
+        self._monitoring = True
+        
+        def check_popup():
+            if not self._monitoring:
+                return  # Stop monitoring
+            
+            try:
+                if self.popup and hasattr(self.popup, 'winfo_exists') and self.popup.winfo_exists():
+                    # Check if the entry still has focus
+                    if hasattr(self.entry, 'focus_get') and not self.entry.focus_get():
+                        # Entry lost focus, close popup
+                        self._hide_popup()
+                    else:
+                        # Continue monitoring
+                        self.after(100, check_popup)
+                else:
+                    # Popup closed, stop monitoring
+                    self._monitoring = False
+            except Exception:
+                # If there's any error, stop monitoring and clean up
+                self._monitoring = False
+                try:
+                    self._hide_popup()
+                except Exception:
+                    pass
+        
+        # Start the monitoring
+        self.after(100, check_popup)
 
     def _position_popup(self, popup: ctk.CTkToplevel) -> None:
-        self.entry.update_idletasks()
-        x = self.entry.winfo_rootx()
-        y = self.entry.winfo_rooty() + self.entry.winfo_height()
-        width = self.entry.winfo_width()
-        item_h = 30
-        visible = min(len(self.matches), self.max_visible) or 1
-        height = max(1, visible) * item_h
-        popup.geometry(f"{width}x{height}+{x}+{y}")
+        try:
+            self.entry.update_idletasks()
+            x = self.entry.winfo_rootx()
+            y = self.entry.winfo_rooty() + self.entry.winfo_height()
+            width = self.entry.winfo_width()
+            item_h = 30
+            visible = min(len(self.matches), self.max_visible) or 1
+            height = max(1, visible) * item_h
+            popup.geometry(f"{width}x{height}+{x}+{y}")
+        except Exception:
+            pass
 
     def _populate_popup(self, data: Dict[str, Any]) -> None:
         container = self.container
@@ -101,48 +187,155 @@ class Autocomplete(ctk.CTkFrame):
             return
         # Clear previous
         for it in self.items:
-            it.destroy()
+            try:
+                it.destroy()
+            except Exception:
+                pass
         self.items.clear()
 
         # 🚀 Build ALL items (scroll shows the rest)
         for label in self.matches:
-            value = data[label]
-            item = ctk.CTkLabel(
-                container,
-                text=label,
-                anchor="w",
-                justify="left",
-                fg_color="#333333",
-                corner_radius=0,
-                height=26,
-            )
-            item.pack(fill="x", padx=(8, 2), pady=1)
-            item.bind("<Button-1>", lambda e, lbl=label, val=value: self._select(lbl, val))
-            item.bind("<Enter>",    lambda e, w=item: w.configure(fg_color="#444444"))
-            item.bind("<Leave>",    lambda e, w=item: w.configure(fg_color="#333333"))
-            self.items.append(item)
+            try:
+                value = data[label]
+                item = ctk.CTkLabel(
+                    container,
+                    text=label,
+                    anchor="w",
+                    justify="left",
+                    fg_color="#333333",
+                    corner_radius=0,
+                    height=26,
+                )
+                item.pack(fill="x", padx=(8, 2), pady=1)
+                item.bind("<Button-1>", lambda e, lbl=label, val=value: self._select(lbl, val))
+                item.bind("<Enter>",    lambda e, w=item: w.configure(fg_color="#444444"))
+                item.bind("<Leave>",    lambda e, w=item: w.configure(fg_color="#333333"))
+                self.items.append(item)
+            except Exception:
+                pass
 
         self._highlight_selected()  # reset highlight
 
     def _hide_popup(self):
         popup = self.popup
-        if popup is not None and popup.winfo_exists():
+        if popup is not None:
             try:
-                self.winfo_toplevel().unbind_all("<Button-1>")
+                # Check if the popup still exists and the application is still running
+                if hasattr(popup, 'winfo_exists') and popup.winfo_exists():
+                    # Unbind from main window
+                    try:
+                        main_window = self.winfo_toplevel()
+                        if main_window and hasattr(main_window, 'unbind'):
+                            main_window.unbind("<Button-1>")
+                    except Exception:
+                        pass
+                    popup.destroy()
             except Exception:
+                # If there's any error, just clear the reference
                 pass
-            popup.destroy()
+        
         self.popup = None
         self.container = None
         self.items.clear()
+        # Clear matches when closing to prevent stale data
         self.matches.clear()
         self._selected_index = -1
 
-    def _on_global_click(self, event):
-        w = event.widget
-        if w == self.entry or (self.popup and self._is_descendant(w, self.popup)):
-            return
-        self._hide_popup()
+    def _on_popup_focus_out(self, event):
+        """Handle when popup loses focus"""
+        # Small delay to allow click events to process first
+        self.after(100, self._check_if_should_close)
+
+    def _on_focus_in(self, event):
+        """Handle when entry gains focus - show suggestions for existing text"""
+        current_text = (self.entry.get() or "").strip()
+        if current_text and not self.popup:
+            # There's text and no popup, show suggestions
+            self.after(50, self._query_and_show)
+
+    def _cleanup_state(self):
+        """Clean up the autocomplete state to prevent corruption"""
+        try:
+            if self._debounce_job:
+                self.after_cancel(self._debounce_job)
+                self._debounce_job = None
+            
+            # Stop monitoring
+            self._monitoring = False
+            
+            # Only try to hide popup if we're still in a valid state
+            if hasattr(self, 'popup') and self.popup is not None:
+                self._hide_popup()
+            
+            self.matches.clear()
+            self._selected_index = -1
+            self._last_text = ""
+        except Exception:
+            # If cleanup fails, just clear the basic state
+            self._monitoring = False
+            self._debounce_job = None
+            self.popup = None
+            self.container = None
+            self.items = []
+            self.matches = []
+            self._selected_index = -1
+            self._last_text = ""
+
+    def _on_popup_click(self, event):
+        """Handle clicks within the popup"""
+        # Prevent the popup from closing when clicking inside it
+        return "break"
+
+    def _on_main_window_click(self, event):
+        """Handle clicks on the main window"""
+        # Check if the click is outside the autocomplete area
+        try:
+            if self.popup and hasattr(self.popup, 'winfo_exists') and self.popup.winfo_exists():
+                # Get popup bounds
+                popup_x = self.popup.winfo_rootx()
+                popup_y = self.popup.winfo_rooty()
+                popup_width = self.popup.winfo_width()
+                popup_height = self.popup.winfo_height()
+                
+                # Get click coordinates
+                click_x = event.x_root
+                click_y = event.y_root
+                
+                # Check if click is outside popup bounds
+                if (click_x < popup_x or click_x > popup_x + popup_width or 
+                    click_y < popup_y or click_y > popup_y + popup_height):
+                    # Click is outside popup, close it
+                    self._hide_popup()
+        except Exception:
+            # If there's any error, just close the popup to be safe
+            try:
+                self._hide_popup()
+            except Exception:
+                pass
+
+    def reset(self):
+        """Reset the autocomplete to a clean state - useful when it breaks"""
+        self._cleanup_state()
+        self.entry.delete(0, "end")
+        self._last_text = ""
+
+    def _check_if_should_close(self):
+        """Check if popup should be closed based on focus"""
+        try:
+            if self.popup and hasattr(self.popup, 'winfo_exists') and self.popup.winfo_exists():
+                # Check if the popup or any of its children still have focus
+                if hasattr(self.popup, 'focus_get'):
+                    focused_widget = self.popup.focus_get()
+                    if focused_widget is None:
+                        # No widget in popup has focus, check if entry has focus
+                        if hasattr(self.entry, 'focus_get') and not self.entry.focus_get():
+                            self._hide_popup()
+        except Exception:
+            # If there's any error, just close the popup to be safe
+            try:
+                self._hide_popup()
+            except Exception:
+                pass
 
     @staticmethod
     def _is_descendant(widget, ancestor) -> bool:
@@ -200,12 +393,6 @@ class Autocomplete(ctk.CTkFrame):
         self.focus_set()
         self._hide_popup()
 
-    def _on_focus_out(self, _e):
-        # If user leaves it empty, restore last text
-        if not (self.entry.get() or "").strip() and self._last_text:
-            self.entry.delete(0, "end")
-            self.entry.insert(0, self._last_text)
-
     def _restore_last_immediately(self, _e):
         """ESC → restore last value and close popup."""
         if self._last_text:
@@ -241,9 +428,13 @@ class Autocomplete(ctk.CTkFrame):
 
     def _highlight_selected(self):
         for i, item in enumerate(self.items):
-            item.configure(fg_color="#555555" if i == self._selected_index else "#333333")
+            try:
+                item.configure(fg_color="#555555" if i == self._selected_index else "#333333")
+            except Exception:
+                pass
         # keep the highlighted one visible
         self._scroll_selected_into_view()
+
     # ---------------- API ----------------
     def get(self) -> str:
         return self.entry.get()
@@ -252,3 +443,19 @@ class Autocomplete(ctk.CTkFrame):
         self.entry.delete(0, "end")
         self.entry.insert(0, text or "")
         self._last_text = text or ""
+        
+    def show_suggestions(self):
+        """Manually trigger showing suggestions for current text"""
+        if self.entry.get().strip():
+            self._query_and_show()
+            
+    def force_refresh(self):
+        """Force refresh suggestions - useful when autocomplete seems broken"""
+        self._cleanup_state()
+        current_text = self.entry.get().strip()
+        if current_text:
+            self.after(100, self._query_and_show)
+            
+    def clear_state(self):
+        """Clear the current autocomplete state"""
+        self._cleanup_state()
