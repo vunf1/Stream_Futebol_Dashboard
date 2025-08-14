@@ -119,15 +119,25 @@ def add_footer_label(parent, config: Optional[FooterConfig] = None, **kwargs):
         
         def update_datetime():
             """Update datetime display based on config."""
-            if config.datetime_format == "custom" and config.custom_datetime:
-                datetime_label.configure(text=config.custom_datetime)
-            elif config.datetime_format == "short":
-                datetime_label.configure(text=DateTimeProvider.get_datetime().split()[0])  # Date only
-            else:  # default
-                datetime_label.configure(text=DateTimeProvider.get_datetime())
-            
-            if config.show_datetime:
-                parent.after(1000, update_datetime)
+            try:
+                # Check if widget still exists before performing operations
+                if not datetime_label.winfo_exists():
+                    return  # Stop the timer if widget was destroyed
+                    
+                if config.datetime_format == "custom" and config.custom_datetime:
+                    datetime_label.configure(text=config.custom_datetime)
+                elif config.datetime_format == "short":
+                    datetime_label.configure(text=DateTimeProvider.get_datetime().split()[0])  # Date only
+                else:  # default
+                    datetime_label.configure(text=DateTimeProvider.get_datetime())
+                
+                # Only schedule next update if widget still exists and datetime should be shown
+                if config.show_datetime and datetime_label.winfo_exists():
+                    parent.after(1000, update_datetime)
+            except Exception as e:
+                # Widget was destroyed or error occurred, stop the timer
+                print(f"Datetime update error (likely widget destroyed): {e}")
+                return
         
         update_datetime()
     
@@ -137,21 +147,64 @@ def add_footer_label(parent, config: Optional[FooterConfig] = None, **kwargs):
     
     # License status label (center) - properly centered
     if config.show_license_status:
+        # Create a horizontal container for license status and activate button
+        license_row = ctk.CTkFrame(center_container, fg_color="transparent")
+        license_row.pack(expand=True, fill="x")
+        
         license_status_label = ctk.CTkLabel(
-            center_container, 
+            license_row, 
             text="", 
             font=("Segoe UI", 10, "bold"),
             text_color="gray",
             cursor="arrow"
         )
-        license_status_label.pack(expand=True, fill="x")  # Remove side="left" for proper centering
+        license_status_label.pack(side="left", expand=True, fill="x")  # Position on the left
         
         # License manager initialization
         license_manager = LicenseManager()
         
+        # Create activate button early so it can be referenced
+        activate_button = None
+        if config.show_activate_button:
+            def show_license_activation():
+                try:
+                    print("Opening license activation modal...")
+                    
+                    def on_license_activated(license_data):
+                        if license_manager.save_license(license_data):
+                            update_license_status()
+                            print("License activated successfully!")
+                        else:
+                            print("Failed to save license")
+                    
+                    result = LicenseActivationDialog.show(parent, on_license_activated)
+                    print(f"Modal result: {result}")
+                    
+                except Exception as e:
+                    print(f"Error showing license activation: {e}")
+                    import traceback
+                    traceback.print_exc()
+            
+            activate_button = ctk.CTkButton(
+                license_row,  # Use license_row instead of center_container
+                text="🔑 Activate",
+                command=show_license_activation,
+                font=("Segoe UI", 9),
+                height=config.activate_button_height,
+                width=config.activate_button_height,  # Make it square by using height as width
+                fg_color="transparent",
+                hover_color="#2b2b2b",
+                text_color="#888888"
+            )
+            # Don't pack the button yet - it will be shown/hidden by update_license_status
+        
         def update_license_status():
             """Update the license status display."""
             try:
+                # Check if widget still exists before performing operations
+                if not license_status_label.winfo_exists():
+                    return  # Stop if widget was destroyed
+                    
                 status, is_valid = license_manager.get_license_status()
                 
                 # Get display text and color
@@ -179,20 +232,35 @@ def add_footer_label(parent, config: Optional[FooterConfig] = None, **kwargs):
                     license_status_label.configure(cursor="arrow")
                 
                 # Show/hide activate button based on license status and config
-                if config.show_activate_button:
-                    if is_valid:
-                        activate_button.pack_forget()
+                if config.show_activate_button and activate_button:
+                    # Show activate button when license is invalid OR when status indicates need for activation
+                    should_show_button = (
+                        not is_valid or 
+                        display_text in ["NO LICENSE", "LICENSE ERROR", "BLOCKED", "EXPIRED", "TRIAL EXPIRED"]
+                    )
+                    
+                    if should_show_button:
+                        activate_button.pack(side="right", padx=(8, 0))  # Position on the right of the license row
                     else:
-                        activate_button.pack(side="left", padx=(8, 0))
+                        activate_button.pack_forget()
                 
             except Exception as e:
-                print(f"Error updating license status: {e}")
-                final_color = "#dc3545"
-                license_status_label.configure(text="LICENSE ERROR", text_color=final_color)
-                license_status_label.configure(cursor="arrow")
-                
-                if config.show_activate_button:
-                    activate_button.pack(side="left", padx=(8, 0))
+                # Widget was destroyed or error occurred
+                if license_status_label.winfo_exists():
+                    print(f"Error updating license status: {e}")
+                    final_color = "#dc3545"
+                    license_status_label.configure(text="LICENSE ERROR", text_color=final_color)
+                    license_status_label.configure(cursor="arrow")
+                    
+                    # Show activate button when there's a license error
+                    if config.show_activate_button and activate_button:
+                        activate_button.pack(side="right", padx=(8, 0))
+                else:
+                    # Widget was destroyed, just return
+                    return
+        
+        # Initial license status check
+        update_license_status()
         
         # Hover effects for clickable license status
         if config.license_clickable:
@@ -230,38 +298,8 @@ def add_footer_label(parent, config: Optional[FooterConfig] = None, **kwargs):
         
         # Activate button
         if config.show_activate_button:
-            def show_license_activation():
-                try:
-                    print("Opening license activation modal...")
-                    
-                    def on_license_activated(license_data):
-                        if license_manager.save_license(license_data):
-                            update_license_status()
-                            print("License activated successfully!")
-                        else:
-                            print("Failed to save license")
-                    
-                    result = LicenseActivationDialog.show(parent, on_license_activated)
-                    print(f"Modal result: {result}")
-                    
-                except Exception as e:
-                    print(f"Error showing license activation: {e}")
-                    import traceback
-                    traceback.print_exc()
-            
-            activate_button = ctk.CTkButton(
-                center_container,
-                text="🔑 Activate",
-                command=show_license_activation,
-                font=("Segoe UI", 9),
-                height=config.activate_button_height,
-                fg_color="transparent",
-                hover_color="#2b2b2b",
-                text_color="#888888"
-            )
-            
-            # Initial license status check
-            update_license_status()
+            # The activate_button is now managed by update_license_status
+            pass
     
     # Right side container for close button
     right_container = ctk.CTkFrame(row_container, fg_color="transparent")

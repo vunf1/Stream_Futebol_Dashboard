@@ -406,26 +406,38 @@ class LicenseBlocker:
             interval_ms: Check interval in milliseconds (default: 30 seconds)
         """
         def periodic_check():
-            # Always check license status, regardless of current blocking state
-            status, is_valid = self.license_manager.get_license_status()
-            
-            if not self.is_blocked:
-                # App is not blocked, check if it should be blocked
-                if not is_valid:
-                    print("License became invalid during runtime, blocking app...")
-                    # Use after() to ensure UI operations happen in the main thread
-                    self.parent.after(0, lambda: self._show_blocking(status))
-            else:
-                # App is blocked, check if it should be unblocked
-                if is_valid:
-                    print("License became valid during runtime, unblocking app...")
-                    # Use after() to ensure UI operations happen in the main thread
-                    self.parent.after(0, lambda: self._remove_blocking())
-                    if self.on_license_valid:
-                        self.parent.after(0, self.on_license_valid)
-            
-            # Schedule next check
-            self.parent.after(interval_ms, periodic_check)
+            try:
+                # Check if parent window still exists before performing operations
+                if not self.parent.winfo_exists():
+                    return  # Stop the periodic check if parent was destroyed
+                    
+                # Always check license status, regardless of current blocking state
+                status, is_valid = self.license_manager.get_license_status()
+                
+                if not self.is_blocked:
+                    # App is not blocked, check if it should be blocked
+                    if not is_valid:
+                        print("License became invalid during runtime, blocking app...")
+                        # Use after() to ensure UI operations happen in the main thread
+                        if self.parent.winfo_exists():
+                            self.parent.after(0, lambda: self._show_blocking(status))
+                else:
+                    # App is blocked, check if it should be unblocked
+                    if is_valid:
+                        print("License became valid during runtime, unblocking app...")
+                        # Use after() to ensure UI operations happen in the main thread
+                        if self.parent.winfo_exists():
+                            self.parent.after(0, lambda: self._remove_blocking())
+                            if self.on_license_valid:
+                                self.parent.after(0, self.on_license_valid)
+                
+                # Schedule next check only if parent window still exists
+                if self.parent.winfo_exists():
+                    self.parent.after(interval_ms, periodic_check)
+            except Exception as e:
+                # Parent was destroyed or error occurred, stop the periodic check
+                print(f"Periodic license check error (likely parent destroyed): {e}")
+                return
         
         # Start the periodic check
         self.parent.after(interval_ms, periodic_check)

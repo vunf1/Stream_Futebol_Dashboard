@@ -140,6 +140,8 @@ class LicenseManager:
     def _validate_license_data(self, data: dict) -> Tuple[LicenseStatus, bool]:
         """Validate license data and return status and validity."""
         try:
+            print(f"🔍 Validating license data: status={data.get('status')}, expiresAt={data.get('expiresAt')}")
+            
             # Check if machine hash matches
             if data.get("machineHash") != self.machine_hash:
                 print("Machine hash mismatch - license not bound to this machine")
@@ -164,24 +166,27 @@ class LicenseManager:
                     current_time = get_current_utc_time()
                     time_source = get_time_source_info()
                     print(f"🕐 License validation using: {time_source}")
+                    print(f"🕐 Current time: {current_time}")
+                    print(f"🕐 Expires at: {expires_at}")
+                    print(f"🕐 Is expired: {current_time > expires_at}")
                     
                     if current_time > expires_at:
                         # License is expired - determine the appropriate expired status
                         original_status = data.get("status", "expired")
                         if original_status == "trial":
-                            print(f"Trial license expired on {expires_at} (checked with {time_source})")
+                            print(f"❌ Trial license expired on {expires_at} (checked with {time_source})")
                             return "trial_expired", False
                         else:
-                            print(f"License expired on {expires_at} (checked with {time_source})")
+                            print(f"❌ License expired on {expires_at} (checked with {time_source})")
                             return "expired", False
                     else:
                         # License is not expired, calculate days remaining for info
                         days_left = (expires_at - current_time).days
                         if days_left <= 7:
-                            print(f"License expires in {days_left} days (checked with {time_source})")
+                            print(f"⚠️ License expires in {days_left} days (checked with {time_source})")
                         
                 except Exception as e:
-                    print(f"Error parsing expiration date: {e}")
+                    print(f"❌ Error parsing expiration date: {e}")
                     return "expired", False
             
             # If we reach here, license is not expired, check the status
@@ -189,14 +194,14 @@ class LicenseManager:
             is_valid = status in ["active", "trial"]
             
             if is_valid:
-                print(f"License validation successful: {status}")
+                print(f"✅ License validation successful: {status}")
             else:
-                print(f"License validation failed: {status}")
+                print(f"❌ License validation failed: {status}")
                 
             return status, is_valid
             
         except Exception as e:
-            print(f"License validation error: {e}")
+            print(f"❌ License validation error: {e}")
             return "not_found", False
     
     def get_license_status(self) -> Tuple[LicenseStatus, bool]:
@@ -262,17 +267,33 @@ class LicenseManager:
                 local_status = current_license_data.get("status")
                 db_license_status = db_license_data.get("status")
                 
-                if local_status != db_license_status:
-                    print(f"🔄 License status changed from {local_status} to {db_license_status}, updating local file...")
+                # Always update if status changed OR if database shows expired but local doesn't
+                should_update = (
+                    local_status != db_license_status or
+                    (db_status in ["expired", "trial_expired"] and local_status not in ["expired", "trial_expired"])
+                )
+                
+                if should_update:
+                    print(f"🔄 License status changed from {local_status} to {db_status}, updating local file...")
                     
                     # Update the license data with database values
                     updated_license_data = current_license_data.copy()
                     updated_license_data.update(db_license_data)
                     
+                    # Ensure the status field is correctly set from database validation
+                    if db_status in ["expired", "trial_expired"]:
+                        updated_license_data["status"] = db_status
+                        print(f"🔒 Setting license status to expired: {db_status}")
+                    
                     # Save updated license to local file
-                    return self.save_license(updated_license_data)
+                    if self.save_license(updated_license_data):
+                        print(f"✅ License saved successfully: {db_status}")
+                        return True
+                    else:
+                        print(f"❌ Failed to save updated license")
+                        return False
                 else:
-                    print(f"✅ License status unchanged: {db_license_status}")
+                    print(f"✅ License status unchanged: {db_status}")
                     return True
             else:
                 print(f"❌ License not found in database: {db_status}")

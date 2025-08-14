@@ -346,9 +346,35 @@ def apply_drag_and_drop(window: Union[ctk.CTk, CTkToplevel, ctk.CTkFrame]) -> No
     def _stop_drag(event):
         drag_state["is_dragging"] = False
 
-    window.bind("<Button-1>",  _start_drag, add=True)
-    window.bind("<B1-Motion>", _on_drag,    add=True)
-    window.bind("<ButtonRelease-1>", _stop_drag, add=True)
+    # Store the bound functions so they can be unbound later
+    if not hasattr(window, '_drag_bindings'):
+        window._drag_bindings = []
+    
+    # Bind events and store references
+    bindings = [
+        ("<Button-1>", _start_drag),
+        ("<B1-Motion>", _on_drag),
+        ("<ButtonRelease-1>", _stop_drag)
+    ]
+    
+    for event, callback in bindings:
+        window.bind(event, callback, add=True)
+        window._drag_bindings.append((event, callback))
+    
+    # Bind to window destruction to clean up
+    def _cleanup_drag_bindings():
+        try:
+            if hasattr(window, '_drag_bindings'):
+                for event, callback in window._drag_bindings:
+                    try:
+                        window.unbind(event, callback)
+                    except:
+                        pass  # Event might already be unbound
+                delattr(window, '_drag_bindings')
+        except:
+            pass  # Window might already be destroyed
+    
+    window.bind("<Destroy>", lambda e: _cleanup_drag_bindings(), add=True)
 
 
 def apply_window_styling(window: ctk.CTkBaseClass, 
