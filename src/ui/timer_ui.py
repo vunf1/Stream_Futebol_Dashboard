@@ -44,9 +44,6 @@ class TimerComponent(ctk.CTkFrame):
             border_color=AppConfig.COLOR_BORDER,
         )
         self.instance_number = instance_number
-        # Apply drag and drop functionality
-        from src.ui.window_utils import apply_drag_and_drop
-        apply_drag_and_drop(self)
         
         self.configure(width=960, height=80)
         self.pack(side="top", fill="x", padx=8, pady=5)

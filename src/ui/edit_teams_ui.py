@@ -11,7 +11,12 @@ import re
 
 class TeamManagerWindow(ctk.CTkToplevel):
     def __init__(self, parent, mongo):
+        # Create window immediately but hide it
         super().__init__(parent)
+        
+        # Hide window immediately to prevent flash
+        self.withdraw()
+        
         self.mongo = mongo
         self.all_teams = {}  # Store all teams for filtering
         self.team_buttons = []  # Store team buttons for filtering
@@ -22,9 +27,16 @@ class TeamManagerWindow(ctk.CTkToplevel):
         self.empty_state_widget = None  # Track empty state widget
         self._is_loading = True  # Track loading state
 
-        if not self._prompt_for_pin():  # ask PIN first
+        # Ask PIN first and ensure proper cleanup
+        print("🔐 Requesting admin PIN for TeamManagerWindow...")
+        if not self._prompt_for_pin():
+            print("❌ PIN validation failed, destroying TeamManagerWindow")
             self.destroy()
             return
+        print("✅ PIN validated, continuing with TeamManagerWindow setup...")
+        
+        # Now show the window after PIN validation
+        self.deiconify()
         
         # Configure window properties using window utilities
         child_w, child_h = 500, 600  # Increased size for better layout
@@ -38,6 +50,9 @@ class TeamManagerWindow(ctk.CTkToplevel):
         
         # Center the child window at the top of the parent
         top_centered_child_to_parent(self, parent, child_w, child_h)
+        
+        # Ensure window is properly configured
+        self.update_idletasks()
         
         # Build UI structure first (without content)
         self._build_header()

@@ -42,11 +42,31 @@ def prompt_for_pin(parent):
     Returns True if the user enters `correct_pin`, False otherwise (or on Cancel).
     """
     correct_pin = get_env("PIN")
+    print(f"🔐 PIN loaded from environment: {correct_pin}")
+    if not correct_pin:
+        print("❌ No PIN found in environment variables")
+        return False
     while True:
-        # Create modal dialog using window utilities
-        from ..ui import create_modal_dialog
-        win = create_modal_dialog(parent, "PIN", 320, 200)
-
+        # Create CTkToplevel window directly for full control
+        print("🔐 Creating PIN prompt window...")
+        
+        # Create window but keep it hidden initially
+        win = ctk.CTkToplevel(parent)
+        win.title("PIN")
+        win.geometry("320x200")
+        
+        # Configure window properties
+        win.resizable(False, False)  # Fixed size
+        win.transient(parent)         # Make it a transient window
+        win.grab_set()                # Modal behavior
+        
+        print(f"🔐 PIN window created: {win}")
+        print(f"🔐 PIN window exists: {win.winfo_exists()}")
+        
+        # Hide window immediately to prevent flash
+        win.withdraw()
+        
+        # Create all UI components while window is hidden
         # Main container with modern styling
         main_frame = ctk.CTkFrame(
             win, 
@@ -56,7 +76,7 @@ def prompt_for_pin(parent):
             border_color=("gray80", "gray30")
         )
         main_frame.pack(fill="both", expand=True, padx=2, pady=2)
-
+        
         # Header section
         header_frame = ctk.CTkFrame(
             main_frame,
@@ -64,7 +84,7 @@ def prompt_for_pin(parent):
             corner_radius=12
         )
         header_frame.pack(fill="x", padx=12, pady=(12, 8))
-
+        
         # Title with icon
         title_label = ctk.CTkLabel(
             header_frame,
@@ -73,7 +93,7 @@ def prompt_for_pin(parent):
             text_color=("gray20", "gray90")
         )
         title_label.pack(pady=8)
-
+        
         # Subtitle
         subtitle_label = ctk.CTkLabel(
             header_frame,
@@ -82,14 +102,14 @@ def prompt_for_pin(parent):
             text_color=("gray50", "gray60")
         )
         subtitle_label.pack(pady=(0, 8))
-
+        
         # Input section
         input_frame = ctk.CTkFrame(
             main_frame,
             fg_color="transparent"
         )
         input_frame.pack(fill="x", padx=20, pady=8)
-
+        
         # PIN entry with better styling
         entry = ctk.CTkEntry(
             input_frame,
@@ -104,7 +124,7 @@ def prompt_for_pin(parent):
         )
         entry.pack(pady=8)
         entry.after(50, entry.focus)  # Faster focus (was 100ms, now 50ms)
-
+        
         # Small close button below input field
         close_btn = ctk.CTkButton(
             input_frame,
@@ -119,14 +139,14 @@ def prompt_for_pin(parent):
             border_width=0
         )
         close_btn.pack(pady=(5, 0))
-
+        
         # Buttons section
         buttons_frame = ctk.CTkFrame(
             main_frame,
             fg_color="transparent"
         )
         buttons_frame.pack(fill="x", padx=20, pady=(8, 16))
-
+        
         # Submit button
         submit_btn = ctk.CTkButton(
             buttons_frame,
@@ -140,7 +160,7 @@ def prompt_for_pin(parent):
             command=lambda: None  # Will be set below
         )
         submit_btn.pack(side="left", padx=(0, 8))
-
+        
         # Cancel button
         cancel_btn = ctk.CTkButton(
             buttons_frame,
@@ -154,38 +174,85 @@ def prompt_for_pin(parent):
             command=lambda: None  # Will be set below
         )
         cancel_btn.pack(side="right", padx=(8, 0))
-
+        
+        # Ensure proper cleanup
         result: dict[str, Optional[str]] = {"value": None}
         
+        def cleanup():
+            try:
+                if win.winfo_exists():
+                    print("🔐 Cleaning up PIN window...")
+                    win.destroy()
+            except Exception as e:
+                print(f"🔐 Error during cleanup: {e}")
+                pass
+        
+        # Position window centered on screen while still hidden to prevent flickering
+        from ..ui.window_utils import center_window_on_screen_with_offset
+        # Center the PIN window on screen with upward offset for better UX
+        # Parameters: win, width, height, y_offset (negative = up)
+        center_window_on_screen_with_offset(win, 320, 200, -50)
+        
+        # Now show the fully configured and positioned window
+        win.deiconify()
+        win.update_idletasks()
+        
+        # Ensure proper focus and stacking
+        win.lift()
+        win.focus_force()
+        
+        # Additional visibility enforcement
+        win.attributes('-topmost', True)
+        win.attributes('-alpha', 1.0)
+        win.state('normal')
+        
+        print(f"🔐 PIN window position: {win.winfo_x()}, {win.winfo_y()}")
+        print(f"🔐 PIN window size: {win.winfo_width()}x{win.winfo_height()}")
+        print(f"🔐 PIN window visible: {win.winfo_viewable()}")
+        
+        # Final visibility check and enforcement
+        if not win.winfo_viewable():
+            print("⚠️ Window not viewable, forcing visibility...")
+            win.update()
+            win.deiconify()
+            win.lift()
+            win.focus_force()
+        
+        # Define event handlers
         def on_submit(event=None):
             result["value"] = entry.get().strip()
-            win.destroy()
+            cleanup()
             
         def on_cancel(event=None):
             result["value"] = None
-            win.destroy()
+            cleanup()
             
         def on_close(event=None):
             result["value"] = None
-            win.destroy()
-
+            cleanup()
+        
         # Bind events
         entry.bind("<Return>", on_submit)
         entry.bind("<Escape>", on_cancel)
         submit_btn.configure(command=on_submit)
         cancel_btn.configure(command=on_cancel)
         close_btn.configure(command=on_close)
-
+        
         # Focus management
+        print("🔐 Setting window focus...")
         win.focus_force()
         entry.focus_set()
-
+        print("🔐 Waiting for window to close...")
+        
         win.wait_window()
-
+        print("🔐 Window closed, checking result...")
+        
         if result["value"] is None:
+            print("🔒 PIN prompt cancelled")
             return False
         if result["value"] == correct_pin:
+            print("🔓 PIN validated successfully")
             return True
-
+        
         print("🔒 Access Denied")
         print("Incorrect PIN. Please try again.")

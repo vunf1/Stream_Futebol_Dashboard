@@ -210,7 +210,7 @@ class TeamInputManager(ctk.CTkFrame):
             btn_frame,
             text="Editar",
             fg_color="orange",
-            command=lambda: TeamManagerWindow(parent=self.parent, mongo=self.mongo)
+            command=self._open_team_manager
         ).grid(row=0, column=1, sticky="nsew", padx=(5, 0))
 
     # -------------------------- Callbacks --------------------------
@@ -264,3 +264,23 @@ class TeamInputManager(ctk.CTkFrame):
             icon="✅",
             bg_color=AppConfig.COLOR_SUCCESS
         )
+    
+    def _open_team_manager(self):
+        """Open the team manager window with proper error handling."""
+        try:
+            print("🔧 Opening TeamManagerWindow...")
+            print(f"🔧 Parent type: {type(self.parent)}")
+            print(f"🔧 Mongo type: {type(self.mongo)}")
+            
+            team_manager = TeamManagerWindow(parent=self.parent, mongo=self.mongo)
+            print("✅ TeamManagerWindow created successfully")
+            
+        except Exception as e:
+            print(f"❌ Error opening TeamManagerWindow: {e}")
+            import traceback
+            traceback.print_exc()
+            show_message_notification(
+                "❌ Error",
+                f"Failed to open Team Manager: {str(e)}",
+                bg_color=AppConfig.COLOR_ERROR
+            )

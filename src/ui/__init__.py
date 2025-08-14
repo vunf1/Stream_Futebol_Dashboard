@@ -69,7 +69,6 @@ __all__ = [
     'apply_drag_and_drop',
     'apply_window_styling',
     'close_window_safely',
-    'legacy_top_centered_child_to_parent',
     
     # Window base classes
     'BaseWindow',

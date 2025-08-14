@@ -66,30 +66,88 @@ def center_window_on_screen(window: Union[ctk.CTk, CTkToplevel], width: int, hei
     window.geometry(f"{width}x{height}+{x}+{y}")
 
 
+def center_window_on_screen_with_offset(window: Union[ctk.CTk, CTkToplevel], width: int, height: int, y_offset: int = 0) -> None:
+    """
+    Center a window on the screen with optional vertical offset.
+    
+    Args:
+        window: The window to center
+        width: Window width
+        height: Window height
+        y_offset: Vertical offset from center (positive = down, negative = up)
+    """
+    window.update_idletasks()
+    screen_width = window.winfo_screenwidth()
+    screen_height = window.winfo_screenheight()
+    x = (screen_width - width) // 2
+    y = (screen_height - height) // 2 + y_offset
+    
+    # Ensure window stays within screen bounds
+    if y < 0:
+        y = 10  # Minimum 10px from top edge
+    elif y + height > screen_height:
+        y = screen_height - height - 10  # Minimum 10px from bottom edge
+    
+    window.geometry(f"{width}x{height}+{x}+{y}")
+    window.update_idletasks()
+
+
 def center_window_on_parent(child: CTkToplevel, parent: Union[ctk.CTk, CTkToplevel], 
                           child_width: int, child_height: int, 
                           y_offset: int = 20) -> None:
     """
-    Center a child window relative to its parent.
+    Center a child window at the top center of its parent window.
     
     Args:
         child: The child window to position
         parent: The parent window
         child_width: Child window width
         child_height: Child window height
-        y_offset: Vertical offset from parent top
+        y_offset: Vertical offset from parent top (default: 20px)
     """
+    # Set window relationship and focus
     child.transient(parent)  # type: ignore
     child.lift(parent)
     child.focus_force()
 
+    # Ensure parent window is updated to get accurate dimensions
     parent.update_idletasks()
-    px = parent.winfo_x()
-    py = parent.winfo_y()
+    
+    # Get parent window position and dimensions
+    px = parent.winfo_rootx()  # Use root coordinates for accurate positioning
+    py = parent.winfo_rooty()
     p_width = parent.winfo_width()
+    p_height = parent.winfo_height()
+    
+    # Calculate center position horizontally
+    # Center the child window horizontally on the parent
     pos_x = px + (p_width - child_width) // 2
+    
+    # Position vertically at top with offset
+    # This places the child window at the top center of the parent
     pos_y = py + y_offset
+    
+    # Ensure the child window stays within screen bounds
+    screen_width = child.winfo_screenwidth()
+    screen_height = child.winfo_screenheight()
+    
+    # Adjust X position if child would go off-screen
+    if pos_x < 0:
+        pos_x = 10  # Minimum 10px from left edge
+    elif pos_x + child_width > screen_width:
+        pos_x = screen_width - child_width - 10  # Minimum 10px from right edge
+    
+    # Adjust Y position if child would go off-screen
+    if pos_y < 0:
+        pos_y = 10  # Minimum 10px from top edge
+    elif pos_y + child_height > screen_height:
+        pos_y = screen_height - child_height - 10  # Minimum 10px from bottom edge
+    
+    # Apply the calculated position
     child.geometry(f"{child_width}x{child_height}+{pos_x}+{pos_y}")
+    
+    # Ensure the positioning took effect
+    child.update_idletasks()
 
 
 def configure_window(window: Union[ctk.CTk, CTkToplevel], config: Dict[str, Any], 
