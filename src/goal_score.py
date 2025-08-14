@@ -31,7 +31,7 @@ class ScoreApp:
         self.root.minsize(window_config['min_width'], window_config['min_height'])
         
         # Apply window configuration using utilities
-        from src.ui.window_utils import configure_window, WindowConfig
+        from src.utils import configure_window, WindowConfig
         configure_window(self.root, WindowConfig.MAIN_WINDOW)
         self.root.attributes("-toolwindow", False)  # Keep taskbar icon visible
         
@@ -82,7 +82,7 @@ class ScoreApp:
         
         if instance_number == 1:
             # First instance: center on screen using window utilities
-            from src.ui.window_utils import center_window_on_screen
+            from src.utils import center_window_on_screen
             center_window_on_screen(self.root, window_width, window_height)
             return
         else:

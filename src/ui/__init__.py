@@ -8,7 +8,6 @@ and UI-related helper functions.
 from .footer_label import add_footer_label
 from .icons_provider import get_icon, get_icon_path
 
-from .window_utils import top_centered_child_to_parent
 from .top_widget import TopWidget
 from .score_ui import ScoreUI
 from .timer_ui import TimerComponent
@@ -16,8 +15,8 @@ from .timer_ui import TimerComponent
 from .edit_teams_ui import TeamManagerWindow, EditTeamPopup
 from .teamsUI.teams_ui import TeamInputManager
 
-# Window utilities and base classes
-from .window_utils import (
+# Window utilities and base classes - now imported from utils
+from ..utils import (
     WindowConfig,
     center_window_on_screen,
     center_window_on_parent,
@@ -29,10 +28,7 @@ from .window_utils import (
     apply_drag_and_drop,
     apply_window_styling,
     close_window_safely,
-    top_centered_child_to_parent
-)
-
-from .window_base import (
+    top_centered_child_to_parent,
     BaseWindow,
     BaseMainWindow,
     BaseDialog,

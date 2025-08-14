@@ -6,7 +6,7 @@ import time
 import os
 from pathlib import Path
 
-from src.ui.window_utils import apply_drag_and_drop
+from src.utils import apply_drag_and_drop
 
 # ───────────────────────── Bootstrap (before CTk import) ─────────────────────────
 

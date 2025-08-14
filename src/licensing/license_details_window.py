@@ -7,7 +7,7 @@ import customtkinter as ctk
 from datetime import datetime, timezone
 from typing import Optional, Dict
 from .license_manager import LicenseManager
-from ..ui.window_utils import apply_drag_and_drop
+from ..utils import apply_drag_and_drop
 from ..config.settings import AppConfig
 
 

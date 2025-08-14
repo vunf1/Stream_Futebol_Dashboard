@@ -49,7 +49,7 @@ def prompt_for_pin(parent):
     while True:
         # Create modal dialog using window_utils but with minimal initial configuration
         print("🔐 Creating PIN prompt window...")
-        from ..ui.window_utils import create_modal_dialog, center_window_on_screen_with_offset
+        from ..utils import create_modal_dialog, center_window_on_screen_with_offset
         
         # Create window with minimal configuration to prevent flickering
         win = ctk.CTkToplevel(parent)

@@ -91,7 +91,7 @@ class TopWidget:
         win.grab_release()  # Ensure no grab is set
         
         # Apply window configuration without modal behavior
-        from src.ui.window_utils import configure_window, center_window_on_parent
+        from src.utils import configure_window, center_window_on_parent
         non_modal_config = {
             "overrideredirect": True,
             "topmost": True,
@@ -105,7 +105,7 @@ class TopWidget:
         center_window_on_parent(win, self.parent, 960, 85)
         
         # Apply drag and drop to the window
-        from src.ui.window_utils import apply_drag_and_drop
+        from src.utils import apply_drag_and_drop
         apply_drag_and_drop(win)
         
         # Handle window close event to clean up references

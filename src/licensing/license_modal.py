@@ -6,7 +6,7 @@ Modal window for entering and validating license codes.
 import customtkinter as ctk
 from typing import Callable, Optional
 from .license_validator import LicenseValidator
-from ..ui.window_utils import apply_drag_and_drop
+from ..utils import apply_drag_and_drop
 from ..config.settings import AppConfig
 
 class LicenseModal:
@@ -77,7 +77,7 @@ class LicenseModal:
             
         try:
             # Use window utilities for positioning
-            from src.ui.window_utils import center_window_on_parent
+            from src.utils import center_window_on_parent
             center_window_on_parent(
                 self.modal_window, 
                 self.parent, 
@@ -87,7 +87,7 @@ class LicenseModal:
         except Exception as e:
             print(f"Error calculating modal position: {e}")
             # Fallback to center of screen
-            from src.ui.window_utils import center_window_on_screen
+            from src.utils import center_window_on_screen
             center_window_on_screen(
                 self.modal_window,
                 AppConfig.DIALOG_EXPANDED_WIDTH,

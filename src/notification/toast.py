@@ -185,7 +185,7 @@ def _build_toast_window(
     timers: list[Any] = []
 
     # ---------- Top-level window ----------
-    from src.ui.window_utils import create_toast_window, configure_window, WindowConfig
+    from src.utils import create_toast_window, configure_window, WindowConfig
     toast = create_toast_window(TOAST_WIDTH, 100)  # Height will be adjusted dynamically
     toast.attributes("-alpha", 0.0)  # start fully transparent for fade-in
     toast.attributes("-toolwindow", True)  # prevent taskbar icon

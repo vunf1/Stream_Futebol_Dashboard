@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from typing import Any, Callable, Dict, List, Optional
-from ..window_utils import create_popup_dialog
+from ...utils import create_popup_dialog
 
 class Autocomplete(ctk.CTkFrame):
     def __init__(

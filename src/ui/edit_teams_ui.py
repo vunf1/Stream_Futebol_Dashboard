@@ -4,7 +4,7 @@ from src.core import prompt_for_pin
 from src.ui import get_icon_path, get_icon
 from src.notification import show_message_notification
 from src.config.settings import AppConfig
-from src.ui.window_utils import top_centered_child_to_parent
+from src.utils import top_centered_child_to_parent
 import re
 
 # Color constants from AppConfig - using AppConfig directly
@@ -45,7 +45,7 @@ class TeamManagerWindow(ctk.CTkToplevel):
         self.iconbitmap(get_icon_path("gear"))
         
         # Apply window configuration using utilities
-        from src.ui.window_utils import configure_window, WindowConfig
+        from src.utils import configure_window, WindowConfig
         configure_window(self, WindowConfig.MODAL_DIALOG, parent)
         
         # Center the child window at the top of the parent
@@ -653,7 +653,7 @@ class EditTeamPopup(ctk.CTkToplevel):
         self.iconbitmap(get_icon_path("icon_soft")) 
         
         # Apply window configuration using utilities
-        from src.ui.window_utils import configure_window, WindowConfig, center_window_on_screen
+        from src.utils import configure_window, WindowConfig, center_window_on_screen
         configure_window(self, WindowConfig.MODAL_DIALOG)
         center_window_on_screen(self, 400, 320)
 
