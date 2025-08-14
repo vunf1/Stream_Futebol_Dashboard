@@ -2,7 +2,7 @@ import customtkinter as ctk
 from typing import Optional, Callable, Any
 from customtkinter import CTkFrame, CTkButton, CTkLabel, CTkToplevel
 
-from src.ui import add_footer_label, get_icon
+from src.ui import get_icon
 from src.core import GameInfoStore
 from src.core import MongoTeamManager
 

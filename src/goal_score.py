@@ -372,7 +372,9 @@ class ScoreApp:
                 json=self.json
             )
             
-            add_footer_label(self.ui_container)
+            # Add footer with license status and activation capabilities
+            from src.ui.footer_label import add_license_footer
+            add_license_footer(self.ui_container)
             
             # Make the body draggable
             self._make_body_draggable()
@@ -632,7 +634,8 @@ def ask_instance_count_ui() -> int:
 
     ctk.CTkButton(window, text="Abrir", command=confirm).pack(pady=10)
 
-    add_footer_label(window)
+    from src.ui.footer_label import add_full_footer
+    add_full_footer(window)
     window.mainloop()
     return result["value"]
 

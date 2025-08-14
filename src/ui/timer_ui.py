@@ -8,7 +8,7 @@ from src.core import GameInfoStore, DEFAULT_FIELD_STATE
 from src.notification import show_message_notification
 from src.core import get_config
 # Performance monitoring - removed old imports, using new performance system
-from src.ui import add_footer_label
+# Footer import moved to where it's used
 
 # Constants
 BUTTON_PAD = dict(padx=5, pady=5)
@@ -196,8 +196,9 @@ class TimerComponent(ctk.CTkFrame):
         self._build_time_entries(start_col=TIME_START_COL, specs=time_fields)
         self._build_controls(start_col=CTRL_START_COL, specs=controls)
         
-        # Add footer
-        add_footer_label(self, f"Campo {self.instance_number}")
+        # Add footer with custom copyright text
+        from src.ui.footer_label import add_simple_footer
+        add_simple_footer(self, f"Campo {self.instance_number}")
 
     def _configure_grid(self, container, cols: int):
         # two rows: row 0 = entries/buttons, row 1 = labels

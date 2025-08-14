@@ -30,7 +30,7 @@ class LicenseDetailsWindow:
         self.window = create_modal_dialog(
             self.parent,
             "License Details",
-            AppConfig.DIALOG_WIDTH,
+            AppConfig.DIALOG_WIDTH + 100,
             AppConfig.DIALOG_HEIGHT + 175
         )
         
@@ -261,34 +261,17 @@ class LicenseDetailsWindow:
         self.company_label.pack(anchor="w", pady=(5, 0))
         
     def _create_footer(self, parent):
-        """Create the footer with close button and copyright."""
-        # Footer frame - fixed at bottom
-        footer_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        footer_frame.pack(side="bottom", fill="x", padx=6, pady=(10, 5))
+        """Create the footer with close button and copyright using the new customizable footer."""
+        from src.ui.footer_label import add_simple_footer
         
-        # Footer label (left side)
-        footer = ctk.CTkLabel(
-            footer_frame, 
-            text="© 2025 Vunf1", 
-            font=(AppConfig.FONT_FAMILY_EMOJI, 10), 
-            text_color=AppConfig.COLORS["text_secondary"]
+        # Use the new customizable footer with custom close command
+        footer_frame = add_simple_footer(
+            parent=parent,
+            copyright_text="© 2025 Vunf1",
+            close_command=self._on_close
         )
-        footer.pack(side="left")
         
-        # Close button (X) - Modern transparent design
-        close_button = ctk.CTkButton(
-            footer_frame, 
-            text="✕", 
-            width=24, 
-            height=24,
-            font=(AppConfig.FONT_FAMILY_EMOJI, 12, "bold"),
-            fg_color="transparent",
-            hover_color=AppConfig.COLORS["surface"],
-            text_color=AppConfig.COLORS["text_secondary"],
-            corner_radius=12,
-            command=self._on_close
-        )
-        close_button.pack(side="right", padx=(3, 0))
+        return footer_frame
         
     def _load_license_data(self):
         """Load and display license data."""

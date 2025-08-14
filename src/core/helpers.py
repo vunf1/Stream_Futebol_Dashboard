@@ -47,133 +47,79 @@ def prompt_for_pin(parent):
         print("❌ No PIN found in environment variables")
         return False
     while True:
-        # Create CTkToplevel window directly for full control
+        # Create modal dialog using window_utils but with minimal initial configuration
         print("🔐 Creating PIN prompt window...")
+        from ..ui.window_utils import create_modal_dialog, center_window_on_screen_with_offset
         
-        # Create window but keep it hidden initially
+        # Create window with minimal configuration to prevent flickering
         win = ctk.CTkToplevel(parent)
         win.title("PIN")
-        win.geometry("320x200")
+        win.geometry("320x176")
         
-        # Configure window properties
-        win.resizable(False, False)  # Fixed size
-        win.transient(parent)         # Make it a transient window
-        win.grab_set()                # Modal behavior
+        # Hide window immediately to prevent any visual flash
+        win.withdraw()
+        
+        # Position window while hidden
+        center_window_on_screen_with_offset(win, 320, 176, -50)
         
         print(f"🔐 PIN window created: {win}")
         print(f"🔐 PIN window exists: {win.winfo_exists()}")
-        
-        # Hide window immediately to prevent flash
-        win.withdraw()
         
         # Create all UI components while window is hidden
         # Main container with modern styling
         main_frame = ctk.CTkFrame(
             win, 
             fg_color=("gray95", "gray15"),
-            corner_radius=16,
-            border_width=2,
-            border_color=("gray80", "gray30")
+            corner_radius=16
         )
-        main_frame.pack(fill="both", expand=True, padx=2, pady=2)
+        main_frame.pack(fill="both", expand=True, padx=4, pady=4)
         
-        # Header section
+        # Header section (reduced size)
         header_frame = ctk.CTkFrame(
             main_frame,
             fg_color=("gray90", "gray20"),
-            corner_radius=12
+            corner_radius=8
         )
-        header_frame.pack(fill="x", padx=12, pady=(12, 8))
+        header_frame.pack(fill="x", padx=12, pady=(8, 6))
         
-        # Title with icon
+        # Title with icon (smaller font and padding)
         title_label = ctk.CTkLabel(
             header_frame,
             text="🔐 Admin Access Required",
-            font=("Segoe UI", 16, "bold"),
+            font=("Segoe UI", 12, "bold"),
             text_color=("gray20", "gray90")
         )
-        title_label.pack(pady=8)
+        title_label.pack(pady=4)
         
-        # Subtitle
+        # Subtitle (smaller font and padding)
         subtitle_label = ctk.CTkLabel(
             header_frame,
             text="Please enter your PIN to continue",
-            font=("Segoe UI", 12),
+            font=("Segoe UI", 9),
             text_color=("gray50", "gray60")
         )
-        subtitle_label.pack(pady=(0, 8))
+        subtitle_label.pack(pady=(0, 4))
         
-        # Input section
+        # Input section (adjusted spacing)
         input_frame = ctk.CTkFrame(
             main_frame,
             fg_color="transparent"
         )
         input_frame.pack(fill="x", padx=20, pady=8)
         
-        # PIN entry with better styling
+        # PIN entry with better styling (reduced height)
         entry = ctk.CTkEntry(
             input_frame,
             show="•",
             width=240,
-            height=40,
-            font=("Segoe UI", 14),
+            height=32,
+            font=("Segoe UI", 12),
             placeholder_text="Enter PIN...",
-            corner_radius=10,
+            corner_radius=8,
             border_width=2,
             border_color=("gray70", "gray40")
         )
-        entry.pack(pady=8)
-        entry.after(50, entry.focus)  # Faster focus (was 100ms, now 50ms)
-        
-        # Small close button below input field
-        close_btn = ctk.CTkButton(
-            input_frame,
-            text="✕",
-            width=28,
-            height=28,
-            font=("Segoe UI", 12, "bold"),
-            corner_radius=14,
-            fg_color="transparent",
-            hover_color=("gray90", "gray10"),
-            text_color=("gray60", "gray40"),
-            border_width=0
-        )
-        close_btn.pack(pady=(5, 0))
-        
-        # Buttons section
-        buttons_frame = ctk.CTkFrame(
-            main_frame,
-            fg_color="transparent"
-        )
-        buttons_frame.pack(fill="x", padx=20, pady=(8, 16))
-        
-        # Submit button
-        submit_btn = ctk.CTkButton(
-            buttons_frame,
-            text="Submit",
-            width=100,
-            height=36,
-            font=("Segoe UI", 12, "bold"),
-            corner_radius=10,
-            fg_color=("gray70", "gray30"),
-            hover_color=("gray60", "gray40"),
-            command=lambda: None  # Will be set below
-        )
-        submit_btn.pack(side="left", padx=(0, 8))
-        
-        # Cancel button
-        cancel_btn = ctk.CTkButton(
-            buttons_frame,
-            text="Cancel",
-            width=100,
-            height=36,
-            font=("Segoe UI", 12),
-            corner_radius=10,
-            fg_color=("gray60", "gray25"),
-            hover_color=("gray50", "gray35"),
-            command=lambda: None  # Will be set below
-        )
-        cancel_btn.pack(side="right", padx=(8, 0))
+        entry.pack(pady=6)
         
         # Ensure proper cleanup
         result: dict[str, Optional[str]] = {"value": None}
@@ -187,36 +133,69 @@ def prompt_for_pin(parent):
                 print(f"🔐 Error during cleanup: {e}")
                 pass
         
-        # Position window centered on screen while still hidden to prevent flickering
-        from ..ui.window_utils import center_window_on_screen_with_offset
-        # Center the PIN window on screen with upward offset for better UX
-        # Parameters: win, width, height, y_offset (negative = up)
-        center_window_on_screen_with_offset(win, 320, 200, -50)
+        # Add custom compact footer near the PIN entry
+        # Create footer frame with limited width
+        footer_frame = ctk.CTkFrame(main_frame, fg_color="transparent", height=25)
+        footer_frame.pack(fill="x", padx=8, pady=(2, 8))
+        footer_frame.pack_propagate(False)  # Maintain height
+        
+        # Create a constrained row container for footer elements
+        footer_row = ctk.CTkFrame(footer_frame, fg_color="transparent")
+        footer_row.pack(expand=True, fill="both", pady=2)
+        
+        # Left side - Copyright (constrained width)
+        copyright_container = ctk.CTkFrame(footer_row, fg_color="transparent")
+        copyright_container.pack(side="left", fill="y", padx=(4, 0))
+        
+        copyright_label = ctk.CTkLabel(
+            copyright_container, 
+            text="© 2025 Vunf1", 
+            font=("Segoe UI Emoji", 9), 
+            text_color="gray"
+        )
+        copyright_label.pack(side="left")
+        
+        # Center spacer to push close button to right
+        spacer = ctk.CTkFrame(footer_row, fg_color="transparent")
+        spacer.pack(side="left", expand=True, fill="x")
+        
+        # Right side - Close button (constrained width)
+        close_container = ctk.CTkFrame(footer_row, fg_color="transparent")
+        close_container.pack(side="right", fill="y", padx=(0, 4))
+        
+        close_button = ctk.CTkButton(
+            close_container, 
+            text="✕", 
+            width=20, 
+            height=20,
+            font=("Segoe UI Emoji", 10, "bold"),
+            fg_color="transparent",
+            hover_color="#2b2b2b",
+            text_color="#888888",
+            corner_radius=10,
+            command=cleanup
+        )
+        close_button.pack(side="right")
+        
+        # Now apply all window configuration at once while still hidden
+        win.overrideredirect(True)
+        win.resizable(False, False)
+        
+        # Ensure all UI updates are complete before showing
+        win.update_idletasks()
         
         # Now show the fully configured and positioned window
         win.deiconify()
-        win.update_idletasks()
         
-        # Ensure proper focus and stacking
-        win.lift()
-        win.focus_force()
-        
-        # Additional visibility enforcement
+        # Apply modal behavior and focus only after window is visible
+        win.grab_set()
         win.attributes('-topmost', True)
-        win.attributes('-alpha', 1.0)
-        win.state('normal')
+        win.lift()
         
-        print(f"🔐 PIN window position: {win.winfo_x()}, {win.winfo_y()}")
-        print(f"🔐 PIN window size: {win.winfo_width()}x{win.winfo_height()}")
-        print(f"🔐 PIN window visible: {win.winfo_viewable()}")
-        
-        # Final visibility check and enforcement
-        if not win.winfo_viewable():
-            print("⚠️ Window not viewable, forcing visibility...")
-            win.update()
-            win.deiconify()
-            win.lift()
-            win.focus_force()
+        # Focus management
+        print("🔐 Setting window focus...")
+        win.focus_force()
+        entry.focus_set()
         
         # Define event handlers
         def on_submit(event=None):
@@ -231,17 +210,10 @@ def prompt_for_pin(parent):
             result["value"] = None
             cleanup()
         
-        # Bind events
+        # Bind keyboard events only
         entry.bind("<Return>", on_submit)
         entry.bind("<Escape>", on_cancel)
-        submit_btn.configure(command=on_submit)
-        cancel_btn.configure(command=on_cancel)
-        close_btn.configure(command=on_close)
         
-        # Focus management
-        print("🔐 Setting window focus...")
-        win.focus_force()
-        entry.focus_set()
         print("🔐 Waiting for window to close...")
         
         win.wait_window()
