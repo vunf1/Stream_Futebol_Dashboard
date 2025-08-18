@@ -7,7 +7,7 @@ CONFIG = {
     "spec_filename": "Apitofinal.spec",
     "app_name": "Apitofinal",
     "entry_script": "src/goal_score.py",
-    "icon_path": "src/ui/icons/icon_soft.ico",
+    "icon_path": "src/ui/icons/app_icon.ico",
     "version_file": "version.txt",
 
     # Hidden imports actually needed
