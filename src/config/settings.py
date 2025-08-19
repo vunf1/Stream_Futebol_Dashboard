@@ -208,6 +208,7 @@ class AppConfig:
         "timer": "00:00",
         "extra": "00:00",
         "max": "45:00",
+        "penalties": None,  # Penalty shootout state
     }
     
     @classmethod

@@ -42,11 +42,12 @@ class TopWidget:
         header.pack(fill="x", padx=6, pady=3)  # Reduced padding from 10,5 to 6,3
         
         # Configure grid for equal columns
-        for col in range(6):
+        for col in range(8):
             header.grid_columnconfigure(col, weight=1, uniform="col")
         bg = ctk.ThemeManager.theme["CTkFrame"]["fg_color"]
-        icon = get_icon("stopwatch", 34)
+        
         # Create the "Open Timer" button
+        icon = get_icon("stopwatch", 34)
         open_timer_btn = CTkButton(
             header,
             image=icon,
@@ -58,9 +59,21 @@ class TopWidget:
         )
         open_timer_btn.grid(row=0, column=1, columnspan=2, sticky="nsew")
         
+        # Create the "Penalty Shootout" button
+        icon = get_icon("dice", 34)
+        penalty_btn = CTkButton(
+            header,
+            image=icon,
+            text="",
+            fg_color="transparent",
+            corner_radius=20,
+            command=self._open_penalty_window,
+            hover_color=bg,  
+        )
+        penalty_btn.grid(row=0, column=3, columnspan=2, sticky="nsew")
 
-        icon = get_icon("reload", 68)
         # Create the backup button
+        icon = get_icon("reload", 68)
         backup_btn = CTkButton(
             header,
             image=icon,
@@ -70,7 +83,7 @@ class TopWidget:
             command=lambda: self._trigger_backup_with_feedback(),  # Backup teams to JSON
             hover_color=bg,  
         )
-        backup_btn.grid(row=0, column=3, columnspan=2, sticky="nsew")
+        backup_btn.grid(row=0, column=5, columnspan=2, sticky="nsew")
 
     def _open_timer_window(self):
         # Check if timer window is already open for this instance
@@ -136,6 +149,17 @@ class TopWidget:
         # Check if timer was running before
         if self._was_running and hasattr(self, '_timer_component') and self._timer_component:
             self._timer_component.start_timer()
+
+    def _open_penalty_window(self):
+        """Open penalty shootout dashboard window"""
+        try:
+            from src.ui.penalty import open_penalty_dashboard
+            open_penalty_dashboard(self.parent, self.instance_number)
+        except Exception as e:
+            print(f"Error opening penalty dashboard: {e}")
+            # Fallback: show error message
+            import tkinter.messagebox as messagebox
+            messagebox.showerror("Error", f"Failed to open penalty dashboard: {e}")
 
 
 

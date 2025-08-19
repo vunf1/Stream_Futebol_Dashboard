@@ -15,6 +15,9 @@ from .timer_ui import TimerComponent
 from .edit_teams_ui import TeamManagerWindow, EditTeamPopup
 from .teamsUI.teams_ui import TeamInputManager
 
+# Penalty shootout dashboard
+from .penalty import open_penalty_dashboard
+
 # Window utilities and base classes - now imported from utils
 from ..utils import (
     WindowConfig,
@@ -52,6 +55,9 @@ __all__ = [
     'TeamManagerWindow',
     'EditTeamPopup',
     'TeamInputManager',
+    
+    # Penalty shootout
+    'open_penalty_dashboard',
     
     # Window utilities
     'WindowConfig',
