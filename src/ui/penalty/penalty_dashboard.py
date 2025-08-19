@@ -69,6 +69,10 @@ class PenaltyDashboard(ctk.CTkToplevel):
         self.allow_edits_after_finish = False
         self._updating_ui = False
         
+        # Performance optimizations
+        self._last_ui_state = None
+        self._update_pending = False
+        
         # Configure window
         self._configure_window()
         
@@ -313,6 +317,29 @@ class PenaltyDashboard(ctk.CTkToplevel):
         """Refresh team data cache - call if team names change during game"""
         self._cached_team_names = None
         self._cache_team_data()
+    
+    def _extend_arrays_if_needed(self, index: int):
+        """Extend penalty arrays to accommodate the given index"""
+        while len(self.penalty_state.home) <= index:
+            self.penalty_state.home.append("pending")
+        while len(self.penalty_state.away) <= index:
+            self.penalty_state.away.append("pending")
+    
+    def _update_state_and_ui(self, save_history: bool = True, persist: bool = True):
+        """Unified method to update state, recompute logic, update UI, and save"""
+        # Recompute logic
+        self._recompute_penalty_logic()
+        
+        # Update UI
+        self._update_ui_from_state()
+        
+        # Save to history if requested
+        if save_history:
+            self._save_to_history()
+        
+        # Persist immediately if requested
+        if persist:
+            self._persist_state()
     
     def _is_penalty_reset(self) -> bool:
         """Check if penalties were reset to initial state"""
@@ -591,11 +618,8 @@ class PenaltyDashboard(ctk.CTkToplevel):
             messagebox.showwarning("Penalty Finished", "Penalty shootout is finished. Enable 'Allow edits after finish' to continue editing.")
             return
         
-        # Ensure arrays are long enough
-        while len(self.penalty_state.home) <= index:
-            self.penalty_state.home.append("pending")
-        while len(self.penalty_state.away) <= index:
-            self.penalty_state.away.append("pending")
+        # Extend arrays if needed
+        self._extend_arrays_if_needed(index)
         
         # Set to goal
         if team == "home":
@@ -603,16 +627,8 @@ class PenaltyDashboard(ctk.CTkToplevel):
         else:
             self.penalty_state.away[index] = "goal"
         
-        # Recompute logic
-        self._recompute_penalty_logic()
-        
-        # Update UI
-        self._update_ui_from_state()
-        
-        # Save to history
-        self._save_to_history()
-        # Persist immediately
-        self._persist_state()
+        # Update state and UI
+        self._update_state_and_ui()
     
     def _on_miss_click(self, team: str, index: int):
         """Handle miss button click"""
@@ -620,11 +636,8 @@ class PenaltyDashboard(ctk.CTkToplevel):
             messagebox.showwarning("Penalty Finished", "Penalty shootout is finished. Enable 'Allow edits after finish' to continue editing.")
             return
         
-        # Ensure arrays are long enough
-        while len(self.penalty_state.home) <= index:
-            self.penalty_state.home.append("pending")
-        while len(self.penalty_state.away) <= index:
-            self.penalty_state.away.append("pending")
+        # Extend arrays if needed
+        self._extend_arrays_if_needed(index)
         
         # Set to fail
         if team == "home":
@@ -632,16 +645,8 @@ class PenaltyDashboard(ctk.CTkToplevel):
         else:
             self.penalty_state.away[index] = "fail"
         
-        # Recompute logic
-        self._recompute_penalty_logic()
-        
-        # Update UI
-        self._update_ui_from_state()
-        
-        # Save to history
-        self._save_to_history()
-        # Persist immediately
-        self._persist_state()
+        # Update state and UI
+        self._update_state_and_ui()
     
     def _on_initial_changed(self, event=None):
         """Handle initial penalties count change"""
@@ -658,16 +663,8 @@ class PenaltyDashboard(ctk.CTkToplevel):
             while len(self.penalty_state.away) < new_initial:
                 self.penalty_state.away.append("pending")
             
-            # Recompute logic
-            self._recompute_penalty_logic()
-            
-            # Update UI
-            self._update_ui_from_state()
-            
-            # Save to history
-            self._save_to_history()
-            # Persist immediately
-            self._persist_state()
+            # Update state and UI
+            self._update_state_and_ui()
             
         except ValueError:
             pass
@@ -683,10 +680,7 @@ class PenaltyDashboard(ctk.CTkToplevel):
             internal_value = value  # Fallback
             
         self.penalty_state.starts = internal_value
-        self._recompute_penalty_logic()
-        self._update_ui_from_state()
-        self._save_to_history()
-        self._persist_state()
+        self._update_state_and_ui()
     
     def _on_allow_edits_changed(self):
         """Handle allow edits after finish toggle"""
@@ -879,8 +873,28 @@ class PenaltyDashboard(ctk.CTkToplevel):
         return None
     
     def _update_ui_from_state(self):
-        """Update UI to reflect current state"""
+        """Update UI to reflect current state with performance optimizations"""
         if self._updating_ui:
+            return
+        
+        # Create a hash of current state to avoid unnecessary updates
+        # Convert dict to tuple for hashing
+        next_tuple = None
+        if self.penalty_state.next:
+            next_tuple = (self.penalty_state.next.get("team"), self.penalty_state.next.get("index"))
+        
+        current_state_hash = hash((
+            self.penalty_state.stage,
+            self.penalty_state.winner,
+            tuple(self.penalty_state.home),
+            tuple(self.penalty_state.away),
+            next_tuple,
+            self.penalty_state.initial,
+            self.penalty_state.starts
+        ))
+        
+        # Skip update if state hasn't changed
+        if self._last_ui_state == current_state_hash:
             return
         
         self._updating_ui = True
@@ -895,10 +909,7 @@ class PenaltyDashboard(ctk.CTkToplevel):
                 target_idx = int(self.penalty_state.next.get("index", -1))
                 if target_idx >= 0:
                     # Extend both arrays to keep rows aligned
-                    while len(self.penalty_state.home) <= target_idx:
-                        self.penalty_state.home.append("pending")
-                    while len(self.penalty_state.away) <= target_idx:
-                        self.penalty_state.away.append("pending")
+                    self._extend_arrays_if_needed(target_idx)
 
             # Update penalty grid
             self._update_penalty_grid()
@@ -920,6 +931,9 @@ class PenaltyDashboard(ctk.CTkToplevel):
                 home_display, away_display = self._get_team_display_names()
                 winner_text = home_display if self.penalty_state.winner == "home" else away_display
             self.winner_label.configure(text=f"Winner: {winner_text}")
+            
+            # Update state hash
+            self._last_ui_state = current_state_hash
             
         finally:
             self._updating_ui = False
@@ -952,10 +966,7 @@ class PenaltyDashboard(ctk.CTkToplevel):
         """Reset penalty shootout to initial state"""
         if messagebox.askyesno("Reset Penalties", "Are you sure you want to reset the penalty shootout?"):
             self.penalty_state = PenaltyState()
-            self._recompute_penalty_logic()
-            self._update_ui_from_state()
-            self._save_to_history()
-            self._persist_state()
+            self._update_state_and_ui()
     
     def _load_penalty_state(self) -> PenaltyState:
         """Load penalty state from gameinfo.json with fast caching"""
@@ -973,8 +984,7 @@ class PenaltyDashboard(ctk.CTkToplevel):
     def _save_penalties(self):
         """Save penalty state to gameinfo.json with fast persistence"""
         try:
-            # GameInfoStore uses efficient batch writing and caching
-            self.game_store.set("penalties", self.penalty_state.to_dict())
+            self._persist_state()
             messagebox.showinfo("Saved", "Penalty shootout state saved successfully!")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save penalty state: {e}")
@@ -991,8 +1001,7 @@ class PenaltyDashboard(ctk.CTkToplevel):
         """Start auto-save timer with optimized GameInfoStore"""
         def auto_save():
             try:
-                # GameInfoStore handles efficient buffering and disk writes
-                self.game_store.set("penalties", self.penalty_state.to_dict())
+                self._persist_state()
             except Exception as e:
                 print(f"Auto-save error: {e}")
             finally:
@@ -1004,9 +1013,8 @@ class PenaltyDashboard(ctk.CTkToplevel):
     
     def on_closing(self):
         """Handle window closing with optimized save"""
-        # Save current state using efficient GameInfoStore
         try:
-            self.game_store.set("penalties", self.penalty_state.to_dict())
+            self._persist_state()
         except Exception as e:
             print(f"Error saving on close: {e}")
         
