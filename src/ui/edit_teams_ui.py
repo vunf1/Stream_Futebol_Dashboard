@@ -650,7 +650,7 @@ class EditTeamPopup(ctk.CTkToplevel):
 
         self.title("Edit Team")
         self.geometry("400x320")
-        self.iconbitmap(get_icon_path("icon_soft")) 
+        self.iconbitmap(get_icon_path("app_icon")) 
         
         # Apply window configuration using utilities
         from src.utils import configure_window, WindowConfig, center_window_on_screen

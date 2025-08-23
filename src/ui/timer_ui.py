@@ -94,7 +94,7 @@ class TimerComponent(ctk.CTkFrame):
         icons = {}
         icon_specs = [
             ("1half", 44), ("2half", 44), ("save", 24),
-            ("play", 32), ("pause", 32), ("stop", 32)
+            ("play", 32), ("pause", 32), ("stop", 32), ("penalties", 60)
         ]
         
         for name, size in icon_specs:
@@ -119,7 +119,14 @@ class TimerComponent(ctk.CTkFrame):
         CORNER = 8
         self.half_buttons = {}
 
-        for idx, (label, icon_name) in enumerate((("1ª Parte", "1half"), ("2ª Parte", "2half"))):
+        # Create buttons for 1ª Parte, 2ª Parte, and Penalties
+        button_configs = [
+            ("1ª Parte", "1half"),
+            ("2ª Parte", "2half"),
+            ("Pênaltis", "penalties")
+        ]
+
+        for idx, (label, icon_name) in enumerate(button_configs):
             icon = self._icons.get(icon_name)
             if not icon:
                 continue
@@ -183,10 +190,10 @@ class TimerComponent(ctk.CTkFrame):
             ("stop",  self.reset_timer, AppConfig.COLOR_ERROR),
         ]
 
-        # layout: [half1][half2] [save] [max][timer][extra] [play][pause][stop]
-        HALF_COLS = 2
-        SAVE_COL  = 2
-        TIME_START_COL = 3
+        # layout: [half1][half2][penalties] [save] [max][timer][extra] [play][pause][stop]
+        HALF_COLS = 3
+        SAVE_COL  = 3
+        TIME_START_COL = 4
         CTRL_START_COL = TIME_START_COL + len(time_fields)
         total_cols = HALF_COLS + 1 + len(time_fields) + len(controls)
 

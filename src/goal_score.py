@@ -15,6 +15,7 @@ from src.notification import init_notification_queue, server_main
 from src.core import get_config
 from src.licensing import LicenseBlocker
 from src.config import AppConfig
+from src.core.server_launcher import start_server_after_license, stop_server_on_exit
 
 # Global variable to track instance positions for cascade effect
 _instance_positions = {}
@@ -64,6 +65,14 @@ class ScoreApp:
         
         # Check license BEFORE initializing any components
         self._check_license_first()
+
+    def __del__(self):
+        """Cleanup when the ScoreApp instance is destroyed."""
+        try:
+            if hasattr(self, 'license_blocker'):
+                self.license_blocker = None
+        except Exception:
+            pass  # Ignore cleanup errors
 
     def _position_window(self, instance_number: int):
         """Position the window in center for first instance, cascade for subsequent ones"""
@@ -152,7 +161,7 @@ class ScoreApp:
         global _instance_positions
         
         # Stop license blocker notification listener if it exists
-        if hasattr(self, 'license_blocker'):
+        if hasattr(self, 'license_blocker') and self.license_blocker is not None:
             self.license_blocker.stop_notification_listener()
         
         # Stop spinner animation and hide loading indicator
@@ -402,7 +411,7 @@ class ScoreApp:
             self.root.attributes("-alpha", self.opacity)
             
             # Start periodic license checking to ensure app stays secure
-            if hasattr(self, 'license_blocker'):
+            if hasattr(self, 'license_blocker') and self.license_blocker is not None:
                 self.license_blocker.start_periodic_check(AppConfig.LICENSE_CHECK_INTERVAL)
                 print("Periodic license checking started")
             else:
@@ -520,6 +529,9 @@ class ScoreApp:
         # Update loading message to show license validation success
         self._update_loading_message("License validated, initializing components...")
         
+        # Start the server after license validation
+        self._start_server_after_license()
+        
         # Start database connection in background
         def init_database():
             self.mongo = MongoTeamManager()
@@ -547,11 +559,61 @@ class ScoreApp:
         # Use a small delay for UI setup to ensure smooth transition
         self.root.after(100, self._fast_setup_ui)
     
+    def _start_server_after_license(self):
+        """Start the futebol-server.exe after license validation"""
+        try:
+            print("🚀 Starting server after license validation...")
+            print(f"📍 Current time: {__import__('time').time()}")
+            print(f"📍 Instance number: {self.instance_number}")
+            
+            # Check environment first
+            import sys
+            frozen = getattr(sys, 'frozen', False)
+            meipass = getattr(sys, '_MEIPASS', None)
+            print(f"🔍 Main app environment check:")
+            print(f"   - sys.frozen: {frozen}")
+            print(f"   - sys._MEIPASS: {meipass}")
+            print(f"   - Environment: {'Bundle' if frozen else 'Development'}")
+            
+            # Check if server is already running
+            from src.core.server_launcher import get_server_launcher
+            launcher = get_server_launcher()
+            print(f"📍 Server launcher instance: {launcher}")
+            print(f"📍 Server already running: {launcher.is_server_running()}")
+            
+            # Check if we're in development mode
+            if not frozen:
+                print("🚫 Development mode detected - server startup skipped")
+                print("📍 Server will only start when running as bundled executable")
+                return  # Exit early in development mode
+            
+            # Only proceed with server startup in bundle mode
+            if start_server_after_license():
+                print("✅ Server started successfully after license validation")
+                
+                # Verify it's actually running
+                time.sleep(1)  # Wait a moment
+                is_running = launcher.is_server_running()
+                print(f"📍 Server confirmed running: {is_running}")
+                
+                if is_running:
+                    print("🎉 Server is confirmed to be running!")
+                else:
+                    print("⚠️ Server started but not running - this indicates an issue")
+                    
+            else:
+                print("⚠️ Failed to start server after license validation")
+                
+        except Exception as e:
+            print(f"❌ Error starting server after license validation: {e}")
+            import traceback
+            traceback.print_exc()
+
     def _on_license_activated(self):
         """Handle successful license activation and continue with app setup"""
         print("License activated successfully, continuing with app setup...")
         # Remove any blocking UI
-        if hasattr(self, 'license_blocker'):
+        if hasattr(self, 'license_blocker') and self.license_blocker is not None:
             self.license_blocker._remove_blocking()
         
         # Clean up existing UI components to prevent duplication
@@ -562,6 +624,14 @@ class ScoreApp:
         
         # Update loading message to show license activation success
         self._update_loading_message("License activated, continuing setup...")
+        
+        # Start the server after license activation
+        # Check if we're in development mode first
+        import sys
+        if getattr(sys, 'frozen', False):
+            self._start_server_after_license()
+        else:
+            print("🚫 Development mode detected - server startup skipped during license activation")
         
         # Continue with app setup
         self._initialize_components_after_license()
@@ -598,6 +668,9 @@ def start_instance(instance_number: int):
     This function creates a new custom Tkinter (CTk) root window, initializes the ScoreApp
     with the given instance number, and starts the main event loop.
     """
+    # Server cleanup is already registered in main() function
+    # No need to register it again here
+    
     root = ctk.CTk()
     app = ScoreApp(root, instance_number)
     root.mainloop()
@@ -654,6 +727,10 @@ def child_entry(instance_number, notification_queue):
 
 def main():
     ctk.set_appearance_mode("system")
+    
+    # Register server cleanup on exit
+    import atexit
+    atexit.register(stop_server_on_exit)
 
     count = ask_instance_count_ui()
     if not count:

@@ -257,7 +257,7 @@ class BuildWindow(ctk.CTk):
         except Exception:
             pass
         try:
-            self.iconbitmap(get_icon_path("icon_soft"))  # type: ignore
+            self.iconbitmap(get_icon_path("app_icon"))  # type: ignore
         except Exception:
             pass
         self.configure(fg_color="#222222")  # type: ignore

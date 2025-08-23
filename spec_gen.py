@@ -37,6 +37,7 @@ CONFIG = {
         (".env.enc", "."),
         ("secret.key", "."),
         ("src/ui/icons", "src/ui/icons"),
+        ("server/futebol-server.exe", "server"),  # Include server executable
     ],
 
     # Tk/Tcl pruning (keeps only EN/PT msg catalogs & drops demos)

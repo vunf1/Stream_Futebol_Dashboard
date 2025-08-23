@@ -119,6 +119,7 @@ class AppConfig:
     FIELD_PREFIX = "Campo_"
     TEAMS_BACKUP_FILENAME = "teams.json"
     GAMEINFO_FILENAME = "gameinfo.json"
+    SERVER_NAME_APP = "/server/futebol-server.exe"  # Server executable path from root
     
     # Environment File Settings
     ENV_ENCRYPTED_FILENAME = ".env.enc"

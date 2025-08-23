@@ -11,6 +11,7 @@ from .filenames import get_env
 from .helpers import save_teams_to_json, load_teams_from_json, prompt_for_pin
 from .mongodb import MongoTeamManager, _get_mongo_client
 from .gameinfo import GameInfoStore, DEFAULT_FIELD_STATE
+from .server_launcher import ServerLauncher, get_server_launcher, start_server_after_license, stop_server_on_exit
 
 __all__ = [
     'ConfigManager',
@@ -24,4 +25,8 @@ __all__ = [
     'GameInfoStore',
     'DEFAULT_FIELD_STATE',
     '_get_mongo_client',
+    'ServerLauncher',
+    'get_server_launcher',
+    'start_server_after_license',
+    'stop_server_on_exit',
 ]
