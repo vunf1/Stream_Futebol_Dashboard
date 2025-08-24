@@ -6,34 +6,43 @@ from typing import Dict, List, Optional, Any
 import customtkinter as ctk
 
 from .filenames import BASE_FOLDER_PATH, get_env
+from ..core.file_cache import read_json_cached, write_json_sync
+from ..core.logger import get_logger
 from ..config import AppConfig
 
+
+_log = get_logger(__name__)
 
 def save_teams_to_json(teams):
     json_path = os.path.join(BASE_FOLDER_PATH, AppConfig.TEAMS_BACKUP_FILENAME)
     try:
-        with open(json_path, "w", encoding="utf-8") as f:
-            json.dump(teams, f, indent=4, ensure_ascii=False)
-        print(f"📁 Backup JSON criado: {json_path}")
+        # Atomic write via file cache
+        write_json_sync(json_path, teams if isinstance(teams, dict) else {})
+        try:
+            _log.info("teams_backup_saved", extra={"path": json_path})
+        except Exception:
+            pass
     except Exception as e:
-        print(f"❌ Falha ao criar backup JSON: {e}")
+        try:
+            _log.error("teams_backup_save_failed", extra={"path": json_path}, exc_info=True)
+        except Exception:
+            pass
         return
         
 def load_teams_from_json():
     json_path = os.path.join(BASE_FOLDER_PATH, AppConfig.TEAMS_BACKUP_FILENAME)
     try:
-        with open(json_path, "r", encoding="utf-8") as f:
-            teams = json.load(f)
-        print(f"📥 Backup JSON carregado: {json_path}")
-        return teams
-    except FileNotFoundError:
-        print(f"⚠️ Arquivo de backup não encontrado: {json_path}")
-        return False
-    except json.JSONDecodeError as e:
-        print(f"❌ Falha ao decodificar JSON em '{json_path}': {e}")
-        return False
+        data = read_json_cached(json_path, {})
+        try:
+            _log.info("teams_backup_loaded", extra={"path": json_path})
+        except Exception:
+            pass
+        return data or False
     except Exception as e:
-        print(f"❌ Erro ao carregar backup JSON: {e}")
+        try:
+            _log.error("teams_backup_load_failed", extra={"path": json_path}, exc_info=True)
+        except Exception:
+            pass
         return False
     
 def prompt_for_pin(parent):

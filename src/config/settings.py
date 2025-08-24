@@ -126,6 +126,18 @@ class AppConfig:
     LOCAL_APP_DIRNAME = "ApitoFinal"  # Stable per-user app data directory
     SERVER_CACHE_DIRNAME = "server"   # Subdir for cached server binary
     SERVER_STARTUP_WAIT_MS = 200  # Wait after launch before checking status (optimized)
+    SERVER_HEALTH_URL = "http://localhost:5000/"  # Health check endpoint
+    SERVER_HEALTH_TIMEOUT_MS = 5000  # Max wait for health (total)
+    SERVER_HEALTH_RETRY_MS = 300  # Retry interval
+    SERVER_LOG_MAX_BYTES = 5 * 1024 * 1024  # 5 MB
+    SERVER_LOG_BACKUPS = 3  # Number of rotated logs to keep
+    SERVER_WATCHDOG_ENABLED = False  # Optional auto-restart on unexpected exit
+    SERVER_WATCHDOG_MAX_ATTEMPTS = 5
+    SERVER_WATCHDOG_WINDOW_MS = 10 * 60 * 1000  # 10 minutes
+    SERVER_WATCHDOG_COOLDOWN_MS = 5 * 60 * 1000  # 5 minutes
+    SERVER_WATCHDOG_BACKOFF_BASE_MS = 500
+    SERVER_WATCHDOG_BACKOFF_CAP_MS = 30000
+    SERVER_WATCHDOG_JITTER_PCT = 0.1  # +/-10%
     
     # Environment File Settings
     ENV_ENCRYPTED_FILENAME = ".env.enc"

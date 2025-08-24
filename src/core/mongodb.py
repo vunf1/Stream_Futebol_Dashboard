@@ -8,6 +8,8 @@ from src.notification import show_message_notification
 import threading
 import time
 from typing import Optional, Dict
+from src.config.settings import AppConfig
+from src.core.logger import get_logger
 
 # Global connection pool
 _mongo_client = None
@@ -98,8 +100,9 @@ class SmartTeamCache:
         self._last_access = time.time()
 
 # Global smart cache instance
-_teams_cache = SmartTeamCache()
+_teams_cache = SmartTeamCache(base_ttl=int(getattr(AppConfig, "UI_UPDATE_DEBOUNCE", 50)) * 6)
 _teams_cache_timestamp = 0
+_log = get_logger(__name__)
 
 def _get_mongo_client():
     """Get or create MongoDB client with connection pooling"""
@@ -131,6 +134,13 @@ class MongoTeamManager:
 
         coll_name = get_env("MONGO_COLLECTION")
         self.collection = self.db[coll_name]
+        try:
+            self.collection.create_index("name", unique=True)
+        except Exception:
+            try:
+                _log.warning("mongo_index_create_failed", exc_info=True)
+            except Exception:
+                pass
         
         # Background sync thread for JSON updates
         self._json_sync_pending = False
@@ -158,10 +168,13 @@ class MongoTeamManager:
             # Schedule background JSON update
             self._schedule_json_update()
             
-            if result.upserted_id:
-                print(f"✅ Inserted new team: {name_clean} -> {abbr_clean}")
-            else:
-                print(f"🔁 Updated team: {name_clean} -> {abbr_clean}")
+            try:
+                if result.upserted_id:
+                    _log.info("team_inserted", extra={"name": name_clean})
+                else:
+                    _log.info("team_updated", extra={"name": name_clean})
+            except Exception:
+                pass
                 
         except Exception as e:
             raise e
@@ -171,7 +184,10 @@ class MongoTeamManager:
         
         # Check smart cache first
         if _teams_cache.is_valid():
-            print("🔁 Teams Loaded (smart cached)")
+            try:
+                _log.debug("teams_loaded_cache")
+            except Exception:
+                pass
             return _teams_cache.get_all()
         
         # Load from database with projection for better performance
@@ -184,20 +200,31 @@ class MongoTeamManager:
             
             # Record database query performance
             query_time = time.time() - start_time
-
-            
+            try:
+                _log.debug("teams_query_ms", extra={"ms": int(query_time * 1000)})
+            except Exception:
+                pass
             # Update smart cache
             _teams_cache.set_teams(teams)
             
-            print("🔁 Teams Loaded (fresh from DB)")
+            try:
+                _log.info("teams_loaded_db")
+            except Exception:
+                pass
             return teams
             
         except ConnectionFailure as e:
-            print(f"❌ MongoDB connection failed: {e}")
+            try:
+                _log.error("mongo_connection_failed", exc_info=True)
+            except Exception:
+                pass
             # Return cached data if available, even if expired
             cached_teams = _teams_cache.get_all()
             if cached_teams:
-                print("🔁 Teams Loaded (stale cache)")
+                try:
+                    _log.warning("teams_loaded_stale_cache")
+                except Exception:
+                    pass
                 return cached_teams
             return {}
 
@@ -245,13 +272,19 @@ class MongoTeamManager:
         try:
             existing_teams = load_teams_from_json()
             if existing_teams == teams:
-                print("🔄 Teams JSON is up-to-date, skipping write")
+                try:
+                    _log.debug("teams_json_up_to_date")
+                except Exception:
+                    pass
                 return  # No changes, skip write
         except:
             pass  # JSON doesn't exist or is invalid
         
         # Only write if there are actual changes
-        print("📝 Teams changed, updating JSON...")
+        try:
+            _log.info("teams_json_changed_updating")
+        except Exception:
+            pass
         save_teams_to_json(teams)
 
     def delete_team(self, name: str) -> bool:
