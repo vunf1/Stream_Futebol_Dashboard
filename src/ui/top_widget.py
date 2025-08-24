@@ -60,7 +60,7 @@ class TopWidget:
         open_timer_btn.grid(row=0, column=1, columnspan=2, sticky="nsew")
         
         # Create the "Penalty Shootout" button
-        icon = get_icon("dice", 34)
+        icon = get_icon("penalties", 84)
         penalty_btn = CTkButton(
             header,
             image=icon,

@@ -31,6 +31,7 @@ class Autocomplete(ctk.CTkFrame):
         self._last_text: str = ""  # for restore when empty
         self._binding_tag = f"autocomplete_{id(self)}"  # Unique binding tag
         self._monitoring = False  # Track if we're monitoring the popup
+        self._click_binding_id: Optional[str] = None  # track root click binding id
 
         # Bindings
         self.entry.bind("<KeyRelease>", self._on_key)
@@ -39,6 +40,8 @@ class Autocomplete(ctk.CTkFrame):
         self.entry.bind("<Return>", self._nav_enter)
         self.entry.bind("<Escape>", self._restore_last_immediately)
         self.entry.bind("<FocusIn>", self._on_focus_in)
+        # Ensure popup opens on mouse click inside the entry (even without key press)
+        self.entry.bind("<Button-1>", self._on_entry_click, add=True)
 
     # ---------------- Events / Debounce ----------------
     def _on_key(self, event):
@@ -117,18 +120,20 @@ class Autocomplete(ctk.CTkFrame):
             self.container.pack(fill="both", expand=True)
 
             # Bind popup-specific events for better click outside detection
-            popup.bind("<FocusOut>", self._on_popup_focus_out)
+            # NOTE: Do not bind <FocusOut> on popup; it fires immediately because
+            # the toplevel never gains focus when created via click, causing the
+            # suggestions window to close instantaneously. Entry focus tracking
+            # is sufficient for auto-closing behaviour.
             popup.bind("<Button-1>", self._on_popup_click)
             
             # Bind to the main window for click outside detection
             try:
-                main_window = self.winfo_toplevel()
-                main_window.bind("<Button-1>", self._on_main_window_click, add="+")
+                # No root-level click binding anymore; nothing to clean
+                pass
             except Exception:
                 pass
             
-            # Start a timer to periodically check if popup should be closed
-            self._start_popup_monitor()
+            # Background monitor disabled – focus-out logic already handles closure
             
             return popup
         except Exception as e:
@@ -148,7 +153,7 @@ class Autocomplete(ctk.CTkFrame):
             try:
                 if self.popup and hasattr(self.popup, 'winfo_exists') and self.popup.winfo_exists():
                     # Check if the entry still has focus
-                    if hasattr(self.entry, 'focus_get') and not self.entry.focus_get():
+                    if hasattr(self.entry, 'focus_get') and self.entry.focus_get() != self.entry:
                         # Entry lost focus, close popup
                         self._hide_popup()
                     else:
@@ -207,7 +212,7 @@ class Autocomplete(ctk.CTkFrame):
                     height=26,
                 )
                 item.pack(fill="x", padx=(8, 2), pady=1)
-                item.bind("<Button-1>", lambda e, lbl=label, val=value: self._select(lbl, val))
+                item.bind("<ButtonRelease-1>", lambda e, lbl=label, val=value: self._on_item_clicked(lbl, val))
                 item.bind("<Enter>",    lambda e, w=item: w.configure(fg_color="#444444"))
                 item.bind("<Leave>",    lambda e, w=item: w.configure(fg_color="#333333"))
                 self.items.append(item)
@@ -224,9 +229,8 @@ class Autocomplete(ctk.CTkFrame):
                 if hasattr(popup, 'winfo_exists') and popup.winfo_exists():
                     # Unbind from main window
                     try:
-                        main_window = self.winfo_toplevel()
-                        if main_window and hasattr(main_window, 'unbind'):
-                            main_window.unbind("<Button-1>")
+                        # No root-level click binding anymore; nothing to clean
+                        pass
                     except Exception:
                         pass
                     popup.destroy()
@@ -240,6 +244,7 @@ class Autocomplete(ctk.CTkFrame):
         # Clear matches when closing to prevent stale data
         self.matches.clear()
         self._selected_index = -1
+        self._monitoring = False  # ensure monitor stops when popup closed
 
     def _on_popup_focus_out(self, event):
         """Handle when popup loses focus"""
@@ -252,6 +257,16 @@ class Autocomplete(ctk.CTkFrame):
         if current_text and not self.popup:
             # There's text and no popup, show suggestions
             self.after(50, self._query_and_show)
+
+    def _on_entry_click(self, event):
+        """Open suggestions immediately when the entry is clicked."""
+        current_text = (self.entry.get() or "").strip()
+        if current_text:
+            # If popup already open, leave as is; otherwise trigger suggestions fast
+            if not self.popup:
+                self.after(10, self._query_and_show)
+        # allow normal click processing to continue
+        return None
 
     def _cleanup_state(self):
         """Clean up the autocomplete state to prevent corruption"""
@@ -288,30 +303,8 @@ class Autocomplete(ctk.CTkFrame):
 
     def _on_main_window_click(self, event):
         """Handle clicks on the main window"""
-        # Check if the click is outside the autocomplete area
-        try:
-            if self.popup and hasattr(self.popup, 'winfo_exists') and self.popup.winfo_exists():
-                # Get popup bounds
-                popup_x = self.popup.winfo_rootx()
-                popup_y = self.popup.winfo_rooty()
-                popup_width = self.popup.winfo_width()
-                popup_height = self.popup.winfo_height()
-                
-                # Get click coordinates
-                click_x = event.x_root
-                click_y = event.y_root
-                
-                # Check if click is outside popup bounds
-                if (click_x < popup_x or click_x > popup_x + popup_width or 
-                    click_y < popup_y or click_y > popup_y + popup_height):
-                    # Click is outside popup, close it
-                    self._hide_popup()
-        except Exception:
-            # If there's any error, just close the popup to be safe
-            try:
-                self._hide_popup()
-            except Exception:
-                pass
+        # Deprecated: root click binding removed to avoid focus/grab conflicts.
+        pass
 
     def reset(self):
         """Reset the autocomplete to a clean state - useful when it breaks"""
@@ -326,9 +319,9 @@ class Autocomplete(ctk.CTkFrame):
                 # Check if the popup or any of its children still have focus
                 if hasattr(self.popup, 'focus_get'):
                     focused_widget = self.popup.focus_get()
-                    if focused_widget is None:
-                        # No widget in popup has focus, check if entry has focus
-                        if hasattr(self.entry, 'focus_get') and not self.entry.focus_get():
+                    if focused_widget is None or not self._is_descendant(focused_widget, self.popup):
+                        # Focus left the popup; if it's also not on the entry, close
+                        if hasattr(self.entry, 'focus_get') and self.entry.focus_get() != self.entry:
                             self._hide_popup()
         except Exception:
             # If there's any error, just close the popup to be safe
@@ -390,7 +383,16 @@ class Autocomplete(ctk.CTkFrame):
         self.entry.insert(0, label)
         self._last_text = label  # remember it!
         self.selection_callback(label, value)
-        self.focus_set()
+        # Return focus to the entry widget itself, not the container frame
+        try:
+            self.entry.focus_set()
+        except Exception:
+            pass
+        # Move focus away from the entry so further typing does not reopen immediately
+        try:
+            self.master.focus_set()
+        except Exception:
+            pass
         self._hide_popup()
 
     def _restore_last_immediately(self, _e):
@@ -459,3 +461,8 @@ class Autocomplete(ctk.CTkFrame):
     def clear_state(self):
         """Clear the current autocomplete state"""
         self._cleanup_state()
+
+    def _on_item_clicked(self, label: str, value: Any):
+        """Handle click on a suggestion item and prevent event propagation."""
+        self._select(label, value)
+        return "break"

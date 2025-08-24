@@ -27,7 +27,7 @@ class WindowConfig:
     POPUP_DIALOG = {
         "overrideredirect": True,
         "topmost": True,
-        "grab_set": True,
+        "grab_set": False,  # Disabled to prevent focus grab issues with autocomplete popups
         "resizable": (False, False),
         "focus_force": True,
         "lift": True,

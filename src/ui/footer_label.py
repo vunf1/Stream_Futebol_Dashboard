@@ -4,7 +4,14 @@ Provides a reusable footer with copyright text, datetime, license status, and cl
 """
 
 import customtkinter as ctk
+import tkinter as tk
 from src.utils import DateTimeProvider
+import threading
+import webbrowser
+from urllib import request as _urlrequest
+from urllib import error as _urlerror
+from src.core.server_launcher import get_server_launcher
+import subprocess as _subprocess
 from typing import Optional, Dict, Any, Callable
 from dataclasses import dataclass
 
@@ -27,6 +34,10 @@ class FooterConfig:
     footer_height: int = 25  # Reduced default height for better proportions
     close_button_size: int = 24
     activate_button_height: int = 20
+    # Server status dot
+    show_server_status_dot: bool = False  # Disabled by default
+    server_status_url: str = "http://localhost:5000/"
+    server_status_poll_ms: int = 2500
 
 
 def create_footer(parent, **kwargs):
@@ -111,6 +122,293 @@ def create_footer(parent, **kwargs):
     left_container = ctk.CTkFrame(row_container, fg_color="transparent")
     left_container.pack(side="left", fill="y", padx=(8, 0))
     
+    # Optional server status dot (before copyright)
+    server_status_label = None
+    _server_is_up = {"value": False}
+
+    if getattr(config, "show_server_status_dot", False):
+        server_status_label = ctk.CTkLabel(
+            left_container,
+            text="●",
+            font=("Segoe UI", 12, "bold"),
+            text_color="#dc3545",  # default red
+            cursor="hand2",
+        )
+        server_status_label.pack(side="left", padx=(0, 6))
+
+        def _apply_status_color(is_up: bool):
+            try:
+                if not server_status_label or not server_status_label.winfo_exists():
+                    return
+                server_status_label.configure(text_color=("#4CAF50" if is_up else "#dc3545"))
+            except Exception:
+                pass
+
+        # Track detailed state for tooltip content
+        _server_state = {"http_ok": False, "proc_ok": False, "restarting": False}
+
+        def _check_status_background():
+            try:
+                # Perform HTTP HEAD/GET in background thread
+                req = _urlrequest.Request(config.server_status_url, method="GET")
+                with _urlrequest.urlopen(req, timeout=1.5) as resp:
+                    code = getattr(resp, "status", None) or resp.getcode()
+                    http_ok = (code == 200)
+            except (_urlerror.URLError, _urlerror.HTTPError, Exception):
+                http_ok = False
+
+            # Check server process state as well
+            proc_ok = True
+            try:
+                launcher = get_server_launcher()
+                # Primary check
+                proc_ok = bool(launcher.is_server_running())
+                # Fallback in non-frozen/dev environments to real system-wide check
+                if not proc_ok:
+                    try:
+                        proc_ok = bool(launcher._any_server_running())  # type: ignore[attr-defined]
+                    except Exception:
+                        pass
+            except Exception:
+                proc_ok = False
+
+            # Persist for tooltip
+            _server_state["http_ok"] = bool(http_ok)
+            _server_state["proc_ok"] = bool(proc_ok)
+            is_up = (http_ok and proc_ok)
+            _server_is_up["value"] = is_up
+            try:
+                if parent and parent.winfo_exists():
+                    parent.after(0, lambda: _apply_status_color(is_up))
+            except Exception:
+                pass
+
+        def _schedule_status_check():
+            # Stop scheduling if widget destroyed
+            if not server_status_label or not server_status_label.winfo_exists():
+                return
+            t = threading.Thread(target=_check_status_background, daemon=True)
+            t.start()
+            try:
+                parent.after(max(500, int(config.server_status_poll_ms)), _schedule_status_check)
+            except Exception:
+                pass
+
+        def _on_server_dot_click(_event=None):
+            is_up = bool(_server_is_up["value"])  # snapshot (http AND proc)
+
+            # Helper: ensure server is started, with dev-mode fallback
+            def _ensure_started_or_restart():
+                try:
+                    launcher = get_server_launcher()
+
+                    # Re-check running state quickly
+                    try:
+                        running = bool(launcher.is_server_running())
+                        if not running:
+                            try:
+                                running = bool(launcher._any_server_running())  # type: ignore[attr-defined]
+                            except Exception:
+                                pass
+                    except Exception:
+                        running = False
+
+                    if running and not is_up:
+                        # Process is up but HTTP not OK -> restart
+                        try:
+                            _server_state["restarting"] = True
+                            try:
+                                if parent and parent.winfo_exists():
+                                    parent.after(0, _update_tooltip)
+                            except Exception:
+                                pass
+                            launcher.restart_server()
+                        except Exception:
+                            pass
+                        finally:
+                            _server_state["restarting"] = False
+                            try:
+                                if parent and parent.winfo_exists():
+                                    parent.after(0, _update_tooltip)
+                            except Exception:
+                                pass
+                    elif not running:
+                        # Try regular start (works in bundled mode)
+                        try:
+                            launcher.start_server()
+                        except Exception:
+                            pass
+
+                        # After a brief wait, if still not running, try direct spawn (dev fallback)
+                        try:
+                            import time as _t
+                            _t.sleep(0.2)
+                            running2 = False
+                            try:
+                                running2 = bool(launcher._any_server_running())  # type: ignore[attr-defined]
+                            except Exception:
+                                running2 = False
+                            if not running2:
+                                exe_path = launcher.get_server_path()
+                                if exe_path and exe_path.exists():
+                                    _subprocess.Popen(
+                                        [str(exe_path)],
+                                        cwd=str(exe_path.parent),
+                                        stdin=_subprocess.DEVNULL,
+                                        stdout=_subprocess.DEVNULL,
+                                        stderr=_subprocess.DEVNULL,
+                                        creationflags=getattr(_subprocess, 'CREATE_NO_WINDOW', 0),
+                                    )
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
+            if is_up:
+                try:
+                    webbrowser.open(config.server_status_url)
+                except Exception:
+                    pass
+            else:
+                threading.Thread(target=_ensure_started_or_restart, daemon=True).start()
+
+        server_status_label.bind("<Button-1>", _on_server_dot_click)
+
+        # ---------------- Tooltip ----------------
+        _tooltip_window: Dict[str, Any] = {"win": None}
+        _tooltip_job: Dict[str, Any] = {"id": None}
+        _tooltip_label_ref: Dict[str, Any] = {"lbl": None}
+
+        def _get_tooltip_text() -> str:
+            if bool(_server_state.get("restarting")):
+                return "Restarting"
+            http_ok = bool(_server_state.get("http_ok"))
+            proc_ok = bool(_server_state.get("proc_ok"))
+            is_up = http_ok and proc_ok
+            if is_up:
+                return "Online — click to open"
+            if proc_ok and not http_ok:
+                return "Restarting"
+            if (not proc_ok) and http_ok:
+                return "Restarting"
+            return "Offline — click to start"
+
+        def _position_tooltip(win):
+            try:
+                if not (server_status_label and server_status_label.winfo_exists() and win and win.winfo_exists()):
+                    return
+                # Compute geometry above the dot
+                win.update_idletasks()
+                dot_x = server_status_label.winfo_rootx()
+                dot_y = server_status_label.winfo_rooty()
+                dot_w = server_status_label.winfo_width()
+                win_w = win.winfo_width()
+                win_h = win.winfo_height()
+                x = int(dot_x + (dot_w // 2) - (win_w // 2))
+                y = int(dot_y - win_h - 8)
+                # Clamp to screen
+                scr_w = server_status_label.winfo_screenwidth()
+                scr_h = server_status_label.winfo_screenheight()
+                x = max(4, min(x, scr_w - win_w - 4))
+                y = max(4, min(y, scr_h - win_h - 4))
+                win.geometry(f"{win_w}x{win_h}+{x}+{y}")
+                try:
+                    win.attributes("-topmost", True)
+                except Exception:
+                    pass
+            except Exception:
+                pass
+
+        def _update_tooltip():
+            win = _tooltip_window.get("win")
+            if not (win and win.winfo_exists()):
+                _tooltip_job["id"] = None
+                return
+            try:
+                # Update text and reposition
+                lbl = _tooltip_label_ref.get("lbl")
+                if lbl and lbl.winfo_exists():
+                    lbl.configure(text=_get_tooltip_text())
+                _position_tooltip(win)
+            except Exception:
+                pass
+            # Reschedule
+            try:
+                _tooltip_job["id"] = parent.after(300, _update_tooltip)
+            except Exception:
+                _tooltip_job["id"] = None
+
+        def _show_tooltip(_e=None):
+            try:
+                win = _tooltip_window.get("win")
+                if win and win.winfo_exists():
+                    # Already visible; just refresh
+                    _update_tooltip()
+                    return
+                win = tk.Toplevel(parent)
+                win.overrideredirect(True)
+                try:
+                    win.attributes("-topmost", True)
+                except Exception:
+                    pass
+                # Build content
+                win.configure(bg="#2b2b2b", bd=0, highlightthickness=0)
+                lbl = tk.Label(
+                    win,
+                    text=_get_tooltip_text(),
+                    font=("Segoe UI", 8),
+                    fg="#ffffff",
+                    bg="#2b2b2b",
+                    padx=2,
+                    pady=0,
+                    bd=0,
+                    highlightthickness=0,
+                )
+                lbl.pack(padx=0, pady=0)
+                _tooltip_label_ref["lbl"] = lbl
+                # Initial size and position
+                win.update_idletasks()
+                _position_tooltip(win)
+                _tooltip_window["win"] = win
+                # Start periodic refresh
+                _update_tooltip()
+            except Exception:
+                pass
+
+        def _hide_tooltip(_e=None):
+            try:
+                jid = _tooltip_job.get("id")
+                if jid is not None:
+                    try:
+                        parent.after_cancel(jid)
+                    except Exception:
+                        pass
+                    _tooltip_job["id"] = None
+                win = _tooltip_window.get("win")
+                if win and win.winfo_exists():
+                    win.destroy()
+                _tooltip_window["win"] = None
+            except Exception:
+                pass
+
+        # Keep tooltip anchored and contextual
+        server_status_label.bind("<Enter>", _show_tooltip)
+        server_status_label.bind("<Leave>", _hide_tooltip)
+        # Also refresh tooltip when status color updates
+        _orig_apply_status_color = _apply_status_color
+        def _apply_status_color_wrapper(is_up: bool):
+            _orig_apply_status_color(is_up)
+            win = _tooltip_window.get("win")
+            if win and win.winfo_exists():
+                _update_tooltip()
+        _apply_status_color = _apply_status_color_wrapper  # type: ignore
+
+        # Kick off initial check shortly after layout stabilizes
+        try:
+            parent.after(200, _schedule_status_check)
+        except Exception:
+            pass
+
     # Copyright label
     if config.show_copyright:
         copyright_label = ctk.CTkLabel(

@@ -385,8 +385,8 @@ class ScoreApp:
                 json=self.json
             )
             
-            # Add footer with license status and activation capabilities
-            create_footer(self.ui_container)
+            # Add footer with license status and server status dot
+            create_footer(self.ui_container, show_server_status_dot=True)
             
             # Make the body draggable
             self._make_body_draggable()
@@ -413,6 +413,12 @@ class ScoreApp:
             # Keep the configured opacity for transparency
             self.root.attributes("-alpha", self.opacity)
             
+            # Ensure the server is running shortly after the UI becomes visible
+            try:
+                self.root.after(200, self._ensure_server_autostart)
+            except Exception:
+                pass
+
             # Start periodic license checking to ensure app stays secure
             if hasattr(self, 'license_blocker') and self.license_blocker is not None:
                 self.license_blocker.start_periodic_check(AppConfig.LICENSE_CHECK_INTERVAL)
@@ -561,6 +567,56 @@ class ScoreApp:
 
         # Continue with UI setup immediately; components will be awaited as needed
         self.root.after(10, self._fast_setup_ui)
+
+    def _ensure_server_autostart(self):
+        """Ensure the futebol-server.exe is running after the UI is visible.
+        This is a safety net in case earlier startup was skipped or failed."""
+        import threading as _t
+        import subprocess as _sp
+        from src.core.server_launcher import get_server_launcher
+
+        def _run():
+            try:
+                launcher = get_server_launcher()
+                # Check if running
+                running = False
+                try:
+                    running = bool(launcher.is_server_running())
+                except Exception:
+                    running = False
+                if not running:
+                    try:
+                        # Try normal start (no-op in dev bundle, safe in prod)
+                        ok = bool(launcher.start_server())
+                        if ok:
+                            return
+                    except Exception:
+                        pass
+
+                # Re-check across system
+                try:
+                    running2 = bool(launcher._any_server_running())  # type: ignore[attr-defined]
+                except Exception:
+                    running2 = False
+
+                if not running and not running2:
+                    try:
+                        exe_path = launcher.get_server_path()
+                        if exe_path and exe_path.exists():
+                            _sp.Popen(
+                                [str(exe_path)],
+                                cwd=str(exe_path.parent),
+                                stdin=_sp.DEVNULL,
+                                stdout=_sp.DEVNULL,
+                                stderr=_sp.DEVNULL,
+                                creationflags=getattr(_sp, 'CREATE_NO_WINDOW', 0),
+                            )
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+        _t.Thread(target=_run, daemon=True).start()
     
     def _start_server_after_license(self):
         """Start the futebol-server.exe after license validation"""
