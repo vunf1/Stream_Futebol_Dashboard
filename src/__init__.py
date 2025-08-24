@@ -22,7 +22,7 @@ from .core import (
 
 # UI utilities
 from .ui import (
-    add_footer_label,
+    create_footer,
     get_icon,
     get_icon_path,
     
@@ -76,7 +76,7 @@ __all__ = [
     'GameInfoStore',
     
     # UI
-    'add_footer_label',
+    'create_footer',
     'get_icon',
     'get_icon_path',
 

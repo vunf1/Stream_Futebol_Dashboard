@@ -5,7 +5,7 @@ This module contains user interface components, styling utilities,
 and UI-related helper functions.
 """
 
-from .footer_label import add_footer_label
+from .footer_label import create_footer
 from .icons_provider import get_icon, get_icon_path
 
 from .top_widget import TopWidget
@@ -43,7 +43,7 @@ from ..utils import (
 )
 
 __all__ = [
-    'add_footer_label',
+    'create_footer',
     'get_icon',
     'get_icon_path',
 

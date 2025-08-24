@@ -168,32 +168,14 @@ class LicenseModal:
             self.submit_button.pack(expand=True, padx=100)
             
             # Footer - positioned right after button
-            footer_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-            footer_frame.pack(fill="x", pady=(0, 0), padx=6)
-            
-            # Footer label (left side)
-            footer_label = ctk.CTkLabel(
-                footer_frame, 
-                text="© 2025 Vunf1", 
-                font=(AppConfig.FONT_FAMILY_EMOJI, 10), 
-                text_color="gray"
+            from src.ui.footer_label import create_footer
+            create_footer(
+                main_frame,
+                show_datetime=False,
+                show_license_status=False,
+                show_activate_button=False,
+                custom_padding=(6, 0, 6, 0)
             )
-            footer_label.pack(side="left")
-            
-            # Close button (X) - Modern transparent design
-            close_button = ctk.CTkButton(
-                footer_frame, 
-                text="✕", 
-                width=AppConfig.LICENSE_MODAL_CLOSE_BUTTON_SIZE,
-                height=AppConfig.LICENSE_MODAL_CLOSE_BUTTON_SIZE,
-                font=(AppConfig.FONT_FAMILY_EMOJI, 12, "bold"),
-                fg_color="transparent",
-                hover_color=AppConfig.COLOR_SURFACE,
-                text_color=AppConfig.COLOR_TEXT_SECONDARY,
-                corner_radius=12,
-                command=self._cancel
-            )
-            close_button.pack(side="right", padx=(3, 0))
             
             # Bind Enter key to submit
             self.code_entry.bind("<Return>", lambda e: self._activate_license())

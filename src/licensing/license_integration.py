@@ -30,8 +30,8 @@ def integrate_licensing(parent_widget, show_footer: bool = True) -> Optional[Lic
         # Add footer with license status if requested
         if show_footer:
             # Import here to avoid circular dependency
-            from src.ui.footer_label import add_license_footer
-            add_license_footer(parent_widget)
+            from src.ui.footer_label import create_footer
+            create_footer(parent_widget)
         
         return blocker
         

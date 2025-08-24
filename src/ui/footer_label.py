@@ -5,9 +5,6 @@ Provides a reusable footer with copyright text, datetime, license status, and cl
 
 import customtkinter as ctk
 from src.utils import DateTimeProvider
-from src.licensing import LicenseManager
-from src.licensing import LicenseActivationDialog
-from src.licensing import show_license_details
 from typing import Optional, Dict, Any, Callable
 from dataclasses import dataclass
 
@@ -32,25 +29,42 @@ class FooterConfig:
     activate_button_height: int = 20
 
 
-def add_footer_label(parent, config: Optional[FooterConfig] = None, **kwargs):
+def create_footer(parent, **kwargs):
     """
-    Add a customizable footer label to the given parent widget.
+    Create and configure a footer label with all available options.
+    
+    This is the single function that handles all footer configuration.
     
     Args:
         parent: The parent widget to add the footer to
-        config: FooterConfig object for customization
-        **kwargs: Override config values directly
+        **kwargs: All footer configuration options (see FooterConfig for available options)
     
     Returns:
         The footer frame widget for further customization if needed
+    
+    Examples:
+        # Simple footer with just copyright
+        create_footer(parent, show_datetime=False, show_license_status=False, show_activate_button=False)
+        
+        # Full footer with custom copyright
+        create_footer(parent, copyright_text="© 2025 My Company")
+        
+        # License-only footer
+        create_footer(parent, show_copyright=False, show_datetime=False)
+        
+        # Custom footer with specific settings
+        create_footer(parent, 
+                     copyright_text="© 2025 Custom",
+                     datetime_format="short",
+                     custom_spacing=30,
+                     footer_height=30)
     
     Note:
         The close button (X) is always visible regardless of configuration
         for user convenience and consistent UI behavior.
     """
-    # Create default config and override with kwargs
-    if config is None:
-        config = FooterConfig()
+    # Create config with defaults and override with kwargs
+    config = FooterConfig()
     
     # Override config with kwargs
     for key, value in kwargs.items():
@@ -142,11 +156,10 @@ def add_footer_label(parent, config: Optional[FooterConfig] = None, **kwargs):
         update_datetime()
     
     # Center container for license status and activate button
-    center_container = ctk.CTkFrame(row_container, fg_color="transparent")
-    center_container.pack(side="left", expand=True, fill="x", padx=(config.custom_spacing, 0))
-    
-    # License status label (center) - properly centered
     if config.show_license_status:
+        center_container = ctk.CTkFrame(row_container, fg_color="transparent")
+        center_container.pack(side="left", expand=True, fill="x", padx=(config.custom_spacing, 0))
+        
         # Create a horizontal container for license status and activate button
         license_row = ctk.CTkFrame(center_container, fg_color="transparent")
         license_row.pack(expand=True, fill="x")
@@ -161,6 +174,10 @@ def add_footer_label(parent, config: Optional[FooterConfig] = None, **kwargs):
         license_status_label.pack(side="left", expand=True, fill="x")  # Position on the left
         
         # License manager initialization
+        from src.licensing import LicenseManager
+        from src.licensing import LicenseActivationDialog
+        from src.licensing import show_license_details
+        
         license_manager = LicenseManager()
         
         # Create activate button early so it can be referenced
@@ -336,50 +353,19 @@ def add_footer_label(parent, config: Optional[FooterConfig] = None, **kwargs):
     return footer_frame
 
 
-# Convenience functions for common footer configurations
-def add_simple_footer(parent, copyright_text: str = "© 2025 Vunf1", close_command: Optional[Callable] = None):
-    """Add a simple footer with just copyright and close button. Close button is always visible."""
-    config = FooterConfig(
-        show_copyright=True,
-        show_datetime=False,
-        show_license_status=False,
-        show_activate_button=False,
-        show_close_button=True,  # Always True - close button is always visible
-        copyright_text=copyright_text,
-        close_command=close_command
-    )
-    return add_footer_label(parent, config)
-
-
-def add_license_footer(parent, copyright_text: str = "© 2025 Vunf1", close_command: Optional[Callable] = None):
-    """Add a footer with copyright, license status, and close button. Close button is always visible."""
-    config = FooterConfig(
-        show_copyright=True,
-        show_datetime=False,
-        show_license_status=True,
-        show_activate_button=True,
-        show_close_button=True,  # Always True - close button is always visible
-        copyright_text=copyright_text,
-        close_command=close_command
-    )
-    return add_footer_label(parent, config)
-
-
-def add_full_footer(parent, copyright_text: str = "© 2025 Vunf1", close_command: Optional[Callable] = None):
-    """Add a full footer with all features enabled. Close button is always visible."""
-    config = FooterConfig(
-        show_copyright=True,
-        show_datetime=True,
-        show_license_status=True,
-        show_activate_button=True,
-        show_close_button=True,  # Always True - close button is always visible
-        copyright_text=copyright_text,
-        close_command=close_command
-    )
-    return add_footer_label(parent, config)
+# Legacy function for backward compatibility
+def add_footer_label(parent, config: Optional[FooterConfig] = None, **kwargs):
+    """
+    Legacy function for backward compatibility.
+    This function is deprecated - use create_footer() instead.
+    """
+    return create_footer(parent, **kwargs)
 
 
 # Legacy function for backward compatibility
 def add_footer_label_legacy(parent, text: str = "© 2025 Vunf1"):
-    """Legacy function for backward compatibility."""
-    return add_footer_label(parent, FooterConfig(copyright_text=text))
+    """
+    Legacy function for backward compatibility.
+    This function is deprecated - use create_footer() instead.
+    """
+    return create_footer(parent, copyright_text=text)

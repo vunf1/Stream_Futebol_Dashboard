@@ -10,12 +10,13 @@ import customtkinter as ctk              # Modern tkinter-based UI toolkit
 
 from src.core import GameInfoStore, MongoTeamManager
 from src.utils import DateTimeProvider
-from src.ui import get_icon_path, add_footer_label, ScoreUI, TeamInputManager, TopWidget, create_main_window, apply_drag_and_drop
+from src.ui import get_icon_path, ScoreUI, TeamInputManager, TopWidget, create_main_window, apply_drag_and_drop
 from src.notification import init_notification_queue, server_main
 from src.core import get_config
 from src.licensing import LicenseBlocker
 from src.config import AppConfig
 from src.core.server_launcher import start_server_after_license, stop_server_on_exit
+from src.ui.footer_label import create_footer
 
 # Global variable to track instance positions for cascade effect
 _instance_positions = {}
@@ -382,8 +383,7 @@ class ScoreApp:
             )
             
             # Add footer with license status and activation capabilities
-            from src.ui.footer_label import add_full_footer
-            add_full_footer(self.ui_container)
+            create_footer(self.ui_container)
             
             # Make the body draggable
             self._make_body_draggable()
@@ -707,8 +707,7 @@ def ask_instance_count_ui() -> int:
 
     ctk.CTkButton(window, text="Abrir", command=confirm).pack(pady=10)
 
-    from src.ui.footer_label import add_full_footer
-    add_full_footer(window)
+    create_footer(window)
     window.mainloop()
     return result["value"]
 

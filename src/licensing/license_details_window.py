@@ -9,6 +9,7 @@ from typing import Optional, Dict
 from .license_manager import LicenseManager
 from ..utils import apply_drag_and_drop
 from ..config.settings import AppConfig
+from src.ui.footer_label import create_footer
 
 
 class LicenseDetailsWindow:
@@ -262,12 +263,12 @@ class LicenseDetailsWindow:
         
     def _create_footer(self, parent):
         """Create the footer with close button and copyright using the new customizable footer."""
-        from src.ui.footer_label import add_simple_footer
         
         # Use the new customizable footer with custom close command
-        footer_frame = add_simple_footer(
+        footer_frame = create_footer(
             parent=parent,
             copyright_text="© 2025 Vunf1",
+            show_license_status=False,
             close_command=self._on_close
         )
         

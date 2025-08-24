@@ -13,8 +13,9 @@ from tkinter import messagebox
 
 from src.core.gameinfo import GameInfoStore
 from src.config.settings import AppConfig
+from src.licensing.license_details_window import show_license_details
 from src.ui import get_icon_path, get_icon
-from src.ui.footer_label import add_simple_footer
+from src.ui.footer_label import create_footer
 
 
 @dataclass
@@ -138,7 +139,7 @@ class PenaltyDashboard(ctk.CTkToplevel):
 
         # Footer
         try:
-            add_simple_footer(self, f"Campo {self.instance_number}")
+            create_footer(self, copyright_text=f"Campo {self.instance_number}", show_datetime=False, show_license_status=False, show_activate_button=False)
         except Exception:
             pass
     

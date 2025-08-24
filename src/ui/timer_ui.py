@@ -204,8 +204,8 @@ class TimerComponent(ctk.CTkFrame):
         self._build_controls(start_col=CTRL_START_COL, specs=controls)
         
         # Add footer with custom copyright text
-        from src.ui.footer_label import add_simple_footer
-        add_simple_footer(self, f"Campo {self.instance_number}")
+        from src.ui.footer_label import create_footer
+        create_footer(self, copyright_text=f"Campo {self.instance_number}")
 
     def _configure_grid(self, container, cols: int):
         # two rows: row 0 = entries/buttons, row 1 = labels

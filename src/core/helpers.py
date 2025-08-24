@@ -134,48 +134,15 @@ def prompt_for_pin(parent):
                 pass
         
         # Add custom compact footer near the PIN entry
-        # Create footer frame with limited width
-        footer_frame = ctk.CTkFrame(main_frame, fg_color="transparent", height=25)
-        footer_frame.pack(fill="x", padx=8, pady=(2, 8))
-        footer_frame.pack_propagate(False)  # Maintain height
-        
-        # Create a constrained row container for footer elements
-        footer_row = ctk.CTkFrame(footer_frame, fg_color="transparent")
-        footer_row.pack(expand=True, fill="both", pady=2)
-        
-        # Left side - Copyright (constrained width)
-        copyright_container = ctk.CTkFrame(footer_row, fg_color="transparent")
-        copyright_container.pack(side="left", fill="y", padx=(4, 0))
-        
-        copyright_label = ctk.CTkLabel(
-            copyright_container, 
-            text="© 2025 Vunf1", 
-            font=("Segoe UI Emoji", 9), 
-            text_color="gray"
+        from src.ui.footer_label import create_footer
+        create_footer(
+            main_frame, 
+            show_datetime=False, 
+            show_license_status=False, 
+            show_activate_button=False,
+            custom_padding=(8, 2, 8, 8),
+            footer_height=25
         )
-        copyright_label.pack(side="left")
-        
-        # Center spacer to push close button to right
-        spacer = ctk.CTkFrame(footer_row, fg_color="transparent")
-        spacer.pack(side="left", expand=True, fill="x")
-        
-        # Right side - Close button (constrained width)
-        close_container = ctk.CTkFrame(footer_row, fg_color="transparent")
-        close_container.pack(side="right", fill="y", padx=(0, 4))
-        
-        close_button = ctk.CTkButton(
-            close_container, 
-            text="✕", 
-            width=20, 
-            height=20,
-            font=("Segoe UI Emoji", 10, "bold"),
-            fg_color="transparent",
-            hover_color="#2b2b2b",
-            text_color="#888888",
-            corner_radius=10,
-            command=cleanup
-        )
-        close_button.pack(side="right")
         
         # Now apply all window configuration at once while still hidden
         win.overrideredirect(True)
