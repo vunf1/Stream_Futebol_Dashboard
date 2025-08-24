@@ -6,6 +6,9 @@ Prevents application usage when licenses are invalid and shows blocking messages
 import customtkinter as ctk
 from typing import Callable, Optional
 from .license_manager import LicenseManager, LicenseStatus
+from src.core.logger import get_logger
+
+log = get_logger(__name__)
 
 class LicenseBlocker:
     """Blocks application usage when licenses are invalid."""
@@ -40,7 +43,7 @@ class LicenseBlocker:
                 if self.is_blocked:
                     # First check the signal file from other instances
                     if self._check_license_activation_signal():
-                        print("License activation signal detected from another instance, checking status...")
+                        log.info("license_activation_signal_detected")
                         # Small delay to ensure the license file is fully written
                         self.parent.after(500, self._check_and_continue_if_valid)
                         return
@@ -48,7 +51,7 @@ class LicenseBlocker:
                     # Also check direct license status
                     status, is_valid = self.license_manager.get_license_status()
                     if is_valid:
-                        print("License became valid (detected by direct check), unblocking...")
+                        log.info("license_became_valid_direct_check")
                         self._remove_blocking()
                         if self.on_license_valid:
                             self.on_license_valid()
@@ -58,7 +61,7 @@ class LicenseBlocker:
                 if self._listener_active:
                     self.parent.after(1000, check_for_license_updates)  # Check every second
             except Exception as e:
-                print(f"Error in license notification listener: {e}")
+                log.error("license_notification_listener_error", extra={"error": str(e)})
                 # Continue listening even if there's an error
                 if self._listener_active:
                     self.parent.after(1000, check_for_license_updates)
@@ -69,7 +72,7 @@ class LicenseBlocker:
     def stop_notification_listener(self):
         """Stop the notification listener."""
         self._listener_active = False
-        print("License notification listener stopped")
+        log.info("license_notification_listener_stopped")
     
     def _check_license_activation_signal(self) -> bool:
         """Check if another instance has activated a license."""
@@ -105,7 +108,7 @@ class LicenseBlocker:
             return False
             
         except Exception as e:
-            print(f"Error checking license activation signal: {e}")
+            log.error("license_check_activation_signal_error", extra={"error": str(e)})
             return False
     
     def _check_and_continue_if_valid(self):
@@ -116,14 +119,14 @@ class LicenseBlocker:
             
             status, is_valid = self.license_manager.get_license_status()
             if is_valid:
-                print("License confirmed valid after signal detection, unblocking...")
+                log.info("license_confirmed_valid_after_signal")
                 self._remove_blocking()
                 if self.on_license_valid:
                     self.on_license_valid()
             else:
-                print("License still invalid after signal detection, continuing to listen...")
+                log.info("license_still_invalid_after_signal")
         except Exception as e:
-            print(f"Error checking license status after signal: {e}")
+            log.error("license_check_status_after_signal_error", extra={"error": str(e)})
     
     def _cleanup_license_activation_signal(self):
         """Clean up the license activation signal file."""
@@ -136,10 +139,10 @@ class LicenseBlocker:
             
             if os.path.exists(signal_file):
                 os.remove(signal_file)
-                print("License activation signal file cleaned up")
+                log.debug("license_activation_signal_file_cleaned")
                 
         except Exception as e:
-            print(f"Error cleaning up license activation signal: {e}")
+            log.error("license_cleanup_activation_signal_error", extra={"error": str(e)})
     
     def check_and_block(self) -> bool:
         """
@@ -149,39 +152,33 @@ class LicenseBlocker:
             True if app should continue, False if blocked
         """
         try:
-            print("=== License Check Started ===")
+            log.info("license_check_started")
             status, is_valid = self.license_manager.get_license_status()
-            print(f"License status: {status}, is_valid: {is_valid}")
+            log.info("license_check_status", extra={"status": status, "is_valid": is_valid})
             
             # Get detailed license info for debugging
             license_details = self.license_manager.get_license_details()
             if license_details:
-                print("License details:")
-                for key, value in license_details.items():
-                    if key != "_debug":  # Skip internal debug info
-                        print(f"  {key}: {value}")
+                redacted = {k: ("***" if k in {"code", "signature"} else v) for k, v in license_details.items() if k != "_debug"}
+                log.debug("license_details", extra={"details": redacted})
                 if "_debug" in license_details:
-                    print("Debug info:")
-                    for key, value in license_details["_debug"].items():
-                        print(f"    {key}: {value}")
+                    log.debug("license_details_debug", extra={"debug": license_details["_debug"]})
             else:
-                print("No license details available")
+                log.info("license_details_unavailable")
             
             if is_valid:
                 # License is valid, remove any blocking
-                print("License is valid, removing blocking and continuing...")
+                log.info("license_valid_unblocking")
                 self._remove_blocking()
                 return True
             else:
                 # License is invalid, show blocking
-                print(f"License is invalid (status: {status}), showing blocking UI...")
+                log.warning("license_invalid_show_blocking", extra={"status": status})
                 self._show_blocking(status)
                 return False
                 
         except Exception as e:
-            print(f"Error checking license: {e}")
-            import traceback
-            traceback.print_exc()
+            log.error("license_check_error", extra={"error": str(e)}, exc_info=True)
             self._show_blocking("not_found")
             return False
     
@@ -189,15 +186,15 @@ class LicenseBlocker:
         """Show blocking overlay for invalid license."""
         try:
             if self.is_blocked:
-                print("Already blocked, skipping...")
+                log.debug("license_already_blocked")
                 return
                 
-            print(f"Showing blocking UI for status: {status}")
+            log.info("license_show_blocking_ui", extra={"status": status})
             self.is_blocked = True
             
             # Ensure parent widget exists and is ready
             if not self.parent or not self.parent.winfo_exists():
-                print("Parent widget not available for blocking UI")
+                log.error("license_blocking_parent_missing")
                 return
             
             # Create blocking overlay
@@ -285,12 +282,10 @@ class LicenseBlocker:
             self.blocking_frame.focus_set()
             self.blocking_frame.grab_set()
             
-            print("Blocking UI displayed successfully")
+            log.info("license_blocking_ui_displayed")
             
         except Exception as e:
-            print(f"Error showing blocking UI: {e}")
-            import traceback
-            traceback.print_exc()
+            log.error("license_blocking_ui_error", extra={"error": str(e)}, exc_info=True)
             # Reset blocked state if UI creation failed
             self.is_blocked = False
     
@@ -323,34 +318,33 @@ class LicenseBlocker:
             
             def on_license_activated(license_data):
                 """Callback when license is successfully activated."""
-                print(f"🔍 License activation callback received data: {license_data}")
-                print(f"🔍 License data keys: {list(license_data.keys()) if isinstance(license_data, dict) else 'NOT A DICT'}")
-                print(f"🔍 expiresAt field in callback: {license_data.get('expiresAt', 'MISSING') if isinstance(license_data, dict) else 'NOT A DICT'}")
-                print(f"🔍 max_devices field in callback: {license_data.get('max_devices', 'MISSING') if isinstance(license_data, dict) else 'NOT A DICT'}")
+                redacted = {}
+                if isinstance(license_data, dict):
+                    for k, v in license_data.items():
+                        redacted[k] = "***" if k in {"code", "signature"} else v
+                log.debug("license_activation_callback_data", extra={"keys": list(license_data.keys()) if isinstance(license_data, dict) else "NOT_A_DICT", "details": redacted})
                 
                 # Save the license
                 if self.license_manager.save_license(license_data):
                     # Remove blocking and continue
                     self._remove_blocking()
-                    print("License activated successfully!")
+                    log.info("license_activated_success")
                     
                     # Broadcast license activation to other instances
                     self._broadcast_license_activation()
                     
                     # Execute callback to continue app setup if provided
                     if self.on_license_valid:
-                        print("Executing license valid callback...")
+                        log.debug("license_valid_callback_execute")
                         self.on_license_valid()
                 else:
-                    print("Failed to save license")
+                    log.error("license_save_failed")
             
             # Show the activation dialog
             LicenseActivationDialog.show(self.parent, on_license_activated)
             
         except Exception as e:
-            print(f"Error showing license activation: {e}")
-            import traceback
-            traceback.print_exc()
+            log.error("license_show_activation_error", extra={"error": str(e)}, exc_info=True)
     
     def _broadcast_license_activation(self):
         """Broadcast license activation to other instances."""
@@ -369,10 +363,10 @@ class LicenseBlocker:
             with open(signal_file, 'w') as f:
                 f.write(str(time.time()))
             
-            print(f"License activation broadcasted to other instances via signal file: {signal_file}")
+            log.info("license_activation_broadcasted", extra={"signal_file": signal_file})
             
         except Exception as e:
-            print(f"Error broadcasting license activation: {e}")
+            log.error("license_activation_broadcast_error", extra={"error": str(e)})
     
     def _exit_app(self):
         """Exit the application."""
@@ -385,7 +379,7 @@ class LicenseBlocker:
                     current.destroy()
                     break
         except Exception as e:
-            print(f"Error exiting app: {e}")
+            log.error("license_exit_app_error", extra={"error": str(e)})
             import sys
             sys.exit(0)
     
@@ -417,14 +411,14 @@ class LicenseBlocker:
                 if not self.is_blocked:
                     # App is not blocked, check if it should be blocked
                     if not is_valid:
-                        print("License became invalid during runtime, blocking app...")
+                        log.warning("license_became_invalid_runtime")
                         # Use after() to ensure UI operations happen in the main thread
                         if self.parent.winfo_exists():
                             self.parent.after(0, lambda: self._show_blocking(status))
                 else:
                     # App is blocked, check if it should be unblocked
                     if is_valid:
-                        print("License became valid during runtime, unblocking app...")
+                        log.info("license_became_valid_runtime")
                         # Use after() to ensure UI operations happen in the main thread
                         if self.parent.winfo_exists():
                             self.parent.after(0, lambda: self._remove_blocking())
@@ -436,7 +430,7 @@ class LicenseBlocker:
                     self.parent.after(interval_ms, periodic_check)
             except Exception as e:
                 # Parent was destroyed or error occurred, stop the periodic check
-                print(f"Periodic license check error (likely parent destroyed): {e}")
+                log.debug("license_periodic_check_error", extra={"error": str(e)})
                 return
         
         # Start the periodic check
@@ -444,14 +438,13 @@ class LicenseBlocker:
 
     def debug_license_status(self):
         """Debug method to test and display license validation details."""
-        print("\n" + "="*60)
-        print("LICENSE BLOCKER DEBUG")
-        print("="*60)
-        print(f"Parent widget: {self.parent}")
-        print(f"Is blocked: {self.is_blocked}")
-        print(f"Has callback: {self.on_license_valid is not None}")
+        log.info("license_blocker_debug_start", extra={
+            "parent": str(self.parent),
+            "is_blocked": self.is_blocked,
+            "has_callback": self.on_license_valid is not None,
+        })
         
         # Test license validation
         self.license_manager.test_license_validation()
         
-        print("="*60 + "\n")
+        log.info("license_blocker_debug_end")

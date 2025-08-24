@@ -358,7 +358,11 @@ class AppConfig:
         try:
             cls.DEBUG_MODE = cls.get_optional_env("DEBUG_MODE", "False").lower() == "true"
         except Exception as e:
-            print(f"Warning: Could not initialize DEBUG_MODE: {e}")
+            try:
+                from src.core.logger import get_logger
+                get_logger(__name__).warning("init_debug_mode_failed", exc_info=True)
+            except Exception:
+                pass
             cls.DEBUG_MODE = False
 
 

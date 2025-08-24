@@ -287,7 +287,10 @@ class ScoreApp:
             self.root.after(animation_config['loading_step_delay'], lambda: self._setup_step_1())
             
         except Exception as e:
-            print(f"Error during UI setup: {e}")
+            try:
+                log.error("ui_setup_error", exc_info=True)
+            except Exception:
+                pass
             # Fallback: show UI immediately if there's an error
             self._hide_loading_indicator()
             self.root.attributes("-alpha", self.opacity)
@@ -317,7 +320,10 @@ class ScoreApp:
             animation_config = AppConfig.get_animation_config()
             self.root.after(animation_config['loading_step_delay'], lambda: self._setup_step_2())
         except Exception as e:
-            print(f"Error in step 1: {e}")
+            try:
+                log.error("ui_step1_error", exc_info=True)
+            except Exception:
+                pass
             self._hide_loading_indicator()
             self.root.attributes("-alpha", self.opacity)
     
@@ -338,7 +344,10 @@ class ScoreApp:
             self.root.after(animation_config['loading_step_delay'], lambda: self._setup_step_3())
             
         except Exception as e:
-            print(f"Error in step 2: {e}")
+            try:
+                log.error("ui_step2_error", exc_info=True)
+            except Exception:
+                pass
             self._hide_loading_indicator()
             self.root.attributes("-alpha", self.opacity)
     
@@ -367,7 +376,10 @@ class ScoreApp:
             self.root.after(animation_config['loading_step_delay'], lambda: self._setup_step_4())
             
         except Exception as e:
-            print(f"Error in step 3: {e}")
+            try:
+                log.error("ui_step3_error", exc_info=True)
+            except Exception:
+                pass
             self._hide_loading_indicator()
             self.root.attributes("-alpha", self.opacity)
     
@@ -397,7 +409,10 @@ class ScoreApp:
             self.root.after(animation_config['completion_delay'], self._complete_fast_loading)
             
         except Exception as e:
-            print(f"Error in step 4: {e}")
+            try:
+                log.error("ui_step4_error", exc_info=True)
+            except Exception:
+                pass
             self._hide_loading_indicator()
             self.root.attributes("-alpha", self.opacity)
 
@@ -423,14 +438,17 @@ class ScoreApp:
             # Start periodic license checking to ensure app stays secure
             if hasattr(self, 'license_blocker') and self.license_blocker is not None:
                 self.license_blocker.start_periodic_check(AppConfig.LICENSE_CHECK_INTERVAL)
-                print("Periodic license checking started")
+                log.info("license_periodic_check_started")
             else:
-                print("No license blocker found, skipping periodic checks")
+                log.info("license_blocker_missing")
             
-            print(f"Campo {self.instance_number} loaded successfully!")
+            log.info("campo_loaded", extra={"instance": self.instance_number})
             
         except Exception as e:
-            print(f"Error completing loading: {e}")
+            try:
+                log.error("complete_loading_error", exc_info=True)
+            except Exception:
+                pass
             # Fallback: show UI immediately if there's an error
             self._hide_loading_indicator()
             self.root.attributes("-alpha", self.opacity)
@@ -510,20 +528,23 @@ class ScoreApp:
             # Check license status
             if self.license_blocker.check_and_block():
                 # License is valid, continue with setup
-                print("License validated, proceeding with app setup...")
+                log.info("license_validated")
                 self._initialize_components_after_license()
             else:
                 # License is invalid, hide loading indicator and show blocking UI
-                print("License validation failed, app is blocked.")
+                log.warning("license_validation_failed")
                 self._hide_loading_indicator()
                 # The license blocker will handle showing the blocking overlay
                 # and license activation modal - app stays open but blocked
                 return
                 
         except Exception as e:
-            print(f"Error checking license during initialization: {e}")
+            try:
+                log.error("license_check_error", exc_info=True)
+            except Exception:
+                pass
             # If license check fails, proceed with development mode
-            print("License check failed, proceeding with development mode...")
+            log.info("license_check_failed_continue_dev")
             self._initialize_components_after_license()
 
     def _initialize_components_after_license(self):
@@ -616,9 +637,10 @@ class ScoreApp:
         """Start the futebol-server.exe after license validation"""
         try:
             if AppConfig.is_debug_mode():
-                print("🚀 Starting server after license validation...")
-                print(f"📍 Current time: {__import__('time').time()}")
-                print(f"📍 Instance number: {self.instance_number}")
+                try:
+                    log.info("server_start_after_license", extra={"instance": self.instance_number})
+                except Exception:
+                    pass
             
             # Check environment first (via PathFinder)
             import sys
@@ -639,47 +661,67 @@ class ScoreApp:
             from src.core.server_launcher import get_server_launcher
             launcher = get_server_launcher()
             if AppConfig.is_debug_mode():
-                print(f"📍 Server launcher instance: {launcher}")
-                print(f"📍 Server already running: {launcher.is_server_running()}")
+                try:
+                    log.debug("server_launcher_state", extra={"running": launcher.is_server_running()})
+                except Exception:
+                    pass
             
             # Check if we're in development mode
             if not frozen:
                 if AppConfig.is_debug_mode():
-                    print("🚫 Development mode detected - server startup skipped")
-                    print("📍 Server will only start when running as bundled executable")
+                    try:
+                        log.info("server_start_skipped_dev")
+                    except Exception:
+                        pass
                 return  # Exit early in development mode
             
             # Only proceed with server startup in bundle mode
             from src.core.server_launcher import start_server_after_license
             if start_server_after_license():
                 if AppConfig.is_debug_mode():
-                    print("✅ Server started successfully after license validation")
+                    try:
+                        log.info("server_started_after_license")
+                    except Exception:
+                        pass
                 
                 # Verify it's actually running
                 time.sleep(1)  # Wait a moment
                 is_running = launcher.is_server_running()
                 if AppConfig.is_debug_mode():
-                    print(f"📍 Server confirmed running: {is_running}")
+                    try:
+                        log.info("server_running_state", extra={"running": is_running})
+                    except Exception:
+                        pass
                 
                 if is_running:
                     if AppConfig.is_debug_mode():
-                        print("🎉 Server is confirmed to be running!")
+                        try:
+                            log.info("server_running_confirmed")
+                        except Exception:
+                            pass
                 else:
                     if AppConfig.is_debug_mode():
-                        print("⚠️ Server started but not running - this indicates an issue")
+                        try:
+                            log.warning("server_started_not_running")
+                        except Exception:
+                            pass
                     
             else:
                 if AppConfig.is_debug_mode():
-                    print("⚠️ Failed to start server after license validation")
+                    try:
+                        log.warning("server_start_after_license_failed")
+                    except Exception:
+                        pass
                 
         except Exception as e:
-            print(f"❌ Error starting server after license validation: {e}")
-            import traceback
-            traceback.print_exc()
+            try:
+                log.error("server_start_after_license_error", exc_info=True)
+            except Exception:
+                pass
 
     def _on_license_activated(self):
         """Handle successful license activation and continue with app setup"""
-        print("License activated successfully, continuing with app setup...")
+        log.info("license_activated")
         # Remove any blocking UI
         if hasattr(self, 'license_blocker') and self.license_blocker is not None:
             self.license_blocker._remove_blocking()
@@ -699,7 +741,10 @@ class ScoreApp:
         if getattr(sys, 'frozen', False):
             self._start_server_after_license()
         else:
-            print("🚫 Development mode detected - server startup skipped during license activation")
+            try:
+                log.info("server_start_skipped_dev_activation")
+            except Exception:
+                pass
         
         # Continue with app setup
         self._initialize_components_after_license()
@@ -720,10 +765,13 @@ class ScoreApp:
             # Clean up any other UI components that might have been created
             # This prevents duplicate components when license is reactivated
             
-            print("Existing UI components cleaned up")
+            log.info("existing_ui_cleaned")
             
         except Exception as e:
-            print(f"Error cleaning up existing UI: {e}")
+            try:
+                log.error("cleanup_ui_error", exc_info=True)
+            except Exception:
+                pass
 
 
 def start_instance(instance_number: int):

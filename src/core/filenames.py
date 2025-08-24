@@ -85,7 +85,11 @@ def get_file_value(
     folder = get_folder_path(instance_number)
     full_path = os.path.join(folder, f'{stem}{ext}')
 
-    print(f'🔍 Reading Field {instance_number} - {stem}{ext} (default={default})')
+    try:
+        from src.core.logger import get_logger
+        get_logger(__name__).info('read_file_value', extra={'instance': instance_number, 'file': f'{stem}{ext}'})
+    except Exception:
+        pass
     
     # Use caching for JSON files
     if ext.lower() == '.json':
@@ -94,11 +98,19 @@ def get_file_value(
             if data:
                 return str(data)
             else:
-                print(f'⚠️ Field {instance_number} - {stem}{ext} JSON is empty; writing and returning default={default}')
+                try:
+                    from src.core.logger import get_logger
+                    get_logger(__name__).warning('json_empty_defaulting', extra={'instance': instance_number, 'file': f'{stem}{ext}'})
+                except Exception:
+                    pass
                 write_json_sync(full_path, {"value": default})
                 return default
         except Exception as e:
-            print(f'❌ Error reading JSON {full_path}: {e}; writing and returning default={default}')
+            try:
+                from src.core.logger import get_logger
+                get_logger(__name__).error('json_read_error', extra={'path': full_path}, exc_info=True)
+            except Exception:
+                pass
             write_json_sync(full_path, {"value": default})
             return default
     
@@ -109,31 +121,59 @@ def get_file_value(
             if text:
                 return text
             else:
-                print(f'⚠️ Field {instance_number} - {stem}{ext} file is empty; writing and returning default={default}')
+                try:
+                    from src.core.logger import get_logger
+                    get_logger(__name__).warning('file_empty_defaulting', extra={'instance': instance_number, 'file': f'{stem}{ext}'})
+                except Exception:
+                    pass
                 with open(full_path, 'w', encoding='utf-8') as f:
                     f.write(default)
                 return default
     except FileNotFoundError:
-        print(f'⚠️ Field {instance_number} - {stem}{ext} file not found; creating with default={default}')
+        try:
+            from src.core.logger import get_logger
+            get_logger(__name__).warning('file_missing_creating_default', extra={'instance': instance_number, 'file': f'{stem}{ext}'})
+        except Exception:
+            pass
         try:
             with open(full_path, 'w', encoding='utf-8') as f:
                 f.write(default)
         except Exception as e:
-            print(f'❌ Error creating default file {full_path}: {e}')
+            try:
+                from src.core.logger import get_logger
+                get_logger(__name__).error('file_create_default_error', extra={'path': full_path}, exc_info=True)
+            except Exception:
+                pass
         return default
     except UnicodeDecodeError as e:
-        print(f'⚠️ Field {instance_number} - {stem}{ext} encoding error: {e}; writing and returning default={default}')
+        try:
+            from src.core.logger import get_logger
+            get_logger(__name__).warning('file_encoding_error_default', extra={'path': full_path}, exc_info=True)
+        except Exception:
+            pass
         try:
             with open(full_path, 'w', encoding='utf-8') as f:
                 f.write(default)
         except Exception as e2:
-            print(f'❌ Error writing default after decode error {full_path}: {e2}')
+            try:
+                from src.core.logger import get_logger
+                get_logger(__name__).error('file_write_after_decode_error', extra={'path': full_path}, exc_info=True)
+            except Exception:
+                pass
         return default
     except Exception as e:
-        print(f'❌ Error reading {full_path}: {e}; writing and returning default={default}')
+        try:
+            from src.core.logger import get_logger
+            get_logger(__name__).error('file_read_error_default', extra={'path': full_path}, exc_info=True)
+        except Exception:
+            pass
         try:
             with open(full_path, 'w', encoding='utf-8') as f:
                 f.write(default)
         except Exception as e2:
-            print(f'❌ Error writing default after general error {full_path}: {e2}')
+            try:
+                from src.core.logger import get_logger
+                get_logger(__name__).error('file_write_after_error', extra={'path': full_path}, exc_info=True)
+            except Exception:
+                pass
         return default

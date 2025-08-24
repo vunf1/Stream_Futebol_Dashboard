@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 from typing import Optional
 from src.config.settings import AppConfig
+from src.core.config_manager import get_config
 from src.core.path_finder import get_path_finder
 from src.core.logger import get_logger
 
@@ -385,10 +386,13 @@ class ServerLauncher:
                 # Wait briefly to see if it starts successfully (non-blocking duration)
                 time.sleep(max(0.02, AppConfig.SERVER_STARTUP_WAIT_MS / 1000.0))
 
-                # Health check loop (optional)
+                # Health check loop (optional, can be disabled by runtime config)
                 try:
                     import urllib.request as _url
-                    total_ms = int(getattr(AppConfig, 'SERVER_HEALTH_TIMEOUT_MS', 0))
+                    if not bool(get_config('server_health_check_enabled', True)):
+                        total_ms = 0
+                    else:
+                        total_ms = int(getattr(AppConfig, 'SERVER_HEALTH_TIMEOUT_MS', 0))
                     retry_ms = max(50, int(getattr(AppConfig, 'SERVER_HEALTH_RETRY_MS', 300)))
                     url = getattr(AppConfig, 'SERVER_HEALTH_URL', '')
                     if total_ms > 0 and url:
@@ -450,9 +454,11 @@ class ServerLauncher:
                 self._log_handle = None
                 return False
             finally:
-                # Start watchdog if enabled
+                # Start watchdog if enabled (frozen default + runtime override)
                 try:
-                    if getattr(AppConfig, 'SERVER_WATCHDOG_ENABLED', False) and self.server_process is not None:
+                    frozen = getattr(sys, 'frozen', False)
+                    watchdog_enabled = bool(get_config('server_watchdog_enabled', False)) or (frozen and getattr(AppConfig, 'SERVER_WATCHDOG_ENABLED', False))
+                    if watchdog_enabled and self.server_process is not None:
                         self._start_watchdog()
                 except Exception:
                     pass

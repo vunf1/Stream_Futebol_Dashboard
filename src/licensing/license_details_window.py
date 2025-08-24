@@ -10,6 +10,9 @@ from .license_manager import LicenseManager
 from ..utils import apply_drag_and_drop
 from ..config.settings import AppConfig
 from src.ui.footer_label import create_footer
+from src.core.logger import get_logger
+
+log = get_logger(__name__)
 
 
 class LicenseDetailsWindow:
@@ -287,7 +290,7 @@ class LicenseDetailsWindow:
                     encrypted_data = self.license_manager.license_file.read_bytes()
                     license_data = self.license_manager._decrypt_license_data(encrypted_data)
                 except Exception as e:
-                    print(f"Failed to decrypt license data: {e}")
+                    log.error("license_details_decrypt_failed", extra={"error": str(e)})
             
             # Update status
             status_text = self.license_manager.get_status_display_text(status, license_data)
@@ -374,7 +377,7 @@ class LicenseDetailsWindow:
                 self.company_label.configure(text="N/A")
                 
         except Exception as e:
-            print(f"Error loading license data: {e}")
+            log.error("license_details_load_error", extra={"error": str(e)})
             self.status_label.configure(text="Error loading license", text_color=AppConfig.COLORS["error"])
             self.code_label.configure(text="Error")
             self.expires_label.configure(text="Error")

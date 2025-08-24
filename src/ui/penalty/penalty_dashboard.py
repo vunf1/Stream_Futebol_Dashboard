@@ -16,6 +16,7 @@ from src.config.settings import AppConfig
 from src.licensing.license_details_window import show_license_details
 from src.ui import get_icon_path, get_icon
 from src.ui.footer_label import create_footer
+from src.core.logger import get_logger
 
 
 @dataclass
@@ -85,6 +86,7 @@ class PenaltyDashboard(ctk.CTkToplevel):
         
         # Start auto-save timer
         self._start_auto_save()
+        self._log = get_logger(__name__)
     
     def _configure_window(self):
         """Configure window properties"""
@@ -310,7 +312,10 @@ class PenaltyDashboard(ctk.CTkToplevel):
             self._cached_team_names = (home_display, away_display)
             
         except Exception as e:
-            print(f"Warning: Could not cache team data: {e}")
+            try:
+                get_logger(__name__).warning("penalty_cache_team_data_failed", exc_info=True)
+            except Exception:
+                pass
             # Fallback to defaults
             self._cached_team_names = ("Home", "Away")
     
@@ -977,7 +982,10 @@ class PenaltyDashboard(ctk.CTkToplevel):
             if penalties_data and isinstance(penalties_data, dict):
                 return PenaltyState.from_dict(penalties_data)
         except Exception as e:
-            print(f"Error loading penalty state: {e}")
+            try:
+                get_logger(__name__).error("penalty_state_load_error", exc_info=True)
+            except Exception:
+                pass
         
         # Return default state if no data or error
         return PenaltyState()
@@ -996,7 +1004,10 @@ class PenaltyDashboard(ctk.CTkToplevel):
             # GameInfoStore handles buffering and efficient disk writes
             self.game_store.set("penalties", self.penalty_state.to_dict())
         except Exception as e:
-            print(f"Persist error: {e}")
+            try:
+                self._log.error("penalty_persist_error", exc_info=True)
+            except Exception:
+                pass
     
     def _start_auto_save(self):
         """Start auto-save timer with optimized GameInfoStore"""
@@ -1004,7 +1015,10 @@ class PenaltyDashboard(ctk.CTkToplevel):
             try:
                 self._persist_state()
             except Exception as e:
-                print(f"Auto-save error: {e}")
+                try:
+                    self._log.error("penalty_auto_save_error", exc_info=True)
+                except Exception:
+                    pass
             finally:
                 # Schedule next auto-save in 5 seconds
                 self.after(5000, auto_save)
@@ -1017,7 +1031,10 @@ class PenaltyDashboard(ctk.CTkToplevel):
         try:
             self._persist_state()
         except Exception as e:
-            print(f"Error saving on close: {e}")
+            try:
+                self._log.error("penalty_save_on_close_error", exc_info=True)
+            except Exception:
+                pass
         
         self.destroy()
 

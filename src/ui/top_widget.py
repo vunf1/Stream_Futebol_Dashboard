@@ -5,6 +5,7 @@ from customtkinter import CTkFrame, CTkButton, CTkLabel, CTkToplevel
 from src.ui import get_icon
 from src.core import GameInfoStore
 from src.core import MongoTeamManager
+from src.core.logger import get_logger
 
 class TopWidget:
     def __init__(self, parent, instance_number: int, mongo: MongoTeamManager, json: GameInfoStore):
@@ -22,6 +23,7 @@ class TopWidget:
         self._timer_component: Optional[Any] = None  # Will be TimerComponent when imported
         self.mongo = mongo
         self.json = json
+        self._log = get_logger(__name__)
         
         # Defer UI initialization for smooth loading
         self.parent.after(75, self._deferred_init_top_grid)  # Faster (was 150ms, now 75ms)
@@ -31,7 +33,10 @@ class TopWidget:
         try:
             self._init_top_grid()
         except Exception as e:
-            print(f"Error initializing TopWidget: {e}")
+            try:
+                self._log.error("topwidget_init_error", exc_info=True)
+            except Exception:
+                pass
             # Fallback: initialize immediately if there's an error
             self._init_top_grid()
 
@@ -142,7 +147,10 @@ class TopWidget:
             from src.ui.penalty import open_penalty_dashboard
             open_penalty_dashboard(self.parent, self.instance_number)
         except Exception as e:
-            print(f"Error opening penalty dashboard: {e}")
+            try:
+                self._log.error("penalty_open_error", exc_info=True)
+            except Exception:
+                pass
             # Fallback: show error message
             import tkinter.messagebox as messagebox
             messagebox.showerror("Error", f"Failed to open penalty dashboard: {e}")
@@ -153,8 +161,10 @@ class TopWidget:
             from src.ui.edit_teams_ui import TeamManagerWindow
             TeamManagerWindow(parent=self.parent, mongo=self.mongo)
         except Exception as e:
-            print(f"Error opening Team Manager: {e}")
-            import traceback; traceback.print_exc()
+            try:
+                self._log.error("team_manager_open_error", exc_info=True)
+            except Exception:
+                pass
 
 
 

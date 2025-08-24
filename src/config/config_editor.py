@@ -9,6 +9,9 @@ from typing import Dict, Any, Optional
 from pathlib import Path
 import customtkinter as ctk
 from .settings import AppConfig
+from src.core.logger import get_logger
+
+log = get_logger(__name__)
 
 class ConfigEditor:
     """Configuration editor interface."""
@@ -26,7 +29,7 @@ class ConfigEditor:
                 with open(self.config_file, 'r', encoding='utf-8') as f:
                     return json.load(f)
             except Exception as e:
-                print(f"Warning: Could not load config file: {e}")
+                log.warning("config_editor_load_failed", extra={"error": str(e), "path": str(self.config_file)})
                 return {}
         return {}
     
@@ -35,9 +38,9 @@ class ConfigEditor:
         try:
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(config, f, indent=2, ensure_ascii=False)
-            print("Configuration saved successfully!")
+            log.info("config_editor_saved", extra={"path": str(self.config_file)})
         except Exception as e:
-            print(f"Error saving configuration: {e}")
+            log.error("config_editor_save_failed", extra={"error": str(e), "path": str(self.config_file)})
     
     def show_config_dialog(self):
         """Show configuration editing dialog."""
@@ -73,6 +76,11 @@ class ConfigEditor:
         self._create_setting(scroll_frame, "UI_UPDATE_DEBOUNCE", "UI Update Debounce (ms)", 10, 200, 10)
         self._create_setting(scroll_frame, "ICON_CACHE_SIZE", "Icon Cache Size", 10, 200, 10)
         self._create_setting(scroll_frame, "WRITE_BUFFER_DELAY", "Write Buffer Delay (s)", 0.01, 1.0, 0.01)
+        
+        # Server health/watchdog settings
+        self._create_section_header(scroll_frame, "Server Health & Watchdog")
+        self._create_toggle(scroll_frame, "SERVER_HEALTH_CHECK_ENABLED", "Enable Server Health Checks")
+        self._create_toggle(scroll_frame, "SERVER_WATCHDOG_ENABLED", "Enable Server Watchdog")
         
         # Animation settings section
         self._create_section_header(scroll_frame, "Animation Settings")
@@ -159,6 +167,25 @@ class ConfigEditor:
         
         # Update value label when slider changes
         slider.configure(command=lambda v: self._update_setting_value(key, v / 100))
+    
+    def _create_toggle(self, parent, key: str, label: str):
+        """Create a boolean toggle control."""
+        frame = ctk.CTkFrame(parent)
+        frame.pack(fill="x", padx=5, pady=2)
+
+        label_widget = ctk.CTkLabel(frame, text=label)
+        label_widget.pack(side="left", padx=5, pady=8)
+
+        current_value = bool(self.current_config.get(key, getattr(AppConfig, key, False)))
+        var = ctk.BooleanVar(value=current_value)
+
+        def on_toggle():
+            self.setting_widgets[key] = {
+                'current_value': var.get()
+            }
+
+        switch = ctk.CTkSwitch(frame, text="", variable=var, command=on_toggle)
+        switch.pack(side="right", padx=5, pady=8)
         
     def _update_setting_value(self, key: str, value: float):
         """Update setting value and display."""
@@ -191,7 +218,7 @@ class ConfigEditor:
             widgets['value_label'].configure(text=f"{default_value:.2f}")
             widgets['current_value'] = default_value
         
-        print("Configuration reset to defaults!")
+        log.info("config_editor_reset_to_defaults")
     
     def _close_dialog(self):
         """Close the configuration dialog."""

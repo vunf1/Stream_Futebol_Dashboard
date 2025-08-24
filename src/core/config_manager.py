@@ -23,6 +23,9 @@ class ConfigManager:
             "UI_UPDATE_DEBOUNCE": "ui_update_debounce",
             "ICON_CACHE_SIZE": "icon_cache_size",
             "WRITE_BUFFER_DELAY": "write_buffer_delay",
+            # Server toggles (from Config Editor)
+            "SERVER_WATCHDOG_ENABLED": "server_watchdog_enabled",
+            "SERVER_HEALTH_CHECK_ENABLED": "server_health_check_enabled",
         }
     
     def _load_default_config(self) -> Dict[str, Any]:
@@ -72,6 +75,10 @@ class ConfigManager:
             
             # UI appearance settings
             "window_opacity": 0.95,  # Window transparency level (0.0 to 1.0)
+
+            # Server health/watchdog toggles (UI controllable)
+            "server_watchdog_enabled": False,
+            "server_health_check_enabled": True,
         }
     
     def _load_config(self):

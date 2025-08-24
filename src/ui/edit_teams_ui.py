@@ -6,6 +6,7 @@ from src.notification import show_message_notification
 from src.config.settings import AppConfig
 from src.utils import top_centered_child_to_parent
 from src.ui.footer_label import create_footer
+from src.core.logger import get_logger
 import re
 
 # Color constants from AppConfig - using AppConfig directly
@@ -29,12 +30,12 @@ class TeamManagerWindow(ctk.CTkToplevel):
         self._is_loading = True  # Track loading state
 
         # Ask PIN first and ensure proper cleanup
-        print("🔐 Requesting admin PIN for TeamManagerWindow...")
+        get_logger(__name__).info("team_manager_request_pin")
         if not self._prompt_for_pin():
-            print("❌ PIN validation failed, destroying TeamManagerWindow")
+            get_logger(__name__).warning("team_manager_pin_validation_failed")
             self.destroy()
             return
-        print("✅ PIN validated, continuing with TeamManagerWindow setup...")
+        get_logger(__name__).info("team_manager_pin_validated")
         
         # Build UI AFTER PIN validation while window is still hidden to avoid flicker
         # (window will be shown later once fully constructed)

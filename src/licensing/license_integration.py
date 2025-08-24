@@ -6,6 +6,9 @@ Simple integration functions to add licensing to any application window.
 from typing import Optional
 from .license_manager import LicenseManager
 from .license_blocker import LicenseBlocker
+from src.core.logger import get_logger
+
+log = get_logger(__name__)
 
 def integrate_licensing(parent_widget, show_footer: bool = True) -> Optional[LicenseBlocker]:
     """
@@ -36,7 +39,7 @@ def integrate_licensing(parent_widget, show_footer: bool = True) -> Optional[Lic
         return blocker
         
     except Exception as e:
-        print(f"Failed to integrate licensing: {e}")
+        log.error("license_integrate_failed", extra={"error": str(e)})
         return None
 
 def check_license_status() -> tuple[str, bool]:
@@ -50,7 +53,7 @@ def check_license_status() -> tuple[str, bool]:
         manager = LicenseManager()
         return manager.get_license_status()
     except Exception as e:
-        print(f"Failed to check license status: {e}")
+        log.error("license_check_status_failed", extra={"error": str(e)})
         return "not_found", False
 
 def get_license_display_info() -> tuple[str, str]:
@@ -67,7 +70,7 @@ def get_license_display_info() -> tuple[str, str]:
         status_color = manager.get_status_color(status)
         return display_text, status_color
     except Exception as e:
-        print(f"Failed to get license display info: {e}")
+        log.error("license_display_info_failed", extra={"error": str(e)})
         return "LICENSE ERROR", "#dc3545"
 
 def is_license_valid() -> bool:
@@ -81,7 +84,7 @@ def is_license_valid() -> bool:
         _, is_valid = check_license_status()
         return is_valid
     except Exception as e:
-        print(f"Failed to check license validity: {e}")
+        log.error("license_validity_check_failed", extra={"error": str(e)})
         return False
 
 def force_license_check(parent_widget) -> bool:
@@ -98,5 +101,5 @@ def force_license_check(parent_widget) -> bool:
         blocker = LicenseBlocker(parent_widget)
         return blocker.check_and_block()
     except Exception as e:
-        print(f"Failed to force license check: {e}")
+        log.error("license_force_check_failed", extra={"error": str(e)})
         return False

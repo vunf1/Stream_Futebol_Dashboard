@@ -8,6 +8,9 @@ from typing import Callable, Optional
 from .license_validator import LicenseValidator
 from ..utils import apply_drag_and_drop
 from ..config.settings import AppConfig
+from src.core.logger import get_logger
+
+log = get_logger(__name__)
 
 class LicenseModal:
     """Modal window for license activation."""
@@ -65,9 +68,7 @@ class LicenseModal:
             return self.result
             
         except Exception as e:
-            print(f"Error creating modal: {e}")
-            import traceback
-            traceback.print_exc()
+            log.error("license_modal_create_error", extra={"error": str(e)}, exc_info=True)
             return None
     
     def _calculate_position(self):
@@ -85,7 +86,7 @@ class LicenseModal:
                 AppConfig.LICENSE_MODAL_HEIGHT
             )
         except Exception as e:
-            print(f"Error calculating modal position: {e}")
+            log.debug("license_modal_position_error", extra={"error": str(e)})
             # Fallback to center of screen
             from src.utils import center_window_on_screen
             center_window_on_screen(
@@ -184,9 +185,7 @@ class LicenseModal:
             self.code_entry.focus_set()
             
         except Exception as e:
-            print(f"ERROR in _create_ui: {e}")
-            import traceback
-            traceback.print_exc()
+            log.error("license_modal_create_ui_error", extra={"error": str(e)}, exc_info=True)
     
     def _activate_license(self):
         """Activate the license with the entered code."""
@@ -216,7 +215,7 @@ class LicenseModal:
                 self.result = license_data
                 self.on_license_activated(license_data)
                 if self.modal_window:
-                    print("License activated successfully, closing modal...")
+                    log.info("license_modal_activation_success")
                     self.modal_window.destroy()
             else:
                 # Show error and re-enable input
@@ -251,7 +250,7 @@ class LicenseModal:
     def _cancel(self):
         """Cancel the license activation."""
         if self.modal_window:
-            print("Cancelling license activation, closing modal...")
+            log.info("license_modal_cancel")
             self.modal_window.destroy()
 
     # Removed complex topmost enforcement methods that could interfere with text input

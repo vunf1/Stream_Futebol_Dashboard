@@ -134,10 +134,10 @@ def prompt_for_pin(parent):
         def cleanup():
             try:
                 if win.winfo_exists():
-                    print("🔐 Cleaning up PIN window...")
+                    # Avoid noisy prints; window cleanup
                     win.destroy()
             except Exception as e:
-                print(f"🔐 Error during cleanup: {e}")
+                # Swallow cleanup issues silently
                 pass
         
         # Add custom compact footer near the PIN entry

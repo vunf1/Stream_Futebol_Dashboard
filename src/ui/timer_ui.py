@@ -4,14 +4,17 @@ import time
 from typing import Any, Dict, Optional
 from src.config.settings import AppConfig
 from src.ui import get_icon
+from src.ui.event_bus import UI_EVENT_BUS
 from src.core import GameInfoStore, DEFAULT_FIELD_STATE
 from src.notification import show_message_notification
 from src.core import get_config
+from src.core.logger import get_logger
 # Performance monitoring - removed old imports, using new performance system
 # Footer import moved to where it's used
 
 # Constants
 BUTTON_PAD = dict(padx=5, pady=5)
+log = get_logger(__name__)
 
 # Helper functions
 def _parse_time_to_seconds(time_str: str) -> int:
@@ -78,9 +81,12 @@ class TimerComponent(ctk.CTkFrame):
         self._timer_thread = None
         self._timer_stop_event = threading.Event()
         
-        # Performance optimization: debounced updates
+        # Performance optimization: debounced updates via UI bus
         self._update_pending = False
         self._update_timer = None
+        def _cb() -> None:
+            self.after(0, self._perform_ui_update)
+        UI_EVENT_BUS.subscribe(f"timer_ui_update_{self.instance_number}", _cb)
         self._last_values = {"timer": "", "extra": ""}
         
 
@@ -101,7 +107,10 @@ class TimerComponent(ctk.CTkFrame):
             try:
                 icons[name] = get_icon(name, size)
             except Exception as e:
-                print(f"Warning: Could not load icon {name}: {e}")
+                try:
+                    log.warning("timer_icon_load_failed", extra={"icon": name}, exc_info=True)
+                except Exception:
+                    pass
         
         return icons
 
@@ -294,8 +303,10 @@ class TimerComponent(ctk.CTkFrame):
         timer_txt = self.state.read_field_key("timer", DEFAULT_FIELD_STATE["timer"])
         extra_txt = self.state.read_field_key("extra", DEFAULT_FIELD_STATE["extra"])
         
-        print(f"[TimerComponent:{self.instance_number}] loaded from JSON → "
-            f"max={max_txt} timer={timer_txt} extra={extra_txt} ")
+        try:
+            log.info("timer_loaded_from_json", extra={"instance": self.instance_number, "max": max_txt, "timer": timer_txt, "extra": extra_txt})
+        except Exception:
+            pass
         self.timer_seconds_max   = _parse_time_to_seconds(max_txt)   or 0
         self.timer_seconds_main  = _parse_time_to_seconds(timer_txt) or 0
         self.timer_seconds_extra = _parse_time_to_seconds(extra_txt) or 0
@@ -330,10 +341,14 @@ class TimerComponent(ctk.CTkFrame):
                 return
             
             self._update_pending = True
-            self._update_timer = self.after(self.ui_update_debounce, self._perform_ui_update)
+            # Publish a coalesced event; actual UI update runs on main thread via after()
+            UI_EVENT_BUS.publish(f"timer_ui_update_{self.instance_number}")
         except Exception as e:
             # Widget was destroyed or error occurred, stop updates
-            print(f"Timer UI schedule error (likely widget destroyed): {e}")
+            try:
+                log.debug("timer_ui_schedule_error", exc_info=True)
+            except Exception:
+                pass
             self._update_pending = False
             self._update_timer = None
 
@@ -364,7 +379,10 @@ class TimerComponent(ctk.CTkFrame):
                 
         except Exception as e:
             # Widget was destroyed or error occurred, stop updates
-            print(f"Timer UI update error (likely widget destroyed): {e}")
+            try:
+                log.debug("timer_ui_update_error", exc_info=True)
+            except Exception:
+                pass
             self._update_pending = False
             self._update_timer = None
 
@@ -532,7 +550,10 @@ class TimerComponent(ctk.CTkFrame):
             try:
                 self.on_close_callback()
             except Exception as e:
-                print(f"Warning: Error in close callback: {e}")
+                try:
+                    log.warning("timer_close_callback_error", exc_info=True)
+                except Exception:
+                    pass
         
         # Find the parent window and close it
         parent_window = self.winfo_toplevel()
@@ -540,7 +561,10 @@ class TimerComponent(ctk.CTkFrame):
             try:
                 parent_window.destroy()
             except Exception as e:
-                print(f"Warning: Error closing window: {e}")
+                try:
+                    log.warning("timer_close_window_error", exc_info=True)
+                except Exception:
+                    pass
 
     def destroy(self):
         """Cleanup when component is destroyed"""

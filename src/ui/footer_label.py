@@ -450,7 +450,11 @@ def create_footer(parent, **kwargs):
                     parent.after(1000, update_datetime)
             except Exception as e:
                 # Widget was destroyed or error occurred, stop the timer
-                print(f"Datetime update error (likely widget destroyed): {e}")
+                try:
+                    from src.core.logger import get_logger
+                    get_logger(__name__).debug("footer_datetime_update_error", exc_info=True)
+                except Exception:
+                    pass
                 return
         
         update_datetime()
@@ -485,22 +489,37 @@ def create_footer(parent, **kwargs):
         if config.show_activate_button:
             def show_license_activation():
                 try:
-                    print("Opening license activation modal...")
+                    from src.core.logger import get_logger
+                    get_logger(__name__).info("license_activation_modal_open")
                     
                     def on_license_activated(license_data):
                         if license_manager.save_license(license_data):
                             update_license_status()
-                            print("License activated successfully!")
+                            try:
+                                from src.core.logger import get_logger
+                                get_logger(__name__).info("license_activated_success")
+                            except Exception:
+                                pass
                         else:
-                            print("Failed to save license")
+                            try:
+                                from src.core.logger import get_logger
+                                get_logger(__name__).warning("license_save_failed")
+                            except Exception:
+                                pass
                     
                     result = LicenseActivationDialog.show(parent, on_license_activated)
-                    print(f"Modal result: {result}")
+                    try:
+                        from src.core.logger import get_logger
+                        get_logger(__name__).info("license_modal_result", extra={"result": str(result)})
+                    except Exception:
+                        pass
                     
                 except Exception as e:
-                    print(f"Error showing license activation: {e}")
-                    import traceback
-                    traceback.print_exc()
+                    try:
+                        from src.core.logger import get_logger
+                        get_logger(__name__).error("license_activation_modal_error", exc_info=True)
+                    except Exception:
+                        pass
             
             activate_button = ctk.CTkButton(
                 license_row,  # Use license_row instead of center_container
@@ -564,7 +583,11 @@ def create_footer(parent, **kwargs):
             except Exception as e:
                 # Widget was destroyed or error occurred
                 if license_status_label.winfo_exists():
-                    print(f"Error updating license status: {e}")
+                    try:
+                        from src.core.logger import get_logger
+                        get_logger(__name__).error("license_status_update_error", exc_info=True)
+                    except Exception:
+                        pass
                     final_color = "#dc3545"
                     license_status_label.configure(text="LICENSE ERROR", text_color=final_color)
                     license_status_label.configure(cursor="arrow")

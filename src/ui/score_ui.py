@@ -1,5 +1,7 @@
 import customtkinter as ctk
 from src.config.settings import AppConfig
+from src.core.logger import get_logger
+from src.ui.event_bus import UI_EVENT_BUS
 
 # Color constants from AppConfig - using AppConfig directly
 from src.ui import get_icon, get_icon_path
@@ -9,6 +11,8 @@ import threading
 import time
 
 BUTTON_PAD = dict(padx=5, pady=5)
+
+log = get_logger(__name__)
 
 class ScoreUI:
     """
@@ -60,7 +64,10 @@ class ScoreUI:
             self.parent.after(25, self._hydrate_from_json)  # Faster (was 50ms, now 25ms)
             
         except Exception as e:
-            print(f"Error building ScoreUI: {e}")
+            try:
+                log.error("score_ui_build_error", exc_info=True)
+            except Exception:
+                pass
             # Fallback: build UI immediately if there's an error
             self._build_score_display()
             self._build_score_controls()
@@ -77,17 +84,11 @@ class ScoreUI:
             return
         
         self._update_pending = True
-        
-        def delayed_update():
-            self._update_labels()
-            self._update_pending = False
-        
-        # Cancel existing timer if any
-        if self._update_timer:
-            self.parent.after_cancel(self._update_timer)
-        
-        # Schedule update after 50ms delay
-        self._update_timer = self.parent.after(50, delayed_update)
+        # Use event bus to coalesce bursts
+        def _cb() -> None:
+            self.parent.after(0, self._update_labels)
+        UI_EVENT_BUS.subscribe(f"score_labels_{self.instance}", _cb)
+        UI_EVENT_BUS.publish(f"score_labels_{self.instance}")
 
     def _update_labels(self):
         # Read from JSON (cached get is fine here)
@@ -243,7 +244,10 @@ class ScoreUI:
                     f"Casa←{a} | Fora←{h}", icon='🔄', bg_color=AppConfig.COLOR_SUCCESS
                 )
         except Exception as e:
-            print(f"❌ Erro ao trocar placares: {e}")
+            try:
+                log.error("swap_scores_error", exc_info=True)
+            except Exception:
+                pass
 
     def _confirm_reset(self):
         if prompt_notification(

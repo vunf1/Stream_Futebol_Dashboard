@@ -14,6 +14,9 @@ from typing import Dict, Tuple, Optional, Literal
 Fernet = None  # lazy import
 from ..config import AppConfig
 from ..utils.online_time_provider import get_current_utc_time, get_time_source_info
+from src.core.logger import get_logger
+
+log = get_logger(__name__)
 
 # License status types
 LicenseStatus = Literal["active", "trial", "expired", "trial_expired", "blocked", "not_found"]
@@ -79,7 +82,7 @@ class LicenseManager:
             return hashlib.sha256(combined).hexdigest()[:16]
             
         except Exception as e:
-            print(f"Warning: Could not compute machine hash: {e}")
+            log.warning("license_machine_hash_compute_failed", extra={"error": str(e)})
             # Fallback to basic system info
             fallback = f"{platform.node()}-{platform.machine()}"
             return hashlib.sha256(fallback.encode()).hexdigest()[:16]
@@ -105,7 +108,7 @@ class LicenseManager:
             decrypted = fernet.decrypt(encrypted_data)
             return json.loads(decrypted.decode())
         except Exception as e:
-            print(f"Failed to decrypt license data: {e}")
+            log.error("license_decrypt_failed", extra={"error": str(e)})
             return None
     
     def _verify_license_signature(self, data: dict, signature: str) -> bool:
@@ -114,18 +117,18 @@ class LicenseManager:
             # Check required fields
             required_fields = ["status", "code", "issuedAt", "expiresAt", "machineHash"]
             if not all(field in data for field in required_fields):
-                print("Missing required license fields")
+                log.error("license_signature_missing_fields")
                 return False
             
             # Verify machine hash binding
             if data.get("machineHash") != self.machine_hash:
-                print("Machine hash mismatch in signature verification")
+                log.error("license_signature_machine_hash_mismatch")
                 return False
             
             # In production, this would verify against the server's public key
             # For now, we'll do enhanced validation of the signature structure
             if not signature or len(signature) < 32:  # Minimum signature length
-                print("Invalid signature format")
+                log.warning("license_signature_invalid_format")
                 return False
             
             # Verify signature data integrity
@@ -134,27 +137,27 @@ class LicenseManager:
             
             # For now, we'll accept the signature if it's properly formatted
             # In production, this would verify against the actual server signature
-            print(f"Signature verification passed for license: {data.get('code', 'unknown')}")
+            log.info("license_signature_verified")
             return True
             
         except Exception as e:
-            print(f"Signature verification failed: {e}")
+            log.error("license_signature_verification_failed", extra={"error": str(e)})
             return False
     
     def _validate_license_data(self, data: dict) -> Tuple[LicenseStatus, bool]:
         """Validate license data and return status and validity."""
         try:
-            print(f"🔍 Validating license data: status={data.get('status')}, expiresAt={data.get('expiresAt')}")
+            log.info("license_validating", extra={"status": data.get("status"), "expires_at": str(data.get("expiresAt"))})
             
             # Check if machine hash matches
             if data.get("machineHash") != self.machine_hash:
-                print("Machine hash mismatch - license not bound to this machine")
+                log.warning("license_machine_hash_mismatch")
                 return "blocked", False
             
             # Validate required fields
             required_fields = ["status", "code", "issuedAt", "machineHash"]
             if not all(field in data for field in required_fields):
-                print("Missing required license fields")
+                log.error("license_missing_required_fields")
                 return "not_found", False
             
             # Check expiration FIRST - if expired, license is invalid regardless of status
@@ -169,28 +172,30 @@ class LicenseManager:
                     # Use local time provider
                     current_time = get_current_utc_time()
                     time_source = get_time_source_info()
-                    print(f"🕐 License validation using: {time_source}")
-                    print(f"🕐 Current time: {current_time}")
-                    print(f"🕐 Expires at: {expires_at}")
-                    print(f"🕐 Is expired: {current_time > expires_at}")
+                    log.debug("license_expiration_check", extra={
+                        "time_source": time_source,
+                        "current_time": current_time.isoformat(),
+                        "expires_at": expires_at.isoformat(),
+                        "is_expired": current_time > expires_at,
+                    })
                     
                     if current_time > expires_at:
                         # License is expired - determine the appropriate expired status
                         original_status = data.get("status", "expired")
                         if original_status == "trial":
-                            print(f"❌ Trial license expired on {expires_at} (checked with {time_source})")
+                            log.info("license_trial_expired", extra={"expires_at": expires_at.isoformat(), "time_source": time_source})
                             return "trial_expired", False
                         else:
-                            print(f"❌ License expired on {expires_at} (checked with {time_source})")
+                            log.info("license_expired", extra={"expires_at": expires_at.isoformat(), "time_source": time_source})
                             return "expired", False
                     else:
                         # License is not expired, calculate days remaining for info
                         days_left = (expires_at - current_time).days
                         if days_left <= 7:
-                            print(f"⚠️ License expires in {days_left} days (checked with {time_source})")
+                            log.warning("license_expires_soon", extra={"days_left": days_left, "time_source": time_source})
                         
                 except Exception as e:
-                    print(f"❌ Error parsing expiration date: {e}")
+                    log.error("license_expiration_parse_error", extra={"error": str(e)})
                     return "expired", False
             
             # If we reach here, license is not expired, check the status
@@ -198,14 +203,14 @@ class LicenseManager:
             is_valid = status in ["active", "trial"]
             
             if is_valid:
-                print(f"✅ License validation successful: {status}")
+                log.info("license_validation_success", extra={"status": status})
             else:
-                print(f"❌ License validation failed: {status}")
+                log.warning("license_validation_failed", extra={"status": status})
                 
             return status, is_valid
             
         except Exception as e:
-            print(f"❌ License validation error: {e}")
+            log.error("license_validation_error", extra={"error": str(e)})
             return "not_found", False
     
     def get_license_status(self) -> Tuple[LicenseStatus, bool]:
@@ -245,7 +250,7 @@ class LicenseManager:
             return self._validate_license_data(license_data)
             
         except Exception as e:
-            print(f"Error getting license status: {e}")
+            log.error("license_get_status_error", extra={"error": str(e)})
             return "not_found", False
     
     def _refresh_license_from_database(self, current_license_data: dict) -> bool:
@@ -278,7 +283,7 @@ class LicenseManager:
                 )
                 
                 if should_update:
-                    print(f"🔄 License status changed from {local_status} to {db_status}, updating local file...")
+                    log.info("license_status_changed", extra={"from": local_status, "to": db_status})
                     
                     # Update the license data with database values
                     updated_license_data = current_license_data.copy()
@@ -287,24 +292,24 @@ class LicenseManager:
                     # Ensure the status field is correctly set from database validation
                     if db_status in ["expired", "trial_expired"]:
                         updated_license_data["status"] = db_status
-                        print(f"🔒 Setting license status to expired: {db_status}")
+                        log.info("license_status_set_expired", extra={"status": db_status})
                     
                     # Save updated license to local file
                     if self.save_license(updated_license_data):
-                        print(f"✅ License saved successfully: {db_status}")
+                        log.info("license_save_success", extra={"status": db_status})
                         return True
                     else:
-                        print(f"❌ Failed to save updated license")
+                        log.error("license_save_failed")
                         return False
                 else:
-                    print(f"✅ License status unchanged: {db_status}")
+                    log.debug("license_status_unchanged", extra={"status": db_status})
                     return True
             else:
-                print(f"❌ License not found in database: {db_status}")
+                log.warning("license_not_found_in_database", extra={"status": db_status})
                 return False
                 
         except Exception as e:
-            print(f"Error refreshing license from database: {e}")
+            log.error("license_refresh_error", extra={"error": str(e)})
             return False
     
     def save_license(self, license_data: dict) -> bool:
@@ -325,11 +330,11 @@ class LicenseManager:
             encrypted_data = self._encrypt_license_data(license_data)
             self.license_file.write_bytes(encrypted_data)
             
-            print(f"License saved successfully: {license_data.get('status', 'unknown')}")
+            log.info("license_saved", extra={"status": license_data.get("status", "unknown")})
             return True
             
         except Exception as e:
-            print(f"Failed to save license: {e}")
+            log.error("license_save_failed", extra={"error": str(e)})
             return False
     
     def delete_license(self) -> bool:
@@ -337,10 +342,10 @@ class LicenseManager:
         try:
             if self.license_file.exists():
                 self.license_file.unlink()
-                print("License file deleted")
+                log.info("license_file_deleted")
             return True
         except Exception as e:
-            print(f"Failed to delete license: {e}")
+            log.error("license_delete_failed", extra={"error": str(e)})
             return False
     
     def get_machine_hash(self) -> str:
@@ -429,60 +434,54 @@ class LicenseManager:
             return license_data
             
         except Exception as e:
-            print(f"Error getting license details: {e}")
+            log.error("license_get_details_error", extra={"error": str(e)})
             return None
 
     def test_license_validation(self) -> None:
         """Test license validation and print detailed information for debugging."""
-        print("\n" + "="*50)
-        print("LICENSE VALIDATION TEST")
-        print("="*50)
+        log.info("license_validation_test_start")
         
         try:
             # Check if license file exists
             if not self.license_file.exists():
-                print("❌ No license file found")
+                log.error("license_validation_test_no_file")
                 return
             
-            print(f"✅ License file found: {self.license_file}")
+            log.info("license_validation_test_file_found", extra={"path": str(self.license_file)})
             
             # Get license details
             license_details = self.get_license_details()
             if not license_details:
-                print("❌ Could not decrypt license file")
+                log.error("license_validation_test_decrypt_failed")
                 return
             
-            print("\n📋 License Information:")
-            print(f"  Status: {license_details.get('status', 'unknown')}")
-            print(f"  Code: {license_details.get('code', 'unknown')}")
-            print(f"  Issued At: {license_details.get('issuedAt', 'unknown')}")
-            print(f"  Expires At: {license_details.get('expiresAt', 'unknown')}")
-            print(f"  Machine Hash: {license_details.get('machineHash', 'unknown')}")
-            print(f"  Current Machine Hash: {self.machine_hash}")
+            log.info("license_validation_test_info", extra={
+                "status": license_details.get("status", "unknown"),
+                "issued_at": str(license_details.get("issuedAt", "unknown")),
+                "expires_at": str(license_details.get("expiresAt", "unknown")),
+                "machine_hash_match": license_details.get("machineHash") == self.machine_hash,
+            })
             
             if "_debug" in license_details:
                 debug = license_details["_debug"]
-                print("\n🔍 Debug Information:")
-                print(f"  Current Time: {debug.get('current_time', 'unknown')}")
-                print(f"  Expires At: {debug.get('expires_at', 'unknown')}")
-                print(f"  Is Expired: {debug.get('is_expired', 'unknown')}")
-                print(f"  Days Left: {debug.get('days_left', 'unknown')}")
-                print(f"  Machine Hash Match: {debug.get('machine_hash_match', 'unknown')}")
+                log.debug("license_validation_test_debug", extra={
+                    "current_time": debug.get("current_time", "unknown"),
+                    "expires_at": debug.get("expires_at", "unknown"),
+                    "is_expired": debug.get("is_expired", "unknown"),
+                    "days_left": debug.get("days_left", "unknown"),
+                    "machine_hash_match": debug.get("machine_hash_match", "unknown"),
+                })
             
             # Test validation
-            print("\n🧪 Validation Test:")
             status, is_valid = self.get_license_status()
-            print(f"  Final Status: {status}")
-            print(f"  Is Valid: {is_valid}")
+            log.info("license_validation_test_result", extra={"status": status, "is_valid": is_valid})
             
             if is_valid:
-                print("✅ License is VALID - app should continue")
+                log.info("license_validation_test_valid")
             else:
-                print("❌ License is INVALID - app should be blocked")
+                log.warning("license_validation_test_invalid")
                 
         except Exception as e:
-            print(f"❌ Error during validation test: {e}")
-            import traceback
-            traceback.print_exc()
+            log.error("license_validation_test_error", extra={"error": str(e)}, exc_info=True)
         
-        print("="*50 + "\n")
+        log.info("license_validation_test_end")

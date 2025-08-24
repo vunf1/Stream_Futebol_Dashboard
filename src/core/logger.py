@@ -61,6 +61,7 @@ class _JsonFormatter(logging.Formatter):
         payload: Dict[str, Any] = {
             "ts": datetime.now(timezone.utc).isoformat(),
             "level": record.levelname,
+            "lvl": record.levelname,  # alias for easy filtering
             "name": record.name,
             "msg": record.getMessage(),
         }
@@ -93,7 +94,8 @@ class _JsonFormatter(logging.Formatter):
 class _DevFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:  # type: ignore[override]
         ts = datetime.now().strftime("%H:%M:%S")
-        base = f"[{ts}] {record.levelname:8s} {record.name}: {record.getMessage()}"
+        # Prefix with explicit level tag for quick scanning
+        base = f"[{record.levelname}] [{ts}] {record.name}: {record.getMessage()}"
         if record.exc_info:
             try:
                 base += "\n" + self.formatException(record.exc_info)

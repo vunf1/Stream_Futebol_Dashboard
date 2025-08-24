@@ -15,62 +15,8 @@ from .timer_ui import TimerComponent
 from .edit_teams_ui import TeamManagerWindow, EditTeamPopup
 from .teamsUI.teams_ui import TeamInputManager
 
-# Simple Debounced Event Bus for coalescing frequent UI events
-#
-# Purpose:
-# - Coalesce bursts of identical events (by name) into a single callback
-# - Reduce jank by avoiding dozens of UI updates within a short interval
-# - Thread-safe: can be called from worker threads
-#
-# Important:
-# - Tk/CustomTk widgets must be updated from the main thread.
-#   Subscribers should typically schedule UI work via root.after(0, ...).
-# - Debounce is per event name. Last publisher wins within the window.
-import threading
-from typing import Callable, Dict
-
-
-class DebouncedEventBus:
-    """Lightweight, per-event debounce.
-
-    - subscribe(event, callback): register a single callback for an event name
-    - publish(event): schedule the callback after delay_ms (resetting any pending one)
-
-    Callbacks run on a background Timer thread. If they touch UI, they must
-    enqueue to the Tk mainloop (e.g., root.after(0, ...)).
-    """
-
-    def __init__(self, delay_ms: int = 50):
-        self._delay = max(0, int(delay_ms)) / 1000.0
-        self._lock = threading.Lock()
-        self._callbacks: Dict[str, Callable[[], None]] = {}
-        self._timers: Dict[str, threading.Timer] = {}
-
-    def subscribe(self, event: str, callback: Callable[[], None]) -> None:
-        """Register/replace the callback for an event name."""
-        with self._lock:
-            self._callbacks[event] = callback
-
-    def publish(self, event: str) -> None:
-        """Debounce: cancel any pending timer and schedule a new one."""
-        with self._lock:
-            cb = self._callbacks.get(event)
-            if not cb:
-                return
-            if event in self._timers:
-                try:
-                    self._timers[event].cancel()
-                except Exception:
-                    pass
-            t = threading.Timer(self._delay, cb)
-            self._timers[event] = t
-            t.daemon = True
-            t.start()
-
-
-# Global UI bus with default debounce from AppConfig
-from src.config.settings import AppConfig
-UI_EVENT_BUS = DebouncedEventBus(delay_ms=getattr(AppConfig, "UI_UPDATE_DEBOUNCE", 50))
+# Debounced Event Bus (moved to a dedicated module to avoid circular imports)
+from .event_bus import DebouncedEventBus, UI_EVENT_BUS
 
 # Penalty shootout dashboard
 from .penalty import open_penalty_dashboard
@@ -112,6 +58,8 @@ __all__ = [
     'TeamManagerWindow',
     'EditTeamPopup',
     'TeamInputManager',
+    'DebouncedEventBus',
+    'UI_EVENT_BUS',
     
     # Penalty shootout
     'open_penalty_dashboard',

@@ -5,11 +5,15 @@ from src.core import load_teams_from_json, save_teams_to_json, GameInfoStore, Mo
 from .autocomplete import Autocomplete
 # Removed TeamManagerWindow import after Edit button deletion
 from src.config.settings import AppConfig
+from src.core.logger import get_logger
+from src.ui.event_bus import UI_EVENT_BUS
 
 # Color constants from AppConfig - using AppConfig directly
 import tkinter.messagebox as messagebox
 
 BUTTON_PAD = dict(padx=5, pady=5)
+
+log = get_logger(__name__)
 
 def append_team_to_mongo(name: str, abrev: str, instance: int):
     """Helper function to append team to MongoDB with validation"""
@@ -92,6 +96,9 @@ class TeamInputManager(ctk.CTkFrame):
 
         # Defer UI building for smooth loading
         self.after(100, self._deferred_build_ui)  # Faster (was 200ms, now 100ms)
+        def _cb() -> None:
+            self.after(0, self._hydrate_from_store)
+        UI_EVENT_BUS.subscribe(f"team_labels_{self.instance_number}", _cb)
         
         # Preload teams JSON in background for faster autocomplete
         self._preload_teams_json()
@@ -102,7 +109,10 @@ class TeamInputManager(ctk.CTkFrame):
             self._build_ui()
             self.after(25, self._hydrate_from_store)  # Faster (was 50ms, now 25ms)
         except Exception as e:
-            print(f"Error building TeamInputManager: {e}")
+            try:
+                log.error("team_input_build_error", exc_info=True)
+            except Exception:
+                pass
             # Fallback: build UI immediately if there's an error
             self._build_ui()
             self._hydrate_from_store()
@@ -153,9 +163,15 @@ class TeamInputManager(ctk.CTkFrame):
                 if teams:
                     # Pre-populate local cache
                     self._teams_cache = {str(k).upper(): str(v).upper() for k, v in teams.items()}
-                    print("🚀 Teams JSON preloaded in background")
+                    try:
+                        log.info("teams_json_preloaded_bg")
+                    except Exception:
+                        pass
             except Exception as e:
-                print(f"⚠️ Background JSON preload failed: {e}")
+                try:
+                    log.warning("teams_json_preload_failed", exc_info=True)
+                except Exception:
+                    pass
         
         # Start background loading immediately
         preload_thread = threading.Thread(target=load_json_background, daemon=True)
@@ -249,7 +265,8 @@ class TeamInputManager(ctk.CTkFrame):
             self._teams_cache[away_name] = away_abrev
 
         # Let the caller refresh overlay labels, etc.
-        self.refresh_labels()
+        # Debounced refresh for labels in parent/overlay
+        UI_EVENT_BUS.publish(f"team_labels_{self.instance_number}")
 
         show_message_notification(
             f"✅ Campo {self.instance_number} - Gravado",

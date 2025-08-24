@@ -15,6 +15,9 @@ from src.core import get_env
 from src.core.env_loader import ensure_env_loaded
 from src.core.models import LicenseRecord, LicenseStatus, LicenseType
 from src.utils.online_time_provider import get_current_utc_time, get_time_source_info
+from src.core.logger import get_logger
+
+log = get_logger(__name__)
 
 class LicenseValidator:
     """Validates license codes against MongoDB and returns signed payloads."""
@@ -30,7 +33,7 @@ class LicenseValidator:
             self.mongo_db_name = get_env("MONGO_DB_license")
             self.mongo_collection_name = get_env("MONGO_COLLECTION_licences")
         except RuntimeError as e:
-            print(f"Warning: MongoDB environment variables not set: {e}")
+            log.warning("license_env_missing", extra={"error": str(e)})
             self.mongo_uri = None
             self.mongo_db_name = "license_db"
             self.mongo_collection_name = "licenses"
@@ -56,7 +59,7 @@ class LicenseValidator:
         """Get MongoDB connection for license validation."""
         try:
             if not self.mongo_uri:
-                print("Warning: No MongoDB URI configured, using mock validation")
+                log.warning("license_mongo_uri_missing_using_mock")
                 return None
                 
             # Local import to avoid circular dependency
@@ -66,7 +69,7 @@ class LicenseValidator:
             collection = db[self.mongo_collection_name]
             return collection
         except Exception as e:
-            print(f"Failed to connect to MongoDB: {e}")
+            log.error("license_mongo_connect_failed", extra={"error": str(e)})
             return None
     
     def validate_license_code(self, code: str, machine_hash: str) -> Tuple[Dict, str]:
@@ -91,36 +94,35 @@ class LicenseValidator:
                 
         except Exception as e:
             # Fallback to mock validation for development
-            print(f"License validation error: {e}, using mock validation")
+            log.error("license_validation_error_fallback_mock", extra={"error": str(e)})
             return self.validate_mock_license(code, machine_hash)
     
     def _validate_against_mongodb(self, code: str, machine_hash: str, collection) -> Tuple[Dict, str]:
         """Validate license code against MongoDB collection using robust data models."""
         try:
-            print("=== MONGODB LICENSE VALIDATION ===")
+            log.info("license_mongo_validation_start")
             
             # Clean the code
             clean_code = code.strip().upper()
-            print(f"🔍 Validating code: {clean_code}")
+            log.debug("license_validating_code", extra={"code_len": len(clean_code)})
             
             # Query the licenses collection using the actual field name from your schema
             license_doc = collection.find_one({"license_key": clean_code})
             
             if not license_doc:
-                print("❌ License not found in MongoDB")
+                log.info("license_not_found_mongo")
                 return {"error": "License not found"}, "not_found"
             
-            print(f"📋 MongoDB license document: {license_doc}")
+            log.debug("license_mongo_doc_loaded")
             
             # Check if license is blocked (assuming blocked status is in the status field)
             if license_doc.get("status") == "blocked":
-                print("❌ License is blocked")
+                log.warning("license_blocked_mongo")
                 # Don't return early, continue to create license data with blocked status
             
                         # Check expiration using the actual field name from your schema
             expires_at = license_doc.get("expires_at")
-            print(f"🔍 Raw expires_at value: {expires_at}")
-            print(f"🔍 expires_at type: {type(expires_at)}")
+            log.debug("license_expires_at_raw", extra={"has_value": expires_at is not None, "type": str(type(expires_at))})
             
             if expires_at:
                 try:
@@ -142,12 +144,12 @@ class LicenseValidator:
                         if expires_at.tzinfo is None:
                             expires_at = expires_at.replace(tzinfo=timezone.utc)
                     
-                    print(f"🔍 Parsed expires_at datetime: {expires_at}")
+                    log.debug("license_expires_at_parsed", extra={"expires_at": expires_at.isoformat()})
                     
                     # Use local time provider
                     current_time = get_current_utc_time()
                     time_source = get_time_source_info()
-                    print(f"🕐 MongoDB license validation using: {time_source}")
+                    log.debug("license_mongo_time_source", extra={"source": time_source})
                     
                     # Ensure both times are timezone-aware for comparison
                     if expires_at.tzinfo is None:
@@ -158,8 +160,7 @@ class LicenseValidator:
                         if current_status == "trial":
                             # Update database status to trial_expired
                             new_status = "trial_expired"
-                            print(f"❌ Trial license expired on {expires_at} (checked with {time_source})")
-                            print(f"🔄 Updating database status from '{current_status}' to '{new_status}'")
+                            log.info("license_trial_expired_mongo", extra={"expires_at": expires_at.isoformat(), "from": current_status, "to": new_status})
                             
                             # Update the database
                             try:
@@ -172,16 +173,15 @@ class LicenseValidator:
                                         }
                                     }
                                 )
-                                print(f"✅ Database updated: status changed to '{new_status}'")
+                                log.info("license_mongo_status_updated", extra={"to": new_status})
                             except Exception as db_error:
-                                print(f"⚠️ Failed to update database status: {db_error}")
+                                log.warning("license_mongo_status_update_failed", extra={"error": str(db_error)})
                             
                             return {"error": "Trial license expired"}, new_status
                         else:
                             # Update database status to expired
                             new_status = "expired"
-                            print(f"❌ License expired on {expires_at} (checked with {time_source})")
-                            print(f"🔄 Updating database status from '{current_status}' to '{new_status}'")
+                            log.info("license_expired_mongo", extra={"expires_at": expires_at.isoformat(), "from": current_status, "to": new_status})
                             
                             # Update the database
                             try:
@@ -194,17 +194,17 @@ class LicenseValidator:
                                         }
                                     }
                                 )
-                                print(f"✅ Database updated: status changed to '{new_status}'")
+                                log.info("license_mongo_status_updated", extra={"to": new_status})
                             except Exception as db_error:
-                                print(f"⚠️ Failed to update database status: {db_error}")
+                                log.warning("license_mongo_status_update_failed", extra={"error": str(db_error)})
                             
                             return {"error": "License expired"}, new_status
                     else:
-                        print(f"✅ License not expired, expires on {expires_at} (checked with {time_source})")
+                        log.debug("license_not_expired_mongo", extra={"expires_at": expires_at.isoformat(), "time_source": time_source})
                         # If license is not expired but database shows expired status, update it
                         current_status = license_doc.get("status", "active")
                         if current_status in ["expired", "trial_expired"]:
-                            print(f"🔄 License not expired but database shows '{current_status}', updating to 'active'")
+                            log.info("license_status_correction_active")
                             try:
                                 collection.update_one(
                                     {"license_key": clean_code},
@@ -215,16 +215,16 @@ class LicenseValidator:
                                         }
                                     }
                                 )
-                                print(f"✅ Database updated: status corrected to 'active'")
+                                log.info("license_mongo_status_updated", extra={"to": "active"})
                             except Exception as db_error:
-                                print(f"⚠️ Failed to update database status: {db_error}")
+                                log.warning("license_mongo_status_update_failed", extra={"error": str(db_error)})
                         
                 except Exception as e:
-                    print(f"❌ Error parsing expiration date '{expires_at}': {e}")
+                    log.error("license_mongo_expires_parse_error", extra={"error": str(e)})
                     # If we can't parse the date, assume it's valid
                     pass
             else:
-                print("⚠️ No expires_at field found in MongoDB document")
+                log.warning("license_mongo_no_expires_at")
             
             # Re-fetch the license document in case status was updated during expiration check
             updated_license_doc = collection.find_one({"license_key": clean_code})
@@ -233,12 +233,12 @@ class LicenseValidator:
             
             # Get license status
             status = license_doc.get("status", "not_found")
-            print(f"🔍 License status: {status}")
+            log.debug("license_status_mongo", extra={"status": status})
             
             # Create a proper LicenseRecord object for validation (for all statuses)
             license_record = self._create_license_record_from_mongodb(license_doc, clean_code)
             if not license_record:
-                print("❌ Failed to create valid LicenseRecord from MongoDB data")
+                log.error("license_mongo_create_license_record_failed")
                 return {"error": "Invalid license data structure"}, "not_found"
             
             # Create license payload using the validated LicenseRecord
@@ -268,20 +268,21 @@ class LicenseValidator:
             }
             
             # Debug: Show field mapping using the validated LicenseRecord
-            print(f"🔍 Field mapping (using validated LicenseRecord):")
-            print(f"  created_at -> issuedAt: {license_record.created_at}")
-            print(f"  expires_at -> expiresAt: {license_record.expires_at or 'NO EXPIRATION'}")
-            print(f"  max_devices -> max_devices: {license_record.max_devices}")
-            print(f"  user -> user: {license_record.user or 'NO USER'}")
-            print(f"  company -> company: {license_record.company or 'NO COMPANY'}")
-            print(f"  is_trial: {license_record.is_trial}")
-            print(f"  devices_count: {len(license_record.devices) if license_record.devices else 0}")
+            log.debug("license_field_mapping_debug", extra={
+                "issued_at": license_record.created_at.isoformat(),
+                "expires_at": (license_record.expires_at.isoformat() if license_record.expires_at else "NO_EXPIRATION"),
+                "max_devices": license_record.max_devices,
+                "user_present": bool(license_record.user),
+                "company_present": bool(license_record.company),
+                "is_trial": license_record.is_trial,
+                "devices_count": len(license_record.devices) if license_record.devices else 0,
+            })
             
             # Return the license data for all statuses, let the caller handle validation
             return license_data, status
                 
         except Exception as e:
-            print(f"MongoDB validation error: {e}")
+            log.error("license_mongo_validation_error", extra={"error": str(e)})
             return {"error": f"Database error: {str(e)}"}, "not_found"
     
     def _validate_against_api(self, code: str, machine_hash: str) -> Tuple[Dict, str]:
@@ -432,7 +433,7 @@ class LicenseValidator:
             try:
                 status = LicenseStatus(status_str)
             except ValueError:
-                print(f"❌ Invalid status value: {status_str}")
+                log.error("license_invalid_status_value", extra={"status": status_str})
                 return None
             
             # Parse dates
@@ -440,7 +441,7 @@ class LicenseValidator:
             expires_at = self._parse_mongodb_date(license_doc.get("expires_at"))
             
             if not created_at:
-                print("❌ Missing or invalid created_at field")
+                log.error("license_missing_created_at")
                 return None
             
             # Create LicenseRecord with proper validation
@@ -465,13 +466,11 @@ class LicenseValidator:
                 metadata=license_doc.get("metadata", {})
             )
             
-            print(f"✅ Created LicenseRecord: {license_record}")
+            log.debug("license_record_created")
             return license_record
             
         except Exception as e:
-            print(f"❌ Error creating LicenseRecord: {e}")
-            import traceback
-            traceback.print_exc()
+            log.error("license_create_record_error", extra={"error": str(e)}, exc_info=True)
             return None
     
     def _parse_mongodb_date(self, date_value) -> Optional[datetime]:
@@ -491,11 +490,11 @@ class LicenseValidator:
                 
                 return parsed_date.replace(tzinfo=timezone.utc) if parsed_date.tzinfo is None else parsed_date
             else:
-                print(f"⚠️ Unsupported date type: {type(date_value)}")
+                log.warning("license_unsupported_date_type", extra={"type": str(type(date_value))})
                 return None
                 
         except Exception as e:
-            print(f"❌ Error parsing date '{date_value}': {e}")
+            log.error("license_date_parse_error", extra={"error": str(e)})
             return None
     
     def _parse_license_type(self, type_value) -> Optional[LicenseType]:
@@ -506,54 +505,48 @@ class LicenseValidator:
         try:
             return LicenseType(type_value)
         except ValueError:
-            print(f"⚠️ Invalid license type: {type_value}")
+            log.warning("license_invalid_type", extra={"type": str(type_value)})
             return None
 
     def test_mongodb_connection(self) -> None:
         """Test MongoDB connection and inspect license collection structure."""
-        print("\n" + "="*60)
-        print("MONGODB CONNECTION TEST")
-        print("="*60)
+        log.info("license_mongo_connection_test_start")
         
         try:
             collection = self._get_mongo_connection()
             if collection is None:
-                print("❌ MongoDB connection failed")
+                log.error("license_mongo_connection_failed")
                 return
             
-            print("✅ MongoDB connection successful")
-            print(f"📊 Database: {self.mongo_db_name}")
-            print(f"📊 Collection: {self.mongo_collection_name}")
+            log.info("license_mongo_connection_success", extra={"db": self.mongo_db_name, "collection": self.mongo_collection_name})
             
             # Count total documents
             total_docs = collection.count_documents({})
-            print(f"📊 Total documents in collection: {total_docs}")
+            log.info("license_mongo_total_docs", extra={"count": total_docs})
             
             if total_docs > 0:
                 # Get a sample document to see the structure
                 sample_doc = collection.find_one({})
                 if sample_doc:
-                    print(f"\n📋 Sample document structure:")
-                    for key, value in sample_doc.items():
-                        print(f"  {key}: {value} (type: {type(value)})")
+                    log.debug("license_mongo_sample_doc_present")
                 
                 # Check for specific fields we need (using your exact field names)
-                print(f"\n🔍 Checking for required fields (using your schema):")
+                log.debug("license_mongo_check_required_fields")
                 required_fields = ["license_key", "status", "expires_at", "max_devices", "created_at"]
                 for field in required_fields:
                     count = collection.count_documents({field: {"$exists": True}})
-                    print(f"  {field}: {count} documents have this field")
+                    log.debug("license_mongo_field_presence", extra={"field": field, "count": count})
                 
                 # Check for alternative field names that might exist
-                print(f"\n🔍 Checking for alternative field names:")
+                log.debug("license_mongo_check_alt_fields")
                 alt_fields = ["expiry", "expiration", "maxDevices", "device_limit", "created", "createdAt"]
                 for field in alt_fields:
                     count = collection.count_documents({field: {"$exists": True}})
                     if count > 0:
-                        print(f"  {field}: {count} documents have this field")
+                        log.debug("license_mongo_alt_field_presence", extra={"field": field, "count": count})
                 
                 # Show all unique field names in the collection
-                print(f"\n🔍 All unique field names in collection:")
+                log.debug("license_mongo_all_unique_fields_start")
                 pipeline = [
                     {"$project": {"arrayofkeyvalue": {"$objectToArray": "$$ROOT"}}},
                     {"$unwind": "$arrayofkeyvalue"},
@@ -563,14 +556,11 @@ class LicenseValidator:
                     result = list(collection.aggregate(pipeline))
                     if result:
                         all_fields = sorted(result[0]["allkeys"])
-                        for field in all_fields:
-                            print(f"  {field}")
+                        log.debug("license_mongo_all_unique_fields", extra={"fields_count": len(all_fields)})
                 except Exception as e:
-                    print(f"  Could not get field list: {e}")
+                    log.debug("license_mongo_all_fields_list_error", extra={"error": str(e)})
             
         except Exception as e:
-            print(f"❌ Error testing MongoDB connection: {e}")
-            import traceback
-            traceback.print_exc()
+            log.error("license_mongo_connection_test_error", extra={"error": str(e)}, exc_info=True)
         
-        print("="*60 + "\n")
+        log.info("license_mongo_connection_test_end")

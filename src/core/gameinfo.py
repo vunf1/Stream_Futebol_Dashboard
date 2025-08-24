@@ -118,7 +118,7 @@ class GameInfoStore:
 
     def _log(self, *parts):
         if self.debug:
-            print(f"[GameInfoStore:{self.field_key}]", *parts)
+            log.debug("gameinfo_debug", extra={"field": self.field_key, "msg": " ".join(str(p) for p in parts)})
     # ----- disk helpers -----
     
     def _ensure_file(self):
@@ -277,45 +277,20 @@ class GameInfoStore:
             return True
     
 if __name__ == "__main__":
-    # Simple demo (no CLI flags): operate on "field 1"
+    # Demo replaced with structured logs
     store = GameInfoStore("field 1")
-
-    print(f"gameinfo.json path: {GAMEINFO_PATH}")
-    print(f"using block: {store.field_key}\n")
-
-    # 1) Ensure defaults exist and show the whole field block
-    print("1) read_all_field()")
-    print(json.dumps(store.read_all_field(), ensure_ascii=False, indent=2), "\n")
-
-    # 2) Fresh read of a single key (reloads file)
-    print("2) read_field_key('half')  →", store.read_field_key("half"))
-    print("   read_field_key('max')   →", store.read_field_key("max"), "\n")
-
-    # 3) Cached get (no disk read)
-    print("3) get('timer') (cached) →", store.get("timer"), "\n")
-
-    # 4) set(): updates cache immediately and persists (merge-on-latest)
-    print("4) set('home_name', 'AAA FC') + set('home_abbr', 'AAA')")
+    log.info("gameinfo_demo_path", extra={"path": GAMEINFO_PATH, "field": store.field_key})
+    log.info("gameinfo_demo_read_all", extra={"data_keys": list(store.read_all_field().keys())})
+    log.info("gameinfo_demo_read_keys", extra={"half": store.read_field_key("half"), "max": store.read_field_key("max")})
     store.set("home_name", "AAA FC")
     store.set("home_abbr", "AAA")
-    print("   get('home_name') →", store.get("home_name"))
-    print("   get('home_abbr') →", store.get("home_abbr"), "\n")
-
-    # 5) Time helpers: parse/format then persist via set()
-    print("5) Update 'max' via time helpers (_parse_time_to_seconds/_format_time)")
+    log.info("gameinfo_demo_after_set", extra={"home_name": store.get("home_name"), "home_abbr": store.get("home_abbr")})
     secs = _parse_time_to_seconds("46:10") or 0
     store.set("max", _format_time(secs))
-    print("   read_field_key('max') →", store.read_field_key("max"), "\n")
-
-    # 6) update(): atomic multi-key write; cache stays in sync
-    print("6) update({'timer':'00:10','extra':'00:00','home_score':1,'away_score':0})")
+    log.info("gameinfo_demo_after_time", extra={"max": store.read_field_key("max")})
     store.update({"timer": "00:10", "extra": "00:00", "home_score": 1, "away_score": 0})
-    print(json.dumps(store.read_all_field(), ensure_ascii=False, indent=2), "\n")
-
-    # 7) Show another field block in the same file (no args, int is fine)
-    print("7) Second field example (field_2)")
+    log.info("gameinfo_demo_after_update", extra={"data_keys": list(store.read_all_field().keys())})
     store2 = GameInfoStore(2)
     store2.update({"home_name": "Team Two", "away_name": "Visitors", "timer": "00:12"})
-    print(json.dumps(store2.read_all_field(), ensure_ascii=False, indent=2), "\n")
-
-    print("✓ Done.")
+    log.info("gameinfo_demo_second_field", extra={"data_keys": list(store2.read_all_field().keys())})
+    log.info("gameinfo_demo_done")

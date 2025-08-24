@@ -424,4 +424,8 @@ def close_window_safely(window: ctk.CTkBaseClass) -> None:
         if window and hasattr(window, 'destroy'):
             window.destroy()
     except Exception as e:
-        print(f"Warning: Error closing window: {e}")
+        try:
+            from src.core.logger import get_logger
+            get_logger(__name__).warning("window_close_error", exc_info=True)
+        except Exception:
+            pass
