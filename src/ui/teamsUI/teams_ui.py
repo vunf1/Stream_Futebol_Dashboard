@@ -3,7 +3,7 @@ from typing import Dict, Any, Callable
 from src.notification import show_message_notification
 from src.core import load_teams_from_json, save_teams_to_json, GameInfoStore, MongoTeamManager, DEFAULT_FIELD_STATE
 from .autocomplete import Autocomplete
-from src.ui import TeamManagerWindow
+# Removed TeamManagerWindow import after Edit button deletion
 from src.config.settings import AppConfig
 
 # Color constants from AppConfig - using AppConfig directly
@@ -201,16 +201,10 @@ class TeamInputManager(ctk.CTkFrame):
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
         btn_frame.pack(fill="x")
         btn_frame.grid_rowconfigure(0, weight=1)
-        btn_frame.grid_columnconfigure((0, 1), weight=1, uniform="btns")
+        btn_frame.grid_columnconfigure(0, weight=1, uniform="btns")
 
         ctk.CTkButton(btn_frame, text="Guardar", fg_color="gray", command=self._on_save)\
             .grid(row=0, column=0, sticky="nsew", padx=(0, 5))
-        ctk.CTkButton(
-            btn_frame,
-            text="Editar",
-            fg_color="orange",
-            command=self._open_team_manager
-        ).grid(row=0, column=1, sticky="nsew", padx=(5, 0))
 
     # -------------------------- Callbacks --------------------------
     def _on_home_selected(self, name: str, abrev: str):
@@ -263,23 +257,3 @@ class TeamInputManager(ctk.CTkFrame):
             icon="✅",
             bg_color=AppConfig.COLOR_SUCCESS
         )
-    
-    def _open_team_manager(self):
-        """Open the team manager window with proper error handling."""
-        try:
-            print("🔧 Opening TeamManagerWindow...")
-            print(f"🔧 Parent type: {type(self.parent)}")
-            print(f"🔧 Mongo type: {type(self.mongo)}")
-            
-            team_manager = TeamManagerWindow(parent=self.parent, mongo=self.mongo)
-            print("✅ TeamManagerWindow created successfully")
-            
-        except Exception as e:
-            print(f"❌ Error opening TeamManagerWindow: {e}")
-            import traceback
-            traceback.print_exc()
-            show_message_notification(
-                "❌ Error",
-                f"Failed to open Team Manager: {str(e)}",
-                bg_color=AppConfig.COLOR_ERROR
-            )

@@ -46,7 +46,7 @@ class TopWidget:
         bg = ctk.ThemeManager.theme["CTkFrame"]["fg_color"]
         
         # Create the "Open Timer" button
-        icon = get_icon("stopwatch", 34)
+        icon = get_icon("stopwatch", 45)
         open_timer_btn = CTkButton(
             header,
             image=icon,
@@ -59,7 +59,7 @@ class TopWidget:
         open_timer_btn.grid(row=0, column=1, columnspan=2, sticky="nsew")
         
         # Create the "Penalty Shootout" button
-        icon = get_icon("penalties", 84)
+        icon = get_icon("penalties_btn", 84)
         penalty_btn = CTkButton(
             header,
             image=icon,
@@ -70,6 +70,19 @@ class TopWidget:
             hover_color=bg,  
         )
         penalty_btn.grid(row=0, column=3, columnspan=2, sticky="nsew")
+
+        # Create the "Edit Teams" button
+        icon = get_icon("gear", 68)
+        edit_btn = CTkButton(
+            header,
+            image=icon,
+            text="",
+            fg_color="transparent",
+            corner_radius=20,
+            command=self._open_team_manager,
+            hover_color=bg,
+        )
+        edit_btn.grid(row=0, column=5, columnspan=2, sticky="nsew")
 
     def _open_timer_window(self):
         # Check if timer window is already open for this instance
@@ -133,6 +146,15 @@ class TopWidget:
             # Fallback: show error message
             import tkinter.messagebox as messagebox
             messagebox.showerror("Error", f"Failed to open penalty dashboard: {e}")
+
+    def _open_team_manager(self):
+        """Open the Team Manager window"""
+        try:
+            from src.ui.teamsUI.teams_ui import TeamManagerWindow
+            TeamManagerWindow(parent=self.parent, mongo=self.mongo)
+        except Exception as e:
+            print(f"Error opening Team Manager: {e}")
+            import traceback; traceback.print_exc()
 
 
 
