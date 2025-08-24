@@ -209,7 +209,7 @@ class ScoreUI:
         # Show notification after UI updates with a small delay
         def show_notification():
             show_message_notification(
-                f"Campo {self.instance}",
+                f"🔒Campo {self.instance}",
                 f"Lock : {not self.decrement_enabled}",
                 icon='🔒' if not self.decrement_enabled else '🔓',
                 bg_color=AppConfig.COLOR_SUCCESS if self.decrement_enabled else AppConfig.COLOR_ERROR

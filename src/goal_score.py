@@ -388,9 +388,6 @@ class ScoreApp:
             # Add footer with license status and server status dot
             create_footer(self.ui_container, show_server_status_dot=True)
             
-            # Make the body draggable
-            self._make_body_draggable()
-            
             self._update_loading_message("Finalizing...")
             animation_config = AppConfig.get_animation_config()
             self.root.after(animation_config['completion_delay'], self._complete_fast_loading)
@@ -493,13 +490,6 @@ class ScoreApp:
             except:
                 # Widget was destroyed, ignore update
                 pass
-
-    def _make_body_draggable(self):
-        """Make the window body draggable - now handled by apply_drag_and_drop"""
-        # This method is now redundant as drag and drop is handled by window utilities
-        pass
-
-    # Old loading methods removed for faster startup
 
     def _check_license_first(self):
         """Check license and initialize GameInfoStore and MongoTeamManager if valid"""

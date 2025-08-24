@@ -20,7 +20,6 @@ class TopWidget:
         self.instance_number = instance_number
         self._timer_window: CTkToplevel | None = None
         self._timer_component: Optional[Any] = None  # Will be TimerComponent when imported
-        self._was_running: bool = False
         self.mongo = mongo
         self.json = json
         
@@ -71,19 +70,6 @@ class TopWidget:
             hover_color=bg,  
         )
         penalty_btn.grid(row=0, column=3, columnspan=2, sticky="nsew")
-
-        # Create the backup button
-        icon = get_icon("reload", 68)
-        backup_btn = CTkButton(
-            header,
-            image=icon,
-            text="",
-            fg_color="transparent",
-            corner_radius=20,
-            command=lambda: self._trigger_backup_with_feedback(),  # Backup teams to JSON
-            hover_color=bg,  
-        )
-        backup_btn.grid(row=0, column=5, columnspan=2, sticky="nsew")
 
     def _open_timer_window(self):
         # Check if timer window is already open for this instance
@@ -136,19 +122,6 @@ class TopWidget:
         # Instantiate the TimerComponent in the Toplevel with close callback
         tc = TimerComponent(win, self.instance_number, self.json, on_close_callback=on_window_close)
         self._timer_component = tc
-
-    def _trigger_backup_with_feedback(self):
-        """Trigger backup with user feedback"""
-        try:
-            # Show immediate feedback
-            self.mongo.backup_to_json()
-            print("✅ Manual backup completed")
-        except Exception as e:
-            print(f"❌ Manual backup failed: {e}")
-
-        # Check if timer was running before
-        if self._was_running and hasattr(self, '_timer_component') and self._timer_component:
-            self._timer_component.start_timer()
 
     def _open_penalty_window(self):
         """Open penalty shootout dashboard window"""

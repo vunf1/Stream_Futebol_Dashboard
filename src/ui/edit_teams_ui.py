@@ -5,6 +5,7 @@ from src.ui import get_icon_path, get_icon
 from src.notification import show_message_notification
 from src.config.settings import AppConfig
 from src.utils import top_centered_child_to_parent
+from src.ui.footer_label import create_footer
 import re
 
 # Color constants from AppConfig - using AppConfig directly
@@ -35,8 +36,9 @@ class TeamManagerWindow(ctk.CTkToplevel):
             return
         print("✅ PIN validated, continuing with TeamManagerWindow setup...")
         
-        # Now show the window after PIN validation
-        self.deiconify()
+        # Build UI AFTER PIN validation while window is still hidden to avoid flicker
+        # (window will be shown later once fully constructed)
+        # (moved deiconify call)
         
         # Configure window properties using window utilities
         child_w, child_h = 500, 600  # Increased size for better layout
@@ -51,13 +53,30 @@ class TeamManagerWindow(ctk.CTkToplevel):
         # Center the child window at the top of the parent
         top_centered_child_to_parent(self, parent, child_w, child_h)
         
-        # Ensure window is properly configured
-        self.update_idletasks()
+        # With the entire UI built and geometry finalized, reveal the window with a fade-in to avoid flicker
+        try:
+            self.attributes("-alpha", 0.0)  # Start fully transparent
+        except Exception:
+            pass  # Ignore on unsupported platforms
+
+        self.deiconify()
+        self.update_idletasks()  # Ensure first paint happens while still transparent
+
+        # Gradually (but quickly) bring opacity to 1.0 – removes initial flash
+        def _fade_in():
+            try:
+                self.attributes("-alpha", 1.0)
+            except Exception:
+                pass
+        self.after(20, _fade_in)
         
         # Build UI structure first (without content)
         self._build_header()
         self._build_search_bar()
         self._build_team_list()
+        
+        # Add system footer at the bottom of the window
+        create_footer(self, show_license_status = False, show_activate_button = False)
         
         # Show loading state
         self._show_loading_state()

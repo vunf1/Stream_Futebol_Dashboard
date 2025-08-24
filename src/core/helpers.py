@@ -94,7 +94,7 @@ def prompt_for_pin(parent):
         # Subtitle (smaller font and padding)
         subtitle_label = ctk.CTkLabel(
             header_frame,
-            text="Please enter your PIN to continue",
+            text="Please enter PIN to continue",
             font=("Segoe UI", 9),
             text_color=("gray50", "gray60")
         )
@@ -159,10 +159,15 @@ def prompt_for_pin(parent):
         win.attributes('-topmost', True)
         win.lift()
         
-        # Focus management
-        print("🔐 Setting window focus...")
-        win.focus_force()
-        entry.focus_set()
+        # Defer focus to entry until event loop is idle to ensure it takes effect
+        def _set_focus():
+            try:
+                if entry.winfo_exists():
+                    entry.focus_force()
+            except Exception:
+                pass
+
+        win.after_idle(_set_focus)
         
         # Define event handlers
         def on_submit(event=None):

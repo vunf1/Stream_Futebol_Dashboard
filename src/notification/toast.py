@@ -174,8 +174,11 @@ def _build_toast_window(
     # ---------- Visual constants ----------
     RADIUS    = 12
     SURFACE   = bg_color or AppConfig.COLORS["success"]  # Use success color from settings instead of hardcoded green
-    TITLE_FONT= (AppConfig.FONT_FAMILY, AppConfig.FONT_SIZE_DIALOG_TITLE, "bold")  # Use font settings
-    MSG_FONT  = (AppConfig.FONT_FAMILY, AppConfig.FONT_SIZE_DIALOG_BODY)  # Use font settings
+    # Scale fonts down by half for a more compact text appearance
+    TITLE_FONT_SZ = max(6, int(AppConfig.FONT_SIZE_DIALOG_TITLE * 1.3))
+    BODY_FONT_SZ  = max(6, int(AppConfig.FONT_SIZE_DIALOG_BODY * 0.8))
+    TITLE_FONT= (AppConfig.FONT_FAMILY, TITLE_FONT_SZ, "bold")
+    MSG_FONT  = (AppConfig.FONT_FAMILY, BODY_FONT_SZ)
     ICON_FONT = (AppConfig.FONT_FAMILY_EMOJI, 16)  # Use emoji font family from settings
     WRAP      = TOAST_WIDTH - 86       # text wrap width, leaves room for icon
     INNER_PAD = 10
@@ -186,7 +189,8 @@ def _build_toast_window(
 
     # ---------- Top-level window ----------
     from src.utils import create_toast_window, configure_window, WindowConfig
-    toast = create_toast_window(TOAST_WIDTH, 100)  # Height will be adjusted dynamically
+    # Increase base height to accommodate potentially longer messages due to smaller font
+    toast = create_toast_window(TOAST_WIDTH, 150)
     toast.attributes("-alpha", 0.0)  # start fully transparent for fade-in
     toast.attributes("-toolwindow", True)  # prevent taskbar icon
 

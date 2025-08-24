@@ -46,7 +46,6 @@ def append_team_to_mongo(name: str, abrev: str, instance: int):
                 show_message_notification(f"❌ Campo {instance} - Cancelado", f"A sigla de '{name}' não foi alterada.", bg_color=AppConfig.COLOR_WARNING)
             return
         else:
-            show_message_notification(f"ℹ️ Campo {instance} - Mantido", f"A sigla de '{name}' já é '{abrev}'.", bg_color=AppConfig.COLOR_WARNING)
             return
 
     # Check if abbreviation is already used by another team (informative, not blocking)
