@@ -3,6 +3,7 @@ import json
 import os
 from typing import Any, Dict, Optional
 from pathlib import Path
+from .logger import get_logger
 
 class ConfigManager:
     """Centralized configuration management for performance settings"""
@@ -11,6 +12,18 @@ class ConfigManager:
         self.config_file = Path(config_file)
         self.config = self._load_default_config()
         self._load_config()
+        self._log = get_logger(__name__)
+        # Precompute allow/forbid sets
+        self._allowed_top_keys = set(self.config.keys())
+        self._allowed_teams_cache_keys = set(self.config.get("teams_cache", {}).keys())
+        self._forbidden_keys_ci = {"admin_pin", "pin"}
+        # Accept legacy/uppercase aliases from UI editor and map to internal keys
+        self._alias_key_map = {
+            "WINDOW_OPACITY": "window_opacity",
+            "UI_UPDATE_DEBOUNCE": "ui_update_debounce",
+            "ICON_CACHE_SIZE": "icon_cache_size",
+            "WRITE_BUFFER_DELAY": "write_buffer_delay",
+        }
     
     def _load_default_config(self) -> Dict[str, Any]:
         """Load default configuration values"""
@@ -41,6 +54,7 @@ class ConfigManager:
             # Memory management
             "memory_cleanup_interval": 300,  # 5 minutes
             "memory_threshold": 0.8,         # 80% memory usage threshold
+            "performance_history_size": 1000, # History size for perf metrics
             
             # Process management
             "process_batch_size": 3,         # Processes per batch
@@ -66,9 +80,12 @@ class ConfigManager:
             try:
                 with open(self.config_file, 'r', encoding='utf-8') as f:
                     file_config = json.load(f)
-                    self.config.update(file_config)
+                    # Sanitize incoming config
+                    safe = self._sanitize_updates(file_config)
+                    self.config.update(safe)
             except Exception as e:
-                print(f"Warning: Could not load config file: {e}")
+                # Log but continue with defaults
+                get_logger(__name__).warning("config_load_failed", exc_info=True)
     
     def save_config(self):
         """Save current configuration to file"""
@@ -76,19 +93,76 @@ class ConfigManager:
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(self.config, f, indent=2, ensure_ascii=False)
         except Exception as e:
-            print(f"Warning: Could not save config file: {e}")
+            self._log.warning("config_save_failed", exc_info=True)
     
     def get(self, key: str, default: Any = None) -> Any:
         """Get configuration value"""
         return self.config.get(key, default)
     
     def set(self, key: str, value: Any):
-        """Set configuration value"""
-        self.config[key] = value
+        """Set configuration value (enforces allow/forbid rules)"""
+        if self._is_forbidden_key(key):
+            self._log.warning("config_update_forbidden_key", extra={"key": key})
+            return
+        if key not in self._allowed_top_keys:
+            self._log.warning("config_update_unknown_key", extra={"key": key})
+            return
+        # Special handling for nested dicts
+        if key == "teams_cache" and isinstance(value, dict):
+            safe_tc = {k: v for k, v in value.items() if k in self._allowed_teams_cache_keys}
+            self.config[key] = {**self.config.get(key, {}), **safe_tc}
+        else:
+            self.config[key] = value
     
     def update(self, updates: Dict[str, Any]):
-        """Update multiple configuration values"""
-        self.config.update(updates)
+        """Update multiple configuration values (enforces allow/forbid rules)"""
+        safe = self._sanitize_updates(updates)
+        if not safe:
+            return
+        # Merge respecting nested teams_cache
+        for k, v in safe.items():
+            if k == "teams_cache" and isinstance(v, dict):
+                base = self.config.get("teams_cache", {})
+                base.update(v)
+                self.config["teams_cache"] = base
+            else:
+                self.config[k] = v
+        self._log.info("config_updated", extra={"keys": list(safe.keys())})
+
+    # ---- helpers ----
+    def _sanitize_updates(self, updates: Dict[str, Any]) -> Dict[str, Any]:
+        safe: Dict[str, Any] = {}
+        for orig_key, value in updates.items():
+            key = self._alias_key_map.get(orig_key, orig_key)
+            # Forbid dangerous keys (case-insensitive)
+            if self._is_forbidden_key(key) or self._is_forbidden_key(orig_key):
+                self._log.warning("config_update_forbidden_key", extra={"key": orig_key})
+                continue
+            # Unknown top-level keys are ignored
+            if key not in self._allowed_top_keys:
+                self._log.warning("config_update_unknown_key", extra={"key": orig_key})
+                continue
+            if key == "teams_cache":
+                if isinstance(value, dict):
+                    tc: Dict[str, Any] = {}
+                    for tk, tv in value.items():
+                        if tk in self._allowed_teams_cache_keys and not self._is_forbidden_key(tk):
+                            tc[tk] = tv
+                        else:
+                            self._log.warning("config_update_unknown_teams_cache_key", extra={"key": tk})
+                    if tc:
+                        safe[key] = tc
+                else:
+                    self._log.warning("config_update_invalid_type", extra={"key": key})
+            else:
+                safe[key] = value
+        return safe
+
+    def _is_forbidden_key(self, key: str) -> bool:
+        try:
+            return key.lower() in self._forbidden_keys_ci
+        except Exception:
+            return False
     
     def get_performance_settings(self) -> Dict[str, Any]:
         """Get all performance-related settings"""

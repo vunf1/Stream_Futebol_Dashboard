@@ -17,7 +17,10 @@ except ImportError:
     Resampling = None  # type: ignore
     _HAS_PIL = False
 
-# Global icon cache for better performance
+from src.core.path_finder import get_path_finder
+from src.config.settings import AppConfig
+
+# Global icon cache for better performance (LRU bound applied externally)
 _global_icon_cache = {}
 _icon_cache_lock = threading.Lock()
 
@@ -28,26 +31,16 @@ def _icons_dir() -> Path:
     - PyInstaller --onedir (next to the executable),
     - Dev mode (./icons relative to this file).
     """
-    candidates = []
-
-    if getattr(sys, "frozen", False):  # running a PyInstaller build
-        # 1) onefile: extracted to a temp dir exposed as sys._MEIPASS
-        meipass = getattr(sys, "_MEIPASS", None)
-        if meipass:
-            candidates.append(Path(meipass) / "src" / "ui" / "icons")
-        # 2) onedir: files live next to the executable
-        candidates.append(Path(sys.executable).parent / "src" / "ui" / "icons")
-
-    # 3) dev: src/ui/ → ./icons (same directory as this file)
-    candidates.append(Path(__file__).resolve().parent / "icons")
-
+    pf = get_path_finder()
+    candidates = [
+        pf.resource("src", "ui", "icons"),
+        Path(sys.executable).parent / "src" / "ui" / "icons" if getattr(sys, "frozen", False) else None,
+        Path(__file__).resolve().parent / "icons",
+    ]
     for c in candidates:
-        if c.exists():
+        if c and c.exists():
             return c
-
-    raise FileNotFoundError(
-        "Could not find icons directory. Looked in:\n" + "\n".join(str(c) for c in candidates)
-    )
+    raise FileNotFoundError("Could not find icons directory.")
 
 _ICON_DIR = _icons_dir()
 _EXTS = {".ico", ".png", ".gif", ".jpg", ".jpeg"}
@@ -80,9 +73,22 @@ def get_icon(name: str, size: int = 24) -> CTkImage:
         photo: Any = PhotoImage(file=str(path))
         icon = CTkImage(light_image=photo, dark_image=photo, size=(size, size))  # type: ignore
     
-    # Cache the icon
+    # Cache the icon (with LRU bound)
     with _icon_cache_lock:
         _global_icon_cache[cache_key] = icon
+        # Enforce LRU capacity
+        max_size = int(getattr(AppConfig, "ICON_CACHE_SIZE", 50) or 50)
+        if len(_global_icon_cache) > max_size:
+            # pop the oldest inserted item (Python 3.7+ dict preserves insertion order)
+            # rebuild dict without the first item for clarity
+            try:
+                oldest_key = next(iter(_global_icon_cache))
+                if oldest_key != cache_key:
+                    _global_icon_cache.pop(oldest_key, None)
+            except Exception:
+                # As a fallback, drop arbitrary keys until size fits
+                while len(_global_icon_cache) > max_size:
+                    _global_icon_cache.pop(next(iter(_global_icon_cache)), None)
     
     return icon
 
@@ -100,7 +106,8 @@ def get_icon_path(name: str) -> str:
     try:
         return str(_ICON_MAP[name])
     except KeyError:
-        raise KeyError(f"No icon called {name!r} in {_ICON_DIR}")
+        available = ", ".join(sorted(_ICON_MAP.keys()))
+        raise KeyError(f"No icon called {name!r} in {_ICON_DIR}. Available: {available}")
 
 def set_window_icon(win, name: str) -> None:
     """

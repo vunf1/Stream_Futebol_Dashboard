@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 from typing import Optional
 from src.config.settings import AppConfig
+from src.core.path_finder import get_path_finder
 
 class ServerLauncher:
     """Manages the futebol-server.exe process."""
@@ -26,19 +27,17 @@ class ServerLauncher:
         frozen = getattr(sys, 'frozen', False)
         rel = AppConfig.SERVER_NAME_APP
         rel_path = Path(rel.lstrip("/\\")) if isinstance(rel, str) else Path(rel)
+        pf = get_path_finder()
 
         if frozen:
             # Prefer a stable per-user cache path so the firewall rule stays valid across runs
             try:
-                base_cache = Path(os.getenv("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
-                stable_dir = base_cache / AppConfig.LOCAL_APP_DIRNAME / AppConfig.SERVER_CACHE_DIRNAME
+                stable_dir = pf.user_local_appdir(AppConfig.LOCAL_APP_DIRNAME, AppConfig.SERVER_CACHE_DIRNAME)
                 stable_dir.mkdir(parents=True, exist_ok=True)
                 stable_path = stable_dir / rel_path.name
 
-                # If not present or different from packaged executable, copy from _MEIPASS once
-                meipass = getattr(sys, '_MEIPASS', None)
-                src_base = Path(meipass) if meipass else Path(__file__).parent.parent.parent
-                packaged_path = src_base / rel_path
+                # If not present or different from packaged executable, copy from packaged location once
+                packaged_path = pf.resource(rel_path.as_posix())
                 if packaged_path.exists():
                     try:
                         if (not stable_path.exists()) or (stable_path.stat().st_size != packaged_path.stat().st_size):
@@ -48,13 +47,10 @@ class ServerLauncher:
                         pass
                 return stable_path
             except Exception:
-                # Fallback to _MEIPASS packaged path
-                meipass = getattr(sys, '_MEIPASS', None)
-                base_path = Path(meipass) if meipass else Path(__file__).parent.parent.parent
-                return base_path / rel_path
+                # Fallback to packaged path
+                return pf.resource(rel_path.as_posix())
         else:
-            base_path = Path(__file__).parent.parent.parent
-            return base_path / rel_path
+            return pf.project_root() / rel_path
     
     def _any_server_running(self) -> bool:
         """Check across the whole system if futebol-server.exe is running."""

@@ -13,9 +13,13 @@ from src.ui.icons_provider import get_icon_path
 from src.ui.footer_label import create_footer
 from src.utils.window_utils import create_main_window, apply_drag_and_drop
 from src.notification import init_notification_queue, server_main
+from src.core.path_finder import get_path_finder
+from src.core.logger import get_logger
 
 # Global variable to track instance positions for cascade effect
 _instance_positions = {}
+
+log = get_logger(__name__)
 
 class ScoreApp:
     def __init__(self, root, instance_number: int):
@@ -616,15 +620,20 @@ class ScoreApp:
                 print(f"📍 Current time: {__import__('time').time()}")
                 print(f"📍 Instance number: {self.instance_number}")
             
-            # Check environment first
+            # Check environment first (via PathFinder)
             import sys
+            pf = get_path_finder()
             frozen = getattr(sys, 'frozen', False)
-            meipass = getattr(sys, '_MEIPASS', None)
+            meipass_dir = pf.meipass_dir()
             if AppConfig.is_debug_mode():
-                print(f"🔍 Main app environment check:")
-                print(f"   - sys.frozen: {frozen}")
-                print(f"   - sys._MEIPASS: {meipass}")
-                print(f"   - Environment: {'Bundle' if frozen else 'Development'}")
+                try:
+                    log.info("env_check", extra={
+                        "frozen": frozen,
+                        "meipass": str(meipass_dir) if meipass_dir else None,
+                        "mode": ("Bundle" if frozen else "Development"),
+                    })
+                except Exception:
+                    pass
             
             # Check if server is already running
             from src.core.server_launcher import get_server_launcher

@@ -2,49 +2,14 @@ import os
 from typing import Dict
 
 # Global flag to track if environment has been loaded
-_env_loaded = False
-
-def _ensure_env_loaded():
-    """Ensure environment variables are loaded before using them"""
-    global _env_loaded
-    if not _env_loaded:
-        try:
-            # Try encrypted environment first
-            from .env_loader import ensure_env_loaded
-            ensure_env_loaded()
-            _env_loaded = True
-        except Exception as e:
-            print(f"Warning: Could not load encrypted environment: {e}")
-            # Fallback to plain .env file
-            try:
-                from dotenv import load_dotenv
-                from pathlib import Path
-                
-                # Look for .env file in current directory and project root
-                env_paths = [
-                    Path.cwd() / ".env",
-                    Path(__file__).parent.parent.parent / ".env"
-                ]
-                
-                for env_path in env_paths:
-                    if env_path.exists():
-                        print(f"📁 Loading plain .env file from: {env_path}")
-                        load_dotenv(env_path)
-                        _env_loaded = True
-                        break
-                else:
-                    print("⚠️ No .env file found in expected locations")
-                    
-            except Exception as env_error:
-                print(f"Warning: Could not load plain .env file: {env_error}")
-                # Continue anyway, environment variables might be set by other means
+from .env_loader import ensure_env_loaded
 
 def get_env(name: str) -> str:
     """
     Fetches an environment variable or raises if it's not defined.
     Ensures environment is loaded first.
     """
-    _ensure_env_loaded()
+    ensure_env_loaded()
     value = os.getenv(name)
     if value is None:
         raise RuntimeError(f"Environment variable {name} is not set")

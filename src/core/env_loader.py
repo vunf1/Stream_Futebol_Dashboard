@@ -7,6 +7,7 @@ from io import StringIO
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 from ..config import AppConfig
+from .logger import get_logger
 
 class SecureEnvLoader:
     """
@@ -27,6 +28,7 @@ class SecureEnvLoader:
         self.env_dir_envvar = env_dir_envvar
         self._fernet = None
         self._loaded = False
+        self._log = get_logger(__name__)
 
     def _find_files(self):
         """Find the secret key and encrypted env file paths"""
@@ -112,16 +114,13 @@ class SecureEnvLoader:
             
         # In frozen mode, wait for PyInstaller to fully initialize
         if getattr(sys, self.meipass_attr, None) and not self._wait_for_pyinstaller_init():
-            print("Warning: PyInstaller not fully initialized, trying fallback paths...")
+            self._log.warning("pyinstaller_not_ready_try_fallback")
             
         key_path, enc_env_path = self._find_files()
         
         # Helpful error if files missing
         if not key_path or not enc_env_path:
-            print("Error: Secret key and encrypted env file not found in any expected location.")
-            print(f"Current working directory: {os.getcwd()}")
-            print(f"Current file: {__file__}")
-            print("Searched in the following locations:")
+            self._log.error("env_files_not_found", extra={"cwd": os.getcwd(), "current_file": __file__})
             
             # List all the locations we searched
             locations = []
@@ -152,7 +151,10 @@ class SecureEnvLoader:
             locations.append(f"  - Desktop location: {desktop_path}")
             
             for loc in locations:
-                print(loc)
+                try:
+                    self._log.info("env_search_location", extra={"location": loc})
+                except Exception:
+                    pass
             
             raise FileNotFoundError(
                 f"Secret key and encrypted env file not found.\n"
@@ -179,7 +181,10 @@ class SecureEnvLoader:
         decrypted_text = self._fernet.decrypt(encrypted).decode("utf-8")
         load_dotenv(stream=StringIO(decrypted_text))
         
-        print(f"✅ Environment loaded successfully from: {key_path.parent}")
+        try:
+            self._log.info("env_loaded", extra={"from": str(key_path.parent)})
+        except Exception:
+            pass
         
         self._loaded = True
         self._wipe()

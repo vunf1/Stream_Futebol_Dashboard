@@ -5,7 +5,7 @@ Provides a reusable footer with copyright text, datetime, license status, and cl
 
 import customtkinter as ctk
 import tkinter as tk
-from src.utils import DateTimeProvider
+from src.utils import get_current_portugal_time
 import threading
 import webbrowser
 from urllib import request as _urlrequest
@@ -439,9 +439,11 @@ def create_footer(parent, **kwargs):
                 if config.datetime_format == "custom" and config.custom_datetime:
                     datetime_label.configure(text=config.custom_datetime)
                 elif config.datetime_format == "short":
-                    datetime_label.configure(text=DateTimeProvider.get_datetime().split()[0])  # Date only
+                    now = get_current_portugal_time()
+                    datetime_label.configure(text=now.strftime("%Y-%m-%d"))  # Date only (Lisbon time)
                 else:  # default
-                    datetime_label.configure(text=DateTimeProvider.get_datetime())
+                    now = get_current_portugal_time()
+                    datetime_label.configure(text=now.strftime("%Y-%m-%d %H:%M:%S"))  # Lisbon time
                 
                 # Only schedule next update if widget still exists and datetime should be shown
                 if config.show_datetime and datetime_label.winfo_exists():
