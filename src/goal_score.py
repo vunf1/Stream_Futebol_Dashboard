@@ -8,15 +8,11 @@ from multiprocessing import Process, Queue, freeze_support  # Process management
 import customtkinter as ctk              # Modern tkinter-based UI toolkit
 
 
-from src.core import GameInfoStore, MongoTeamManager
-from src.utils import DateTimeProvider
-from src.ui import get_icon_path, ScoreUI, TeamInputManager, TopWidget, create_main_window, apply_drag_and_drop
-from src.notification import init_notification_queue, server_main
-from src.core import get_config
-from src.licensing import LicenseBlocker
 from src.config import AppConfig
-from src.core.server_launcher import start_server_after_license, stop_server_on_exit
+from src.ui.icons_provider import get_icon_path
 from src.ui.footer_label import create_footer
+from src.utils.window_utils import create_main_window, apply_drag_and_drop
+from src.notification import init_notification_queue, server_main
 
 # Global variable to track instance positions for cascade effect
 _instance_positions = {}
@@ -273,7 +269,10 @@ class ScoreApp:
     def _deferred_backup(self):
         """Defer the backup operation to avoid blocking UI"""
         if self.mongo:
-            self.mongo.backup_to_json()
+            try:
+                self.mongo.backup_to_json()
+            except Exception:
+                pass
 
     def _fast_setup_ui(self):
         """Faster UI setup to ensure smooth loading"""
@@ -344,10 +343,12 @@ class ScoreApp:
         try:
             # Ensure components are initialized
             if not self.mongo or not self.json or not self.ui_container:
-                print("❌ Components not initialized yet")
+                # Not ready yet; retry shortly without blocking UI
+                self.root.after(25, self._setup_step_3)
                 return
             
             # Initialize components
+            from src.ui import TopWidget, ScoreUI
             TopWidget(self.ui_container, self.instance_number, self.mongo, self.json)
             
             self.score_ui = ScoreUI(
@@ -371,9 +372,11 @@ class ScoreApp:
         try:
             # Ensure components are initialized
             if not self.mongo or not self.json or not self.ui_container:
-                print("❌ Components not initialized yet")
+                # Not ready yet; retry shortly without blocking UI
+                self.root.after(25, self._setup_step_4)
                 return
                 
+            from src.ui.teamsUI.teams_ui import TeamInputManager
             TeamInputManager(
                 parent=self.ui_container,
                 mongo=self.mongo,
@@ -498,6 +501,7 @@ class ScoreApp:
             # Update loading message to show license check
             self._update_loading_message("Checking license...")
             
+            from src.licensing import LicenseBlocker
             self.license_blocker = LicenseBlocker(
                 self.root,
                 on_license_valid=self._on_license_activated
@@ -525,84 +529,93 @@ class ScoreApp:
     def _initialize_components_after_license(self):
         """Initialize components in parallel for faster startup"""
         import threading
+        from src.core import get_config
+        from src.core.mongodb import MongoTeamManager
+        from src.core.gameinfo import GameInfoStore
         
         # Update loading message to show license validation success
         self._update_loading_message("License validated, initializing components...")
         
-        # Start the server after license validation
-        self._start_server_after_license()
+        # Start the server after license validation in background to avoid blocking UI
+        threading.Thread(target=self._start_server_after_license, daemon=True).start()
         
         # Start database connection in background
         def init_database():
             self.mongo = MongoTeamManager()
-            # Trigger immediate backup for first run
-            self.mongo.backup_to_json()
+            # Defer initial backup to avoid blocking startup
+            try:
+                self.root.after(1500, self._deferred_backup)
+            except Exception:
+                pass
         
         # Start UI setup in parallel
         def init_ui():
             self.json = GameInfoStore(self.instance_number, debug=get_config("debug_mode"))
             self.decrement_buttons_enabled = True
         
-        # Run both in parallel
+        # Run both in parallel but do not block on joins; proceed to UI setup immediately
         db_thread = threading.Thread(target=init_database, daemon=True)
         ui_thread = threading.Thread(target=init_ui, daemon=True)
-        
         db_thread.start()
         ui_thread.start()
-        
-        # Wait for both to complete
-        db_thread.join()
-        ui_thread.join()
-        
-        # Continue with UI setup
-        animation_config = AppConfig.get_animation_config()
-        # Use a small delay for UI setup to ensure smooth transition
-        self.root.after(100, self._fast_setup_ui)
+
+        # Continue with UI setup immediately; components will be awaited as needed
+        self.root.after(10, self._fast_setup_ui)
     
     def _start_server_after_license(self):
         """Start the futebol-server.exe after license validation"""
         try:
-            print("🚀 Starting server after license validation...")
-            print(f"📍 Current time: {__import__('time').time()}")
-            print(f"📍 Instance number: {self.instance_number}")
+            if AppConfig.is_debug_mode():
+                print("🚀 Starting server after license validation...")
+                print(f"📍 Current time: {__import__('time').time()}")
+                print(f"📍 Instance number: {self.instance_number}")
             
             # Check environment first
             import sys
             frozen = getattr(sys, 'frozen', False)
             meipass = getattr(sys, '_MEIPASS', None)
-            print(f"🔍 Main app environment check:")
-            print(f"   - sys.frozen: {frozen}")
-            print(f"   - sys._MEIPASS: {meipass}")
-            print(f"   - Environment: {'Bundle' if frozen else 'Development'}")
+            if AppConfig.is_debug_mode():
+                print(f"🔍 Main app environment check:")
+                print(f"   - sys.frozen: {frozen}")
+                print(f"   - sys._MEIPASS: {meipass}")
+                print(f"   - Environment: {'Bundle' if frozen else 'Development'}")
             
             # Check if server is already running
             from src.core.server_launcher import get_server_launcher
             launcher = get_server_launcher()
-            print(f"📍 Server launcher instance: {launcher}")
-            print(f"📍 Server already running: {launcher.is_server_running()}")
+            if AppConfig.is_debug_mode():
+                print(f"📍 Server launcher instance: {launcher}")
+                print(f"📍 Server already running: {launcher.is_server_running()}")
             
             # Check if we're in development mode
             if not frozen:
-                print("🚫 Development mode detected - server startup skipped")
-                print("📍 Server will only start when running as bundled executable")
+                if AppConfig.is_debug_mode():
+                    print("🚫 Development mode detected - server startup skipped")
+                    print("📍 Server will only start when running as bundled executable")
                 return  # Exit early in development mode
             
             # Only proceed with server startup in bundle mode
+            from src.core.server_launcher import start_server_after_license
             if start_server_after_license():
-                print("✅ Server started successfully after license validation")
+                if AppConfig.is_debug_mode():
+                    print("✅ Server started successfully after license validation")
                 
                 # Verify it's actually running
                 time.sleep(1)  # Wait a moment
                 is_running = launcher.is_server_running()
-                print(f"📍 Server confirmed running: {is_running}")
+                if AppConfig.is_debug_mode():
+                    print(f"📍 Server confirmed running: {is_running}")
                 
                 if is_running:
-                    print("🎉 Server is confirmed to be running!")
+                    if AppConfig.is_debug_mode():
+                        print("🎉 Server is confirmed to be running!")
                 else:
-                    print("⚠️ Server started but not running - this indicates an issue")
+                    if AppConfig.is_debug_mode():
+                        print("⚠️ Server started but not running - this indicates an issue")
                     
             else:
-                print("⚠️ Failed to start server after license validation")
+                if AppConfig.is_debug_mode():
+                    print("⚠️ Failed to start server after license validation")
                 
         except Exception as e:
             print(f"❌ Error starting server after license validation: {e}")
@@ -729,6 +742,7 @@ def main():
     
     # Register server cleanup on exit
     import atexit
+    from src.core.server_launcher import stop_server_on_exit
     atexit.register(stop_server_on_exit)
 
     count = ask_instance_count_ui()

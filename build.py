@@ -229,7 +229,8 @@ def validate_build_environment():
     required_files = [
         "src/goal_score.py",
         "src/ui/icons/app_icon.ico",
-        "requirements.txt"
+        "requirements.txt",
+        "server/futebol-server.exe",
     ]
     
     missing_files = []

@@ -8,15 +8,10 @@ import json
 import hashlib
 import uuid
 import platform
-import psutil
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Tuple, Optional, Literal
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import ed25519
-from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
-import requests
+Fernet = None  # lazy import
 from ..config import AppConfig
 from ..utils.online_time_provider import get_current_utc_time, get_time_source_info
 
@@ -71,7 +66,8 @@ class LicenseManager:
                 pass
                 
             try:
-                # Get disk serial if available
+                # Get disk info if available (import psutil lazily)
+                import psutil  # type: ignore
                 disk_info = psutil.disk_partitions()
                 if disk_info:
                     system_info.append(disk_info[0].device)
@@ -90,6 +86,10 @@ class LicenseManager:
     
     def _encrypt_license_data(self, data: dict) -> bytes:
         """Encrypt license data using AES-GCM equivalent (Fernet)."""
+        global Fernet
+        if Fernet is None:
+            from cryptography.fernet import Fernet as _F
+            Fernet = _F
         fernet = Fernet(self.app_key)
         json_data = json.dumps(data, default=str)
         return fernet.encrypt(json_data.encode())
@@ -97,6 +97,10 @@ class LicenseManager:
     def _decrypt_license_data(self, encrypted_data: bytes) -> Optional[dict]:
         """Decrypt license data."""
         try:
+            global Fernet
+            if Fernet is None:
+                from cryptography.fernet import Fernet as _F
+                Fernet = _F
             fernet = Fernet(self.app_key)
             decrypted = fernet.decrypt(encrypted_data)
             return json.loads(decrypted.decode())

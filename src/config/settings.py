@@ -120,6 +120,12 @@ class AppConfig:
     TEAMS_BACKUP_FILENAME = "teams.json"
     GAMEINFO_FILENAME = "gameinfo.json"
     SERVER_NAME_APP = "/server/futebol-server.exe"  # Server executable path from root
+    STARTUP_LOCK_FILENAME = "futebol-server.starting.lock"  # Cross-process startup lock file
+    FIREWALL_RULE_NAME = "ApitoFinal-Futebol-Server"  # Windows Firewall rule name
+    FIREWALL_PROFILES = "private,public"  # Profiles to allow for the server
+    LOCAL_APP_DIRNAME = "ApitoFinal"  # Stable per-user app data directory
+    SERVER_CACHE_DIRNAME = "server"   # Subdir for cached server binary
+    SERVER_STARTUP_WAIT_MS = 200  # Wait after launch before checking status (optimized)
     
     # Environment File Settings
     ENV_ENCRYPTED_FILENAME = ".env.enc"
