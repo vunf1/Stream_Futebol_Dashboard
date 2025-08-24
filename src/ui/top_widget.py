@@ -150,7 +150,7 @@ class TopWidget:
     def _open_team_manager(self):
         """Open the Team Manager window"""
         try:
-            from src.ui.teamsUI.teams_ui import TeamManagerWindow
+            from src.ui.edit_teams_ui import TeamManagerWindow
             TeamManagerWindow(parent=self.parent, mongo=self.mongo)
         except Exception as e:
             print(f"Error opening Team Manager: {e}")

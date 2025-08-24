@@ -42,13 +42,12 @@ def prompt_for_pin(parent):
     Returns True if the user enters `correct_pin`, False otherwise (or on Cancel).
     """
     correct_pin = get_env("PIN")
-    print(f"🔐 PIN loaded from environment: {correct_pin}")
     if not correct_pin:
-        print("❌ No PIN found in environment variables")
+        # No PIN configured
         return False
     while True:
         # Create modal dialog using window_utils but with minimal initial configuration
-        print("🔐 Creating PIN prompt window...")
+        # Create PIN prompt window
         from ..utils import create_modal_dialog, center_window_on_screen_with_offset
         
         # Create window with minimal configuration to prevent flickering
@@ -62,8 +61,7 @@ def prompt_for_pin(parent):
         # Position window while hidden
         center_window_on_screen_with_offset(win, 320, 176, -50)
         
-        print(f"🔐 PIN window created: {win}")
-        print(f"🔐 PIN window exists: {win.winfo_exists()}")
+        # Window created
         
         # Create all UI components while window is hidden
         # Main container with modern styling
@@ -186,17 +184,14 @@ def prompt_for_pin(parent):
         entry.bind("<Return>", on_submit)
         entry.bind("<Escape>", on_cancel)
         
-        print("🔐 Waiting for window to close...")
+        # Wait for user input
         
         win.wait_window()
-        print("🔐 Window closed, checking result...")
+        # Window closed
         
         if result["value"] is None:
-            print("🔒 PIN prompt cancelled")
             return False
         if result["value"] == correct_pin:
-            print("🔓 PIN validated successfully")
             return True
         
-        print("🔒 Access Denied")
-        print("Incorrect PIN. Please try again.")
+        # Incorrect PIN

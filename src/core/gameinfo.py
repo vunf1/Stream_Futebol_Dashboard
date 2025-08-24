@@ -4,9 +4,13 @@ import json
 import time
 import threading
 from typing import Any, Dict
+from contextlib import contextmanager
 
 from ..config import AppConfig
+from .logger import get_logger
 from .file_cache import read_json_cached, write_json_async, write_json_sync, batch_write_json, invalidate_file_cache
+
+log = get_logger(__name__)
 
 # ───────────────── Base path & file ─────────────────
 BASE_FOLDER_PATH = os.path.join(
@@ -141,9 +145,9 @@ class GameInfoStore:
         if changed:
             # Use sync write for immediate persistence
             write_json_sync(self.path, self._data)
-            self._log("seeded defaults")
+            log.info("gameinfo_seed_defaults", extra={"path": self.path, "field": self.field_key})
 
-        self._log("loaded", f"path={self.path}", f"keys={list(blk.keys())}")
+        log.debug("gameinfo_loaded", extra={"path": self.path, "field": self.field_key, "keys": list(blk.keys())})
         return self._data
 
     def _ensure_loaded(self):
@@ -153,26 +157,26 @@ class GameInfoStore:
     def _atomic_write(self, data: Dict[str, Any]):
         # Use sync write to ensure immediate persistence and prevent blocking
         write_json_sync(self.path, data)
-        self._log("write ->", self.path)
+        log.debug("gameinfo_write_sync", extra={"path": self.path})
 
     # ----- public API -----
     def read_all_field(self) -> Dict[str, Any]:
         data = self._load_from_disk()
         blk = dict(data[self.field_key])
-        self._log("read_all_field ->", blk)
+        log.debug("gameinfo_read_all_field", extra={"field": self.field_key})
         return blk
 
     def read_field_key(self, key: str, default: Any = None) -> Any:
         data = self._load_from_disk()
         val = data[self.field_key].get(key, DEFAULT_FIELD_STATE.get(key, default))
-        self._log(f"read_field_key('{key}') ->", repr(val))
+        log.debug("gameinfo_read_field_key", extra={"field": self.field_key, "key": key})
         return val
 
     def get(self, key: str, default: Any = None) -> Any:
         self._ensure_loaded()
         blk = self._data.get(self.field_key, {})
         val = blk.get(key, DEFAULT_FIELD_STATE.get(key, default))
-        self._log(f"get('{key}') [cached] ->", repr(val))
+        log.debug("gameinfo_get_cached", extra={"field": self.field_key, "key": key})
         return val
 
     def set(self, key: str, value: Any, persist: bool = True) -> bool:
@@ -182,15 +186,16 @@ class GameInfoStore:
         self._ensure_loaded()
         blk = self._data[self.field_key]
         if blk.get(key) == value:
-            self._log(f"set('{key}') no-op (same value)")
+            log.debug("gameinfo_set_noop", extra={"field": self.field_key, "key": key})
             return False
         blk[key] = value
-        self._log(f"set('{key}') =", repr(value))
+        log.info("gameinfo_set", extra={"field": self.field_key, "key": key})
         if persist:
-            # Use buffered write for better performance
-            with _write_buffer_lock:
-                _write_buffer[(self.path, self.field_key, key)] = value
-            _schedule_write()
+            # Use batch write directly (single queue layer)
+            try:
+                batch_write_json(self.path, {self.field_key: {key: value}})
+            except Exception:
+                log.error("gameinfo_batch_write_error", extra={"path": self.path, "field": self.field_key}, exc_info=True)
         return True
 
     def update(self, patch: Dict[str, Any], persist: bool = True) -> bool:
@@ -204,19 +209,19 @@ class GameInfoStore:
         if not safe_patch:
             self._log("update no-op")
             return False
-        self._log("update", safe_patch)
+        log.info("gameinfo_update", extra={"field": self.field_key, "keys": list(safe_patch.keys())})
         if persist:
-            # Use buffered write for better performance
-            with _write_buffer_lock:
-                for key, value in safe_patch.items():
-                    _write_buffer[(self.path, self.field_key, key)] = value
-            _schedule_write()
+            try:
+                batch_write_json(self.path, {self.field_key: safe_patch})
+            except Exception:
+                log.error("gameinfo_batch_write_error", extra={"path": self.path, "field": self.field_key}, exc_info=True)
         return True
     
     def _read_disk_raw(self) -> Dict[str, Any]:
         # Use cached file reading
         return read_json_cached(self.path, {})
     
+    @contextmanager
     def _file_lock(self, timeout=2.0, poll=0.02):
         lock = self.path + ".lock"
         start = time.time()
@@ -264,7 +269,7 @@ class GameInfoStore:
 
             # Use sync write for immediate persistence
             write_json_sync(self.path, data)
-            self._log("write ->", self.path)
+            log.debug("gameinfo_write_sync", extra={"path": self.path})
 
             # Update cache to reflect on-disk snapshot
             self._data = data
