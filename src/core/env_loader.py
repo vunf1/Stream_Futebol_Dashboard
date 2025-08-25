@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from ..config import AppConfig
 from .logger import get_logger
 from .path_finder import get_path_finder
+from .dpapi import dpapi_unprotect, dpapi_protect
 
 class SecureEnvLoader:
     """
@@ -175,8 +176,34 @@ class SecureEnvLoader:
                 f"Encrypted env file not found at: {enc_env_path}"
             )
 
-        # Prepare Fernet
+        # Prepare Fernet (support DPAPI-protected secret and auto-protect raw keys)
         key_bytes = key_path.read_bytes()
+        raw_key_for_use = None
+        # Heuristic: if file is not urlsafe base64 for Fernet, attempt DPAPI unprotect
+        try:
+            # This succeeds if the file contains a plain Fernet key
+            Fernet(key_bytes)
+            raw_key_for_use = key_bytes
+            # Attempt to DPAPI-protect and rewrite the key file for at-rest protection
+            try:
+                protected = dpapi_protect(raw_key_for_use)
+                with open(key_path, "wb") as fh:
+                    fh.write(protected)
+                try:
+                    self._log.info("secret_key_dpapi_hardened", extra={"path": str(key_path)})
+                except Exception:
+                    pass
+            except Exception:
+                # If protection fails, continue with raw key in memory
+                pass
+        except Exception:
+            # Not a raw Fernet key; try DPAPI unwrap
+            try:
+                key_bytes = dpapi_unprotect(key_bytes)
+                raw_key_for_use = key_bytes
+            except Exception:
+                # Fall back to original (may still be valid)
+                raw_key_for_use = key_bytes
         self._fernet = Fernet(key_bytes)
 
         # Load and decrypt

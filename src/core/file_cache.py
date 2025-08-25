@@ -1,13 +1,22 @@
 """
 File Cache System for Performance Optimization
 
-This module provides:
-- File caching for frequently accessed data
-- Async file operations for non-critical writes
-- Batch file operations instead of individual writes
-- File change detection to avoid unnecessary reads
-- Thread-safe operations
-- Dedicated write queue for timer operations
+What this is:
+- A thread-safe JSON file cache that reduces disk reads by caching hot files with
+  TTL and high-resolution mtime (ns) validation, plus a dedicated write queue
+  that batches and atomically replaces files to minimize contention and corruption.
+
+Why it exists:
+- The timer and scoreboard write frequently. Writing atomically through a single
+  background thread reduces fragmentation, avoids partial writes, and improves
+  snappiness while keeping the on-disk state consistent for other processes (e.g.,
+  OBS file readers).
+
+Main features:
+- Read-through cache with TTL and mtime(ns) change detection
+- Dedicated write worker with micro-batching and atomic replace writes
+- Batch update helper that merges nested structures (e.g., field sections)
+- Shutdown hook to flush pending writes on interpreter exit
 """
 
 import os
