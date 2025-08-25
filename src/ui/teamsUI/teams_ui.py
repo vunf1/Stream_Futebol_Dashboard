@@ -258,15 +258,40 @@ class TeamInputManager(ctk.CTkFrame):
             "away_abbr": away_abrev,
         }, persist=True)
 
+        # Force re-hydration of UI from the store to guarantee immediate reflection
+        try:
+            self._hydrate_from_store()
+        except Exception:
+            pass
+
         # Update cache for autocomplete if new teams were introduced
         if home_name and home_abrev:
             self._teams_cache[home_name] = home_abrev
         if away_name and away_abrev:
             self._teams_cache[away_name] = away_abrev
 
-        # Let the caller refresh overlay labels, etc.
-        # Debounced refresh for labels in parent/overlay
+        # Also persist to local JSON backup (teams.json) so the file reflects latest entries
+        try:
+            existing = load_teams_from_json()
+            mapping: Dict[str, str] = existing if isinstance(existing, dict) else {}
+            if home_name and home_abrev:
+                mapping[home_name] = home_abrev
+            if away_name and away_abrev:
+                mapping[away_name] = away_abrev
+            if mapping:
+                save_teams_to_json(mapping)
+        except Exception:
+            pass
+
+        # Let the caller refresh overlay labels, etc. (immediate)
+        try:
+            self.refresh_labels()
+        except Exception:
+            pass
+
+        # Debounced refresh for labels in parent/overlay via event bus
         UI_EVENT_BUS.publish(f"team_labels_{self.instance_number}")
+        UI_EVENT_BUS.publish(f"score_labels_{self.instance_number}")
 
         show_message_notification(
             f"✅ Campo {self.instance_number} - Gravado",

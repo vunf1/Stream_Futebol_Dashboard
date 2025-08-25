@@ -11,6 +11,12 @@
 - **Lock/Unlock Decrement**: Disable the “–1” buttons to prevent accidental score reductions.
 - **Custom Button Styling**: +1 in green, –1 in red; uniform bottom-control buttons with gaps.
 - **Improved UI Padding**: Frames pack tightly with no unwanted margins.
+- **Structured Logging**: All modules use structured logging with sensitive data redaction.
+- **Debounced UI Updates**: Central event bus coalesces rapid updates to keep UI smooth.
+- **Secure Env Loader + PathFinder**: Robust discovery of encrypted env and key files.
+- **Server Lifecycle**: Watchdog (optional), health checks, firewall pre-auth, and log rotation.
+- **Server Metrics**: Lightweight `server_metrics.json` shows up in the footer as “Server: STATUS”.
+- **Config Editor Toggles**: Enable/disable server health checks and watchdog at runtime.
 
 ---
 
@@ -87,6 +93,7 @@ python config_editor.py
 #### **Key Configuration Areas**
 - **Window Settings**: Opacity, dimensions, and positioning
 - **Performance Settings**: UI updates, caching, and buffer management
+- **Server Health & Watchdog**: Runtime toggles to control health checks and watchdog
 - **Animation Settings**: Loading animations and timing
 - **Field Settings**: Maximum fields, cascade offsets, and grid spacing
 - **UI Settings**: Fonts, colors, and themes
@@ -97,6 +104,10 @@ Settings are stored in `performance_config.json` (created automatically):
 - **Range**: 0.0 (completely transparent) to 1.0 (fully opaque)
 - **Location**: `performance_config.json` file (created automatically)
 
+Additional runtime keys consumed by the app (case-insensitive in editor):
+- `SERVER_HEALTH_CHECK_ENABLED` (bool): enable/disable health checks
+- `SERVER_WATCHDOG_ENABLED` (bool): enable watchdog (auto-enabled in frozen builds if configured)
+
 #### **Environment Variables**
 Some settings can be configured via environment variables in `.env`:
 - `MONGO_URI` - MongoDB connection string
@@ -104,6 +115,13 @@ Some settings can be configured via environment variables in `.env`:
 - `MONGO_COLLECTION` - Collection name
 - `PIN` - Admin PIN for team management
 - `DEBUG_MODE` - Enable debug mode (true/false)
+
+#### **Server Settings (AppConfig)**
+Key server-related defaults in `src/config/settings.py`:
+- `SERVER_HEALTH_URL`, `SERVER_HEALTH_TIMEOUT_MS`, `SERVER_HEALTH_RETRY_MS`
+- `SERVER_WATCHDOG_ENABLED`, backoff and window/cooldown parameters
+- `SERVER_HASH_VALIDATE` (bool): verify SHA-256 of cached server binary
+- `SERVER_METRICS_FILENAME` (default: `server_metrics.json`)
 
 ---
 

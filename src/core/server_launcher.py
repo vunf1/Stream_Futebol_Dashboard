@@ -59,7 +59,21 @@ class ServerLauncher:
                         else:
                             # Optional additional validation: version/hash check (best-effort)
                             try:
-                                if packaged_path.stat().st_mtime > stable_path.stat().st_mtime:
+                                # If enabled, validate binary hash and refresh cache if mismatch
+                                if getattr(AppConfig, 'SERVER_HASH_VALIDATE', False):
+                                    import hashlib
+                                    def _sha256(p: Path) -> str:
+                                        h = hashlib.sha256()
+                                        with open(p, 'rb') as f:
+                                            for chunk in iter(lambda: f.read(65536), b''):
+                                                h.update(chunk)
+                                        return h.hexdigest()
+                                    src_hash = _sha256(packaged_path)
+                                    dst_hash = _sha256(stable_path)
+                                    if src_hash != dst_hash:
+                                        import shutil as _sh
+                                        _sh.copy2(str(packaged_path), str(stable_path))
+                                elif packaged_path.stat().st_mtime > stable_path.stat().st_mtime:
                                     import shutil as _sh
                                     _sh.copy2(str(packaged_path), str(stable_path))
                             except Exception:
@@ -222,6 +236,30 @@ class ServerLauncher:
         except Exception:
             return None
 
+    def _metrics_path(self) -> Path:
+        try:
+            base = Path.home() / "Desktop" / AppConfig.DESKTOP_FOLDER_NAME
+            return base / getattr(AppConfig, 'SERVER_METRICS_FILENAME', 'server_metrics.json')
+        except Exception:
+            return Path("server_metrics.json")
+
+    def _write_metrics(self, status: str, extra: Optional[dict] = None) -> None:
+        try:
+            import json as _json
+            from datetime import datetime, timezone
+            p = self._metrics_path()
+            p.parent.mkdir(parents=True, exist_ok=True)
+            data = {
+                "status": status,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            if extra:
+                data.update(extra)
+            with open(p, "w", encoding="utf-8") as f:
+                _json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
     def _windows_hide_startup(self):
         flags = 0
         startupinfo = None
@@ -382,6 +420,10 @@ class ServerLauncher:
                     creationflags=flags,
                     startupinfo=startupinfo
                 )
+                try:
+                    self._write_metrics("started", {"pid": getattr(self.server_process, 'pid', None)})
+                except Exception:
+                    pass
 
                 # Wait briefly to see if it starts successfully (non-blocking duration)
                 time.sleep(max(0.02, AppConfig.SERVER_STARTUP_WAIT_MS / 1000.0))
@@ -424,6 +466,10 @@ class ServerLauncher:
                         self._log_handle.flush()
                     except Exception:
                         pass
+                    try:
+                        self._write_metrics("exited_immediately", {"return_code": rc})
+                    except Exception:
+                        pass
 
                 ok = self._any_server_running()
                 self._release_startup_lock()
@@ -436,6 +482,10 @@ class ServerLauncher:
                     except Exception:
                         pass
                     self._log_handle = None
+                    try:
+                        self._write_metrics("failed_to_start")
+                    except Exception:
+                        pass
                 return ok
                     
             except Exception as e:
@@ -452,6 +502,10 @@ class ServerLauncher:
                 except Exception:
                     pass
                 self._log_handle = None
+                try:
+                    self._write_metrics("start_error")
+                except Exception:
+                    pass
                 return False
             finally:
                 # Start watchdog if enabled (frozen default + runtime override)
@@ -515,6 +569,10 @@ class ServerLauncher:
             self._remove_firewall_rule()
             try:
                 self._log.info('server_stopped')
+            except Exception:
+                pass
+            try:
+                self._write_metrics("stopped")
             except Exception:
                 pass
             return True

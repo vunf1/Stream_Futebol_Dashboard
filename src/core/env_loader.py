@@ -8,6 +8,7 @@ from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 from ..config import AppConfig
 from .logger import get_logger
+from .path_finder import get_path_finder
 
 class SecureEnvLoader:
     """
@@ -29,16 +30,21 @@ class SecureEnvLoader:
         self._fernet = None
         self._loaded = False
         self._log = get_logger(__name__)
+        self._pf = get_path_finder()
 
     def _find_files(self):
         """Find the secret key and encrypted env file paths"""
         # Try multiple possible locations in order of preference
         
         # 1. Try PyInstaller _MEIPASS directory first
-        base = getattr(sys, self.meipass_attr, None)
-        if base:
-            key_path = Path(base) / self.key_filename
-            enc_env_path = Path(base) / self.enc_env_filename
+        base_path = self._pf.meipass_dir()
+        if not base_path:
+            # fallback: direct getattr to be safe
+            base = getattr(sys, self.meipass_attr, None)
+            base_path = Path(base) if base else None
+        if base_path:
+            key_path = base_path / self.key_filename
+            enc_env_path = base_path / self.enc_env_filename
             if key_path.exists() and enc_env_path.exists():
                 return key_path, enc_env_path
         
@@ -56,21 +62,15 @@ class SecureEnvLoader:
         if key_path.exists() and enc_env_path.exists():
             return key_path, enc_env_path
         
-        # 4. Try project root (relative to this file)
-        current_file = Path(__file__).resolve()
-        if "helpers" in current_file.parts and "core" in current_file.parts:
-            # We're in helpers/core/, go up 2 levels to project root
-            base = current_file.parents[2]
-        else:
-            # We're already in project root or somewhere else
-            base = current_file.parent
-            
+        # 4. Try project root via PathFinder
+        base = self._pf.project_root()
         key_path = base / self.key_filename
         enc_env_path = base / self.enc_env_filename
         if key_path.exists() and enc_env_path.exists():
             return key_path, enc_env_path
         
         # 5. Try parent directories (in case we're in a subdirectory)
+        current_file = Path(__file__).resolve()
         for parent in current_file.parents:
             key_path = parent / self.key_filename
             enc_env_path = parent / self.enc_env_filename
@@ -89,12 +89,15 @@ class SecureEnvLoader:
 
     def _wait_for_pyinstaller_init(self, max_retries=20, delay=0.05):
         """Wait for PyInstaller to fully initialize in frozen mode"""
-        if not getattr(sys, self.meipass_attr, None):
+        if not self._pf.meipass_dir():
             return False
             
         for attempt in range(max_retries):
             try:
-                base = Path(getattr(sys, self.meipass_attr))
+                base = self._pf.meipass_dir()
+                if not base:
+                    time.sleep(delay)
+                    continue
                 key_path = base / self.key_filename
                 enc_env_path = base / self.enc_env_filename
                 

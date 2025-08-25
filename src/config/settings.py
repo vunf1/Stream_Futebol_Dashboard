@@ -138,6 +138,7 @@ class AppConfig:
     SERVER_WATCHDOG_BACKOFF_BASE_MS = 500
     SERVER_WATCHDOG_BACKOFF_CAP_MS = 30000
     SERVER_WATCHDOG_JITTER_PCT = 0.1  # +/-10%
+    SERVER_HASH_VALIDATE = False  # Validate server binary SHA-256 before using cached copy
     
     # Environment File Settings
     ENV_ENCRYPTED_FILENAME = ".env.enc"

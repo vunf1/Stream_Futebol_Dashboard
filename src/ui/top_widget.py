@@ -77,7 +77,7 @@ class TopWidget:
         penalty_btn.grid(row=0, column=3, columnspan=2, sticky="nsew")
 
         # Create the "Edit Teams" button
-        icon = get_icon("gear", 68)
+        icon = get_icon("edit", 68)
         edit_btn = CTkButton(
             header,
             image=icon,

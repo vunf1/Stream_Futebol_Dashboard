@@ -116,8 +116,7 @@ class ConfigEditor:
             command=self._close_dialog
         ).pack(side="right", padx=5)
         
-        # Store widgets for later access
-        self.setting_widgets = {}
+        # Store widgets for later access (already populated by builders)
         
     def _create_section_header(self, parent, text: str):
         """Create a section header."""
@@ -180,12 +179,16 @@ class ConfigEditor:
         var = ctk.BooleanVar(value=current_value)
 
         def on_toggle():
-            self.setting_widgets[key] = {
-                'current_value': var.get()
-            }
+            self.setting_widgets[key]['current_value'] = var.get()
 
         switch = ctk.CTkSwitch(frame, text="", variable=var, command=on_toggle)
         switch.pack(side="right", padx=5, pady=8)
+
+        # Ensure the toggle is tracked for saving and resetting even if not touched
+        self.setting_widgets[key] = {
+            'current_value': current_value,
+            'switch_var': var,
+        }
         
     def _update_setting_value(self, key: str, value: float):
         """Update setting value and display."""

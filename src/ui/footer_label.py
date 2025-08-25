@@ -601,6 +601,35 @@ def create_footer(parent, **kwargs):
         
         # Initial license status check
         update_license_status()
+
+        # ----- Server metrics indicator (optional) -----
+        try:
+            import json as _json
+            from pathlib import Path as _Path
+            from src.config.settings import AppConfig as _AppConfig
+            _metrics_path = _Path.home() / "Desktop" / _AppConfig.DESKTOP_FOLDER_NAME / getattr(_AppConfig, 'SERVER_METRICS_FILENAME', 'server_metrics.json')
+            _metrics_label = ctk.CTkLabel(license_row, text="", font=("Segoe UI", 10), text_color="#888888")
+            _metrics_label.pack(side="right")
+
+            def _refresh_metrics():
+                try:
+                    if _metrics_path.exists():
+                        data = _json.loads(_metrics_path.read_text(encoding="utf-8"))
+                        status = str(data.get("status", "")).upper()
+                        _metrics_label.configure(text=f"Server: {status}")
+                    else:
+                        _metrics_label.configure(text="")
+                except Exception:
+                    _metrics_label.configure(text="")
+                finally:
+                    try:
+                        parent.after(2000, _refresh_metrics)
+                    except Exception:
+                        pass
+
+            parent.after(1000, _refresh_metrics)
+        except Exception:
+            pass
         
         # Hover effects for clickable license status
         if config.license_clickable:
