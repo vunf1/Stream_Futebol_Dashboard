@@ -614,7 +614,9 @@ def create_footer(parent, **kwargs):
             import json as _json
             from pathlib import Path as _Path
             from src.config.settings import AppConfig as _AppConfig
-            _metrics_path = _Path.home() / "Desktop" / _AppConfig.DESKTOP_FOLDER_NAME / getattr(_AppConfig, 'SERVER_METRICS_FILENAME', 'server_metrics.json')
+            from src.core.path_finder import get_path_finder as _get_pf
+            _pf = _get_pf()
+            _metrics_path = _pf.user_local_appdir(_AppConfig.LOCAL_APP_DIRNAME, "server") / getattr(_AppConfig, 'SERVER_METRICS_FILENAME', 'server_metrics.json')
             _metrics_label = ctk.CTkLabel(license_row, text="", font=("Segoe UI", 10), text_color="#888888")
             _metrics_label.pack(side="right")
 

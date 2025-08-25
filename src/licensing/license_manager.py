@@ -15,6 +15,7 @@ Fernet = None  # lazy import
 from ..config import AppConfig
 from ..utils.online_time_provider import get_current_utc_time, get_time_source_info
 from src.core.logger import get_logger
+from .native_verifier import verify_signature as native_verify_signature
 
 log = get_logger(__name__)
 
@@ -112,34 +113,22 @@ class LicenseManager:
             return None
     
     def _verify_license_signature(self, data: dict, signature: str) -> bool:
-        """Verify the license signature from the server."""
+        """Verify the license signature (native when available)."""
         try:
-            # Check required fields
-            required_fields = ["status", "code", "issuedAt", "expiresAt", "machineHash"]
+            # Check required fields (except expiresAt which is validated later)
+            required_fields = ["status", "code", "issuedAt", "machineHash"]
             if not all(field in data for field in required_fields):
                 log.error("license_signature_missing_fields")
                 return False
-            
-            # Verify machine hash binding
+
+            # Verify machine hash binding early
             if data.get("machineHash") != self.machine_hash:
                 log.error("license_signature_machine_hash_mismatch")
                 return False
-            
-            # In production, this would verify against the server's public key
-            # For now, we'll do enhanced validation of the signature structure
-            if not signature or len(signature) < 32:  # Minimum signature length
-                log.warning("license_signature_invalid_format")
-                return False
-            
-            # Verify signature data integrity
-            signature_data = f"{data['code']}:{data['machineHash']}:{data['status']}:{data['issuedAt']}"
-            expected_signature = hashlib.sha256(signature_data.encode()).hexdigest()
-            
-            # For now, we'll accept the signature if it's properly formatted
-            # In production, this would verify against the actual server signature
-            log.info("license_signature_verified")
-            return True
-            
+
+            ok = native_verify_signature(data, signature, logger=log)
+            return bool(ok)
+
         except Exception as e:
             log.error("license_signature_verification_failed", extra={"error": str(e)})
             return False

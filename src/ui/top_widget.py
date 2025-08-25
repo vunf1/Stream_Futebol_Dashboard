@@ -50,6 +50,8 @@ class TopWidget:
             header.grid_columnconfigure(col, weight=1, uniform="col")
         bg = ctk.ThemeManager.theme["CTkFrame"]["fg_color"]
         
+        
+        
         # Create the "Open Timer" button
         icon = get_icon("stopwatch", 45)
         open_timer_btn = CTkButton(
@@ -88,6 +90,7 @@ class TopWidget:
             hover_color=bg,
         )
         edit_btn.grid(row=0, column=5, columnspan=2, sticky="nsew")
+
 
     def _open_timer_window(self):
         # Check if timer window is already open for this instance

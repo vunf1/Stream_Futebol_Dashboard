@@ -238,10 +238,12 @@ class ServerLauncher:
 
     def _metrics_path(self) -> Path:
         try:
-            base = Path.home() / "Desktop" / AppConfig.DESKTOP_FOLDER_NAME
+            pf = get_path_finder()
+            base = pf.user_local_appdir(AppConfig.LOCAL_APP_DIRNAME, "server")
+            base.mkdir(parents=True, exist_ok=True)
             return base / getattr(AppConfig, 'SERVER_METRICS_FILENAME', 'server_metrics.json')
         except Exception:
-            return Path("server_metrics.json")
+            return Path(getattr(AppConfig, 'SERVER_METRICS_FILENAME', 'server_metrics.json'))
 
     def _write_metrics(self, status: str, extra: Optional[dict] = None) -> None:
         try:
