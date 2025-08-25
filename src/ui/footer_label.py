@@ -30,7 +30,7 @@ class FooterConfig:
     license_clickable: bool = True
     close_command: Optional[Callable] = None
     custom_padding: tuple = (6, 2, 6, 2)  # (left, top, right, bottom)
-    custom_spacing: int = 20
+    custom_spacing: int = 10
     footer_height: int = 25  # Reduced default height for better proportions
     close_button_size: int = 24
     activate_button_height: int = 20
@@ -86,7 +86,14 @@ def create_footer(parent, **kwargs):
     footer_frame = ctk.CTkFrame(parent, fg_color="transparent")
     
     # Pack with proper fill and expansion to ensure full width coverage
-    footer_frame.pack(side="bottom", pady=config.custom_padding[1:3], fill="x", expand=False, padx=0)
+    # Respect top and bottom from custom_padding (index 1 and 3)
+    footer_frame.pack(
+        side="bottom",
+        pady=(config.custom_padding[1], config.custom_padding[3]),
+        fill="x",
+        expand=False,
+        padx=0,
+    )
     
     # Set minimum height but allow expansion
     footer_frame.configure(height=config.footer_height)
@@ -120,7 +127,7 @@ def create_footer(parent, **kwargs):
     
     # Left side container for copyright and datetime
     left_container = ctk.CTkFrame(row_container, fg_color="transparent")
-    left_container.pack(side="left", fill="y", padx=(8, 0))
+    left_container.pack(side="left", fill="y", padx=(4, 0))
     
     # Optional server status dot (before copyright)
     server_status_label = None
@@ -134,7 +141,7 @@ def create_footer(parent, **kwargs):
             text_color="#dc3545",  # default red
             cursor="hand2",
         )
-        server_status_label.pack(side="left", padx=(0, 6))
+        server_status_label.pack(side="left", padx=(0, 3))
 
         def _apply_status_color(is_up: bool):
             try:
@@ -417,7 +424,7 @@ def create_footer(parent, **kwargs):
             font=("Segoe UI Emoji", 10), 
             text_color="gray"
         )
-        copyright_label.pack(side="left", padx=(0, 8))
+        copyright_label.pack(side="left", padx=(0, 4))
     
     # Datetime label
     if config.show_datetime:
@@ -427,7 +434,7 @@ def create_footer(parent, **kwargs):
             font=("Segoe UI", 10), 
             text_color="gray"
         )
-        datetime_label.pack(side="left", padx=(0, 8))
+        datetime_label.pack(side="left", padx=(0, 4))
         
         def update_datetime():
             """Update datetime display based on config."""
@@ -576,7 +583,7 @@ def create_footer(parent, **kwargs):
                     )
                     
                     if should_show_button:
-                        activate_button.pack(side="right", padx=(8, 0))  # Position on the right of the license row
+                        activate_button.pack(side="right", padx=(4, 0))  # Position on the right of the license row
                     else:
                         activate_button.pack_forget()
                 
@@ -672,7 +679,7 @@ def create_footer(parent, **kwargs):
     
     # Right side container for close button
     right_container = ctk.CTkFrame(row_container, fg_color="transparent")
-    right_container.pack(side="right", fill="y", padx=(0, 8))
+    right_container.pack(side="right", fill="y", padx=(0, 4))
     
     # Close button - ALWAYS visible for user convenience
     def close_action():
@@ -700,7 +707,7 @@ def create_footer(parent, **kwargs):
         corner_radius=config.close_button_size // 2,
         command=close_action
     )
-    close_button.pack(side="right", padx=(3, 0))
+    close_button.pack(side="right", padx=(2, 0))
     
     return footer_frame
 

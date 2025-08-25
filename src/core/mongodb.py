@@ -8,6 +8,7 @@ from src.notification import show_message_notification
 import threading
 import time
 from typing import Optional, Dict
+from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 from src.config.settings import AppConfig
 from src.core.logger import get_logger
 
@@ -104,6 +105,29 @@ _teams_cache = SmartTeamCache(base_ttl=int(getattr(AppConfig, "UI_UPDATE_DEBOUNC
 _teams_cache_timestamp = 0
 _log = get_logger(__name__)
 
+
+def _sanitize_mongo_uri(uri: str) -> str:
+    """Ensure TLS is enabled for mongodb:// URIs; leave mongodb+srv intact.
+
+    - mongodb+srv implies TLS by default; returned as-is
+    - mongodb:// without tls/ssl query param -> add tls=true
+    - mongodb:// with existing query -> preserve and append tls=true if missing
+    """
+    if not isinstance(uri, str):
+        return uri
+    u = uri.strip()
+    if u.lower().startswith("mongodb+srv://"):
+        return u
+    if u.lower().startswith("mongodb://"):
+        parts = urlparse(u)
+        params = dict(parse_qsl(parts.query, keep_blank_values=True))
+        if "tls" not in params and "ssl" not in params:
+            params["tls"] = "true"
+        new_query = urlencode(params, doseq=True)
+        u = urlunparse((parts.scheme, parts.netloc, parts.path or "", parts.params, new_query, parts.fragment))
+        return u
+    return u
+
 def _get_mongo_client():
     """Get or create MongoDB client with connection pooling"""
     global _mongo_client
@@ -113,7 +137,7 @@ def _get_mongo_client():
     
     with _mongo_client_lock:
         if _mongo_client is None:
-            uri = get_env("MONGO_URI")
+            uri = _sanitize_mongo_uri(get_env("MONGO_URI"))
             _mongo_client = MongoClient(
                 uri,
                 maxPoolSize=10,  # Connection pool size
