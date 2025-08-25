@@ -106,7 +106,7 @@ def center_window_on_parent(child: CTkToplevel, parent: Union[ctk.CTk, CTkToplev
         y_offset: Vertical offset from parent top (default: 20px)
     """
     # Set window relationship and focus
-    child.transient(parent)  # type: ignore
+    child.transient(parent)
     child.lift(parent)
     child.focus_force()
 
@@ -186,7 +186,7 @@ def configure_window(window: Union[ctk.CTk, CTkToplevel], config: Dict[str, Any]
             window.lift()
     
     if config.get("transient") and parent:
-        window.transient(parent)  # type: ignore
+        window.transient(parent)
 
 
 def create_modal_dialog(parent: Union[ctk.CTk, CTkToplevel], title: str, width: int, height: int,
@@ -313,7 +313,7 @@ def apply_drag_and_drop(window: Union[ctk.CTk, CTkToplevel, ctk.CTkFrame]) -> No
     """
     drag_state = {"offset_x": 0, "offset_y": 0, "is_dragging": False}
 
-    def _start_drag(event):
+    def _start_drag(event: Any) -> None:
         # Calculate offset between pointer and top-left corner of window
         # Use root coordinates for accurate positioning
         if isinstance(window, (ctk.CTk, CTkToplevel)):
@@ -327,7 +327,7 @@ def apply_drag_and_drop(window: Union[ctk.CTk, CTkToplevel, ctk.CTkFrame]) -> No
                 drag_state["offset_y"] = event.y_root - parent.winfo_rooty()
         drag_state["is_dragging"] = True
 
-    def _on_drag(event):
+    def _on_drag(event: Any) -> None:
         if not drag_state["is_dragging"]:
             return
             
@@ -343,7 +343,7 @@ def apply_drag_and_drop(window: Union[ctk.CTk, CTkToplevel, ctk.CTkFrame]) -> No
             if isinstance(parent, (ctk.CTk, CTkToplevel)):
                 parent.geometry(f"+{new_x}+{new_y}")
 
-    def _stop_drag(event):
+    def _stop_drag(event: Any) -> None:
         drag_state["is_dragging"] = False
 
     # Store the bound functions so they can be unbound later
@@ -362,7 +362,7 @@ def apply_drag_and_drop(window: Union[ctk.CTk, CTkToplevel, ctk.CTkFrame]) -> No
         window._drag_bindings.append((event, callback))
     
     # Bind to window destruction to clean up
-    def _cleanup_drag_bindings():
+    def _cleanup_drag_bindings() -> None:
         try:
             if hasattr(window, '_drag_bindings'):
                 for event, callback in window._drag_bindings:

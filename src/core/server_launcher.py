@@ -9,7 +9,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Optional, IO, Any, Tuple
 from src.config.settings import AppConfig
 from src.core.config_manager import get_config
 from src.core.path_finder import get_path_finder
@@ -18,12 +18,13 @@ from src.core.logger import get_logger
 class ServerLauncher:
     """Manages the futebol-server.exe process."""
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.server_process: Optional[subprocess.Popen] = None
         self._startup_lock = threading.Lock()
         self._startup_lock_fd: Optional[int] = None
-        self._log_handle = None
+        self._log_handle: Optional[IO[str]] = None
         self._log = get_logger(__name__)
+        self._last_debug_time: float = 0.0
         # Firewall tracking (delete only if we added it)
         self._firewall_rule_added = False
         # Watchdog thread for unexpected exits
@@ -90,7 +91,7 @@ class ServerLauncher:
     def _any_server_running(self) -> bool:
         """Check across the whole system if futebol-server.exe is running."""
         try:
-            import psutil  # type: ignore
+            import psutil
             exe_name_l = Path(AppConfig.SERVER_NAME_APP.lstrip("/\\")).name.lower()
             for p in psutil.process_iter(attrs=["name"]):
                 try:
@@ -225,7 +226,7 @@ class ServerLauncher:
             finally:
                 self._startup_mutex_handle = None
     
-    def _open_log_handle(self):
+    def _open_log_handle(self) -> Optional[IO[str]]:
         """Open a log file on Desktop folder to capture server output."""
         try:
             logs_dir = Path.home() / "Desktop" / AppConfig.DESKTOP_FOLDER_NAME / "logs"
@@ -262,17 +263,17 @@ class ServerLauncher:
         except Exception:
             pass
 
-    def _windows_hide_startup(self):
-        flags = 0
-        startupinfo = None
+    def _windows_hide_startup(self) -> Tuple[int, Optional[Any]]:
+        flags: int = 0
+        startupinfo: Optional[Any] = None
         if os.name == 'nt':
             flags = (
                 getattr(subprocess, 'CREATE_NO_WINDOW', 0) |
                 getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0)
             )
             try:
-                si = subprocess.STARTUPINFO()  # type: ignore[attr-defined]
-                si.dwFlags |= getattr(subprocess, 'STARTF_USESHOWWINDOW', 0)  # type: ignore[attr-defined]
+                si = subprocess.STARTUPINFO()
+                si.dwFlags |= getattr(subprocess, 'STARTF_USESHOWWINDOW', 0)
                 si.wShowWindow = 0  # SW_HIDE
                 startupinfo = si
             except Exception:
@@ -287,8 +288,8 @@ class ServerLauncher:
             if os.name == 'nt':
                 flags = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
                 try:
-                    si = subprocess.STARTUPINFO()  # type: ignore[attr-defined]
-                    si.dwFlags |= getattr(subprocess, 'STARTF_USESHOWWINDOW', 0)  # type: ignore[attr-defined]
+                    si = subprocess.STARTUPINFO()
+                    si.dwFlags |= getattr(subprocess, 'STARTF_USESHOWWINDOW', 0)
                     si.wShowWindow = 0
                     startupinfo = si
                 except Exception:
@@ -347,7 +348,7 @@ class ServerLauncher:
         exe_name = Path(AppConfig.SERVER_NAME_APP.lstrip("/\\")).name
         killed_any = False
         try:
-            import psutil  # type: ignore
+            import psutil
             for p in psutil.process_iter(attrs=["name"]):
                 try:
                     name = (p.info.get("name") or "").lower()
@@ -605,7 +606,7 @@ class ServerLauncher:
             return self.start_server()
         return False
     
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Clean up resources when shutting down."""
         # In development mode, nothing to clean up
         if not getattr(sys, 'frozen', False):
@@ -629,7 +630,7 @@ class ServerLauncher:
         if self._watchdog_thread and self._watchdog_thread.is_alive():
             return
         self._watchdog_stop.clear()
-        def run():
+        def run() -> None:
             import random
             base_ms = int(getattr(AppConfig, 'SERVER_WATCHDOG_BACKOFF_BASE_MS', 500))
             cap_ms = int(getattr(AppConfig, 'SERVER_WATCHDOG_BACKOFF_CAP_MS', 30000))
@@ -637,7 +638,7 @@ class ServerLauncher:
             max_attempts = int(getattr(AppConfig, 'SERVER_WATCHDOG_MAX_ATTEMPTS', 5))
             window_ms = int(getattr(AppConfig, 'SERVER_WATCHDOG_WINDOW_MS', 10*60*1000))
             cooldown_ms = int(getattr(AppConfig, 'SERVER_WATCHDOG_COOLDOWN_MS', 5*60*1000))
-            attempts = []  # timestamps (ms) of recent restarts
+            attempts: list[int] = []  # timestamps (ms) of recent restarts
             backoff_ms = base_ms
             while not self._watchdog_stop.is_set():
                 try:
@@ -714,6 +715,6 @@ def start_server_after_license() -> bool:
     """Start the server after license validation."""
     return get_server_launcher().start_server()
 
-def stop_server_on_exit():
+def stop_server_on_exit() -> None:
     """Stop the server when the application exits."""
     get_server_launcher().cleanup()

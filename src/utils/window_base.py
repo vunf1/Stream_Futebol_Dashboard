@@ -119,7 +119,7 @@ class BaseToastWindow(BaseWindow):
     def create_window(self) -> CTkToplevel:
         """Create toast window."""
         self.window = ctk.CTkToplevel()
-        self.window.geometry(f"{width}x{self.height}")
+        self.window.geometry(f"{self.width}x{self.height}")
         
         self.configure_window()
         

@@ -7,7 +7,7 @@ from src.notification import show_message_notification
 # Performance monitoring removed - keeping core optimizations
 import threading
 import time
-from typing import Optional, Dict
+from typing import Optional, Dict, Set
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 from src.config.settings import AppConfig
 from src.core.logger import get_logger
@@ -22,9 +22,9 @@ class SmartTeamCache:
     
     def __init__(self, base_ttl: int = 300):
         self._cache: Dict[str, str] = {}
-        self._cache_timestamp = 0
+        self._cache_timestamp: float = 0
         self._base_ttl = base_ttl
-        self._dirty_flags = set()  # Track which teams changed
+        self._dirty_flags: Set[str] = set()  # Track which teams changed
         self._usage_count = 0
         self._last_access = time.time()
         self._lock = threading.Lock()
@@ -65,7 +65,7 @@ class SmartTeamCache:
             self._record_access()
             return self._cache.copy() if self._cache else {}
     
-    def update_team(self, team_name: str, abbreviation: str):
+    def update_team(self, team_name: str, abbreviation: str) -> None:
         """Update single team in cache"""
         team_key = team_name.strip().upper()
         with self._lock:
@@ -74,28 +74,28 @@ class SmartTeamCache:
             self._dirty_flags.discard(team_key)
 
     
-    def invalidate_team(self, team_name: str):
+    def invalidate_team(self, team_name: str) -> None:
         """Selective invalidation - only mark specific team as dirty"""
         team_key = team_name.strip().upper()
         with self._lock:
             self._dirty_flags.add(team_key)
 
     
-    def invalidate_all(self):
+    def invalidate_all(self) -> None:
         """Invalidate entire cache"""
         with self._lock:
             self._cache.clear()
             self._cache_timestamp = 0
             self._dirty_flags.clear()
     
-    def set_teams(self, teams: Dict[str, str]):
+    def set_teams(self, teams: Dict[str, str]) -> None:
         """Set all teams and mark cache as fresh"""
         with self._lock:
             self._cache = {str(k).upper(): str(v).upper() for k, v in teams.items()}
             self._cache_timestamp = time.time()
             self._dirty_flags.clear()
     
-    def _record_access(self):
+    def _record_access(self) -> None:
         """Record cache access for TTL optimization"""
         self._usage_count += 1
         self._last_access = time.time()
@@ -128,7 +128,7 @@ def _sanitize_mongo_uri(uri: str) -> str:
         return u
     return u
 
-def _get_mongo_client():
+def _get_mongo_client() -> MongoClient:
     """Get or create MongoDB client with connection pooling"""
     global _mongo_client
     
@@ -146,7 +146,8 @@ def _get_mongo_client():
                 serverSelectionTimeoutMS=5000,  # 5 seconds timeout
                 connectTimeoutMS=5000
             )
-        return _mongo_client
+        # mypy: _mongo_client is MongoClient now
+        return _mongo_client  # type: ignore[return-value]
 
 # ─── MongoTeamManager ───────────────────────────────────────────────────────
 class MongoTeamManager:
@@ -266,10 +267,10 @@ class MongoTeamManager:
                 {"name": name_clean}, 
                 projection={"abbreviation": 1, "_id": 0}
             )
-            if doc:
-                # Update cache with this team
-                _teams_cache.update_team(name_clean, doc["abbreviation"])
-                return doc["abbreviation"]
+            if isinstance(doc, dict):
+                abbr = str(doc.get("abbreviation", ""))
+                _teams_cache.update_team(name_clean, abbr)
+                return abbr
             return ""
         except ConnectionFailure:
             return ""
@@ -282,9 +283,9 @@ class MongoTeamManager:
         
         # Fallback to database
         try:
-            return [doc["name"] for doc in self.collection.find(
+            return [str(doc.get("name", "")) for doc in self.collection.find(
                 projection={"name": 1, "_id": 0}
-            )]
+            ) if isinstance(doc, dict) and doc.get("name")]
         except ConnectionFailure:
             return []
 
@@ -322,7 +323,7 @@ class MongoTeamManager:
         # Schedule background JSON update
         self._schedule_json_update()
         
-        return result.deleted_count > 0
+        return bool(getattr(result, "deleted_count", 0) > 0)
 
     def _schedule_json_update(self):
         """Schedule JSON update in background thread to avoid blocking UI"""

@@ -71,7 +71,7 @@ class LicenseManager:
                 
             try:
                 # Get disk info if available (import psutil lazily)
-                import psutil  # type: ignore
+                import psutil
                 disk_info = psutil.disk_partitions()
                 if disk_info:
                     system_info.append(disk_info[0].device)

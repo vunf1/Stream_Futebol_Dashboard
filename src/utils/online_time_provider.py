@@ -18,7 +18,7 @@ class LocalTimeProvider:
     - No external dependencies or API calls
     """
     
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the local time provider."""
         self.portugal_tz = pytz.timezone('Europe/Lisbon')
         

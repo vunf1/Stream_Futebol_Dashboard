@@ -44,7 +44,7 @@ class Autocomplete(ctk.CTkFrame):
         self.entry.bind("<Button-1>", self._on_entry_click, add=True)
 
     # ---------------- Events / Debounce ----------------
-    def _on_key(self, event):
+    def _on_key(self, event: Any):
         # Ignore nav keys here (handled separately)
         if event.keysym in ("Up", "Down", "Return", "Escape"):
             return
@@ -61,7 +61,7 @@ class Autocomplete(ctk.CTkFrame):
             self.after_cancel(self._debounce_job)
         self._debounce_job = self.after(self.debounce_ms, self._query_and_show)
 
-    def _query_and_show(self):
+    def _query_and_show(self) -> None:
         self._debounce_job = None
         q = (self.entry.get() or "").strip()
         if not q:
@@ -102,14 +102,20 @@ class Autocomplete(ctk.CTkFrame):
         
         # Create popup with custom configuration to allow proper focus handling
         try:
+            parent_win = self.winfo_toplevel()
+            # At runtime this is a CTk/CTkToplevel; cast to satisfy type checker
+            from typing import cast
+            import customtkinter as _ctk
+            # Prefer CTkToplevel parent when possible; fall back to root cast
+            parent_ctk = parent_win if isinstance(parent_win, (_ctk.CTk, _ctk.CTkToplevel)) else _ctk.CTk()
             popup = create_popup_dialog(
-                self.winfo_toplevel(),  # type: ignore
+                cast(_ctk.CTk, parent_ctk),
                 "Autocomplete", 
                 200, 
                 150,
                 config={
-                    "grab_set": False,  # Don't grab focus to allow proper click outside detection
-                    "transient": True,   # Make it transient to the parent
+                    "grab_set": False,
+                    "transient": True,
                     "overrideredirect": True,
                     "topmost": True
                 }
@@ -139,7 +145,7 @@ class Autocomplete(ctk.CTkFrame):
         except Exception as e:
             raise
 
-    def _start_popup_monitor(self):
+    def _start_popup_monitor(self) -> None:
         """Start monitoring the popup to detect when it should be closed"""
         if self._monitoring:
             return  # Already monitoring
@@ -221,7 +227,7 @@ class Autocomplete(ctk.CTkFrame):
 
         self._highlight_selected()  # reset highlight
 
-    def _hide_popup(self):
+    def _hide_popup(self) -> None:
         popup = self.popup
         if popup is not None:
             try:
@@ -246,19 +252,19 @@ class Autocomplete(ctk.CTkFrame):
         self._selected_index = -1
         self._monitoring = False  # ensure monitor stops when popup closed
 
-    def _on_popup_focus_out(self, event):
+    def _on_popup_focus_out(self, event: Any):
         """Handle when popup loses focus"""
         # Small delay to allow click events to process first
         self.after(100, self._check_if_should_close)
 
-    def _on_focus_in(self, event):
+    def _on_focus_in(self, event: Any):
         """Handle when entry gains focus - show suggestions for existing text"""
         current_text = (self.entry.get() or "").strip()
         if current_text and not self.popup:
             # There's text and no popup, show suggestions
             self.after(50, self._query_and_show)
 
-    def _on_entry_click(self, event):
+    def _on_entry_click(self, event: Any):
         """Open suggestions immediately when the entry is clicked."""
         current_text = (self.entry.get() or "").strip()
         if current_text:
@@ -268,7 +274,7 @@ class Autocomplete(ctk.CTkFrame):
         # allow normal click processing to continue
         return None
 
-    def _cleanup_state(self):
+    def _cleanup_state(self) -> None:
         """Clean up the autocomplete state to prevent corruption"""
         try:
             if self._debounce_job:
@@ -296,23 +302,23 @@ class Autocomplete(ctk.CTkFrame):
             self._selected_index = -1
             self._last_text = ""
 
-    def _on_popup_click(self, event):
+    def _on_popup_click(self, event: Any):
         """Handle clicks within the popup"""
         # Prevent the popup from closing when clicking inside it
         return "break"
 
-    def _on_main_window_click(self, event):
+    def _on_main_window_click(self, event: Any):
         """Handle clicks on the main window"""
         # Deprecated: root click binding removed to avoid focus/grab conflicts.
         pass
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset the autocomplete to a clean state - useful when it breaks"""
         self._cleanup_state()
         self.entry.delete(0, "end")
         self._last_text = ""
 
-    def _check_if_should_close(self):
+    def _check_if_should_close(self) -> None:
         """Check if popup should be closed based on focus"""
         try:
             if self.popup and hasattr(self.popup, 'winfo_exists') and self.popup.winfo_exists():
@@ -331,7 +337,7 @@ class Autocomplete(ctk.CTkFrame):
                 pass
 
     @staticmethod
-    def _is_descendant(widget, ancestor) -> bool:
+    def _is_descendant(widget: Any, ancestor: Any) -> bool:
         if ancestor is None:
             return False
         while widget:
@@ -378,7 +384,7 @@ class Autocomplete(ctk.CTkFrame):
         frac = max(0.0, min(1.0, target_top / total_h))
         canvas.yview_moveto(frac)
 
-    def _select(self, label: str, value: Any):
+    def _select(self, label: str, value: Any) -> None:
         self.entry.delete(0, "end")
         self.entry.insert(0, label)
         self._last_text = label  # remember it!
@@ -395,7 +401,7 @@ class Autocomplete(ctk.CTkFrame):
             pass
         self._hide_popup()
 
-    def _restore_last_immediately(self, _e):
+    def _restore_last_immediately(self, _e: Any):
         """ESC → restore last value and close popup."""
         if self._last_text:
             self.entry.delete(0, "end")
@@ -403,7 +409,7 @@ class Autocomplete(ctk.CTkFrame):
         self._hide_popup()
         return "break"
 
-    def _nav_down(self, _e):
+    def _nav_down(self, _e: Any):
         if not self.items:
             return "break"
         self._selected_index = (self._selected_index + 1) % len(self.items)
@@ -411,7 +417,7 @@ class Autocomplete(ctk.CTkFrame):
         self._scroll_selected_into_view()
         return "break"
 
-    def _nav_up(self, _e):
+    def _nav_up(self, _e: Any):
         if not self.items:
             return "break"
         self._selected_index = (self._selected_index - 1) % len(self.items)
@@ -419,7 +425,7 @@ class Autocomplete(ctk.CTkFrame):
         self._scroll_selected_into_view()
         return "break"
 
-    def _nav_enter(self, _e):
+    def _nav_enter(self, _e: Any):
         if not self.items:
             return "break"
         idx = self._selected_index if self._selected_index >= 0 else 0
@@ -439,7 +445,7 @@ class Autocomplete(ctk.CTkFrame):
 
     # ---------------- API ----------------
     def get(self) -> str:
-        return self.entry.get()
+        return str(self.entry.get())
 
     def set(self, text: str):
         self.entry.delete(0, "end")

@@ -24,7 +24,7 @@ import json
 import time
 import threading
 import asyncio
-from typing import Any, Dict, Optional, Callable
+from typing import Any, Dict, Optional, Callable, cast
 from pathlib import Path
 from functools import lru_cache
 import hashlib
@@ -46,20 +46,20 @@ class FileCache:
 		self._lock = threading.RLock()
 		
 		# Dedicated write queue for timer operations
-		self._write_queue = Queue()
-		self._write_thread = None
+		self._write_queue: Queue[Optional[tuple[str, Dict[str, Any], str]]] = Queue()
+		self._write_thread: Optional[threading.Thread] = None
 		self._shutdown_event = threading.Event()
 		
 		# Start dedicated write thread
 		self._start_write_thread()
 
-	def _start_write_thread(self):
+	def _start_write_thread(self) -> None:
 		"""Start dedicated write thread for timer operations"""
 		if self._write_thread is None or not self._write_thread.is_alive():
 			self._write_thread = threading.Thread(target=self._write_worker, daemon=True)
 			self._write_thread.start()
 
-	def _write_worker(self):
+	def _write_worker(self) -> None:
 		"""Dedicated worker thread for handling all file writes sequentially"""
 		while not self._shutdown_event.is_set():
 			try:
@@ -97,7 +97,7 @@ class FileCache:
 			except Exception as e:
 				log.error("write_worker_error", exc_info=True)
 
-	def _perform_write(self, file_path: str, data: Dict[str, Any], write_type: str = "sync"):
+	def _perform_write(self, file_path: str, data: Dict[str, Any], write_type: str = "sync") -> None:
 		"""Perform the actual file write operation"""
 		try:
 			os.makedirs(os.path.dirname(file_path), exist_ok=True)
@@ -160,14 +160,16 @@ class FileCache:
 			try:
 				if os.path.exists(file_path):
 					with open(file_path, 'r', encoding='utf-8') as f:
-						data = json.load(f)
-					if not isinstance(data, dict):
-						data = default.copy()
+						loaded = json.load(f)
+					if isinstance(loaded, dict):
+						data_dict: Dict[str, Any] = cast(Dict[str, Any], loaded)
+					else:
+						data_dict = default.copy()
 				else:
-					data = default.copy()
+					data_dict = default.copy()
 
 				# Update cache with file modification time (ns)
-				self._cache[file_path] = data.copy()
+				self._cache[file_path] = data_dict.copy()
 				if os.path.exists(file_path):
 					try:
 						self._cache_timestamps[file_path] = os.stat(file_path).st_mtime_ns
@@ -175,26 +177,26 @@ class FileCache:
 						self._cache_timestamps[file_path] = time.time_ns()
 				else:
 					self._cache_timestamps[file_path] = time.time_ns()
-				self._file_hashes[file_path] = self._calculate_hash(data)
+				self._file_hashes[file_path] = self._calculate_hash(data_dict)
 
 				# Cleanup old cache entries
 				self._cleanup_cache()
 
-				return data
+				return data_dict
 
 			except Exception:
 				log.error("read_error", extra={"file_path": file_path}, exc_info=True)
 				return default.copy()
 
-	def write_json_async(self, file_path: str, data: Dict[str, Any]):
+	def write_json_async(self, file_path: str, data: Dict[str, Any]) -> None:
 		"""Queue async JSON write for timer operations"""
 		self._write_queue.put((file_path, data, "async"))
 	
-	def write_json_sync(self, file_path: str, data: Dict[str, Any]):
+	def write_json_sync(self, file_path: str, data: Dict[str, Any]) -> None:
 		"""Queue sync JSON write for timer operations"""
 		self._write_queue.put((file_path, data, "sync"))
 	
-	def _cleanup_cache(self):
+	def _cleanup_cache(self) -> None:
 		"""Remove old cache entries"""
 		if len(self._cache) <= self._max_cache_size:
 			return
@@ -211,7 +213,7 @@ class FileCache:
 			del self._cache_timestamps[file_path]
 			del self._file_hashes[file_path]
 	
-	def invalidate_cache(self, file_path: Optional[str] = None):
+	def invalidate_cache(self, file_path: Optional[str] = None) -> None:
 		"""Invalidate cache for specific file or all files"""
 		with self._lock:
 			if file_path:
@@ -223,7 +225,7 @@ class FileCache:
 				self._cache_timestamps.clear()
 				self._file_hashes.clear()
 
-	def shutdown(self):
+	def shutdown(self) -> None:
 		"""Shutdown write thread and flush pending operations"""
 		self._shutdown_event.set()
 		
@@ -246,15 +248,15 @@ def read_json_cached(file_path: str, default: Optional[Dict[str, Any]] = None) -
     """Read JSON file with caching"""
     return _file_cache.read_json(file_path, default)
 
-def write_json_async(file_path: str, data: Dict[str, Any]):
+def write_json_async(file_path: str, data: Dict[str, Any]) -> None:
     """Write JSON file asynchronously via queue"""
     _file_cache.write_json_async(file_path, data)
 
-def write_json_sync(file_path: str, data: Dict[str, Any]):
+def write_json_sync(file_path: str, data: Dict[str, Any]) -> None:
     """Write JSON file synchronously via queue"""
     _file_cache.write_json_sync(file_path, data)
 
-def batch_write_json(file_path: str, updates: Dict[str, Any]):
+def batch_write_json(file_path: str, updates: Dict[str, Any]) -> None:
     """Queue batch JSON updates for timer operations"""
     # Read current data with minimal locking
     current_data = read_json_cached(file_path, {})
@@ -273,10 +275,10 @@ def batch_write_json(file_path: str, updates: Dict[str, Any]):
     # Queue the write operation
     write_json_sync(file_path, current_data)
 
-def invalidate_file_cache(file_path: Optional[str] = None):
+def invalidate_file_cache(file_path: Optional[str] = None) -> None:
     """Invalidate file cache"""
     _file_cache.invalidate_cache(file_path)
 
-def shutdown_file_cache():
+def shutdown_file_cache() -> None:
     """Shutdown file cache system"""
     _file_cache.shutdown()

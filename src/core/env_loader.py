@@ -2,6 +2,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from typing import Optional
 from io import StringIO
 
 from cryptography.fernet import Fernet
@@ -28,12 +29,12 @@ class SecureEnvLoader:
         self.key_filename = key_filename
         self.meipass_attr = meipass_attr
         self.env_dir_envvar = env_dir_envvar
-        self._fernet = None
+        self._fernet: Optional[Fernet] = None
         self._loaded = False
         self._log = get_logger(__name__)
         self._pf = get_path_finder()
 
-    def _find_files(self):
+    def _find_files(self) -> tuple[Optional[Path], Optional[Path]]:
         """Find the secret key and encrypted env file paths"""
         # Try multiple possible locations in order of preference
         
@@ -88,7 +89,7 @@ class SecureEnvLoader:
         # If we get here, we couldn't find the files
         return None, None
 
-    def _wait_for_pyinstaller_init(self, max_retries=20, delay=0.05):
+    def _wait_for_pyinstaller_init(self, max_retries: int = 20, delay: float = 0.05) -> bool:
         """Wait for PyInstaller to fully initialize in frozen mode"""
         if not self._pf.meipass_dir():
             return False
@@ -219,7 +220,7 @@ class SecureEnvLoader:
         self._loaded = True
         self._wipe()
 
-    def _wipe(self):
+    def _wipe(self) -> None:
         """Clean up sensitive data"""
         if self._fernet:
             del self._fernet
@@ -228,14 +229,14 @@ class SecureEnvLoader:
 # Global instance for lazy loading
 _global_env_loader = None
 
-def get_global_env_loader():
+def get_global_env_loader() -> SecureEnvLoader:
     """Get the global environment loader instance"""
     global _global_env_loader
     if _global_env_loader is None:
         _global_env_loader = SecureEnvLoader()
     return _global_env_loader
 
-def ensure_env_loaded():
+def ensure_env_loaded() -> None:
     """Ensure environment variables are loaded (lazy loading)"""
     get_global_env_loader().load()
 

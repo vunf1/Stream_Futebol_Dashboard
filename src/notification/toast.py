@@ -15,7 +15,7 @@ from src.config.settings import AppConfig
 
 
 # Initialized per process via init_notification_queue()
-notification_queue = None  # type: ignore
+notification_queue = None
 
 @dataclass
 class ToastPayload:
@@ -297,8 +297,8 @@ def _build_toast_window(
         """Cancel all scheduled after() callbacks (e.g., on click-to-dismiss)."""
         for t in timers[:]:
             try:
-                toast.after_cancel(t) # type: ignore[no-untyped-call]
-            except:
+                toast.after_cancel(t)
+            except Exception:
                 pass
         timers.clear()
 
@@ -419,13 +419,13 @@ def _build_toast_window(
         tick()
 
     # Expose hooks the server calls
-    toast._fade_in = fade_in     # type: ignore[attr-defined]
-    toast._fade_out = fade_out   # type: ignore[attr-defined]
+    # Attach helper callables via a side-car dict to avoid type attribute issues
+    setattr(toast, "_toast_hooks", {"fade_in": fade_in, "fade_out": fade_out})
 
     # Let the server read the real measured height for stacking/clamping
     toast.update_idletasks()
     try:
-        toast._measured_height = max(1, toast.winfo_height())  # type: ignore[attr-defined]
+        setattr(toast, "_measured_height", max(1, toast.winfo_height()))
     except Exception:
         pass
 

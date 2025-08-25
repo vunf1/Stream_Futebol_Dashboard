@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Any, Dict
+import time
 
 from src.config.settings import AppConfig
 
@@ -40,7 +41,7 @@ def _redact_string(value: str) -> str:
 class _RedactionFilter(logging.Filter):
     SENSITIVE_KEYS = {"pin", "password", "secret", "token", "apikey", "api_key", "private_key"}
 
-    def filter(self, record: logging.LogRecord) -> bool:  # type: ignore[override]
+    def filter(self, record: logging.LogRecord) -> bool:
         try:
             # Redact message
             if isinstance(record.msg, str):
@@ -57,7 +58,7 @@ class _RedactionFilter(logging.Filter):
 
 
 class _JsonFormatter(logging.Formatter):
-    def format(self, record: logging.LogRecord) -> str:  # type: ignore[override]
+    def format(self, record: logging.LogRecord) -> str:
         payload: Dict[str, Any] = {
             "ts": datetime.now(timezone.utc).isoformat(),
             "level": record.levelname,
@@ -92,7 +93,7 @@ class _JsonFormatter(logging.Formatter):
 
 
 class _DevFormatter(logging.Formatter):
-    def format(self, record: logging.LogRecord) -> str:  # type: ignore[override]
+    def format(self, record: logging.LogRecord) -> str:
         ts = datetime.now().strftime("%H:%M:%S")
         # Prefix with explicit level tag for quick scanning
         base = f"[{record.levelname}] [{ts}] {record.name}: {record.getMessage()}"
@@ -138,6 +139,17 @@ def setup_logging() -> None:
     root.addHandler(handler)
 
     _LOGGING_CONFIGURED = True
+
+
+def mark_telemetry(event: str, **extra: Any) -> float:
+    """Convenience to log a telemetry timestamp with high-res monotonic time.
+
+    Returns the monotonic time used so callers can diff later.
+    """
+    setup_logging()
+    ts = time.perf_counter()
+    logging.getLogger("telemetry").info(event, extra={"perf_counter": ts, **extra})
+    return ts
 
 
 def get_logger(name: str) -> logging.Logger:

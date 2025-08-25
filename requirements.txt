@@ -12,3 +12,4 @@ reportlab
 requests
 pytz
 pytest
+mypy

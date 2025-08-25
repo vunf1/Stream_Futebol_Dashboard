@@ -173,7 +173,7 @@ def create_footer(parent, **kwargs):
                 # Fallback in non-frozen/dev environments to real system-wide check
                 if not proc_ok:
                     try:
-                        proc_ok = bool(launcher._any_server_running())  # type: ignore[attr-defined]
+                        proc_ok = bool(launcher._any_server_running())
                     except Exception:
                         pass
             except Exception:
@@ -214,7 +214,7 @@ def create_footer(parent, **kwargs):
                         running = bool(launcher.is_server_running())
                         if not running:
                             try:
-                                running = bool(launcher._any_server_running())  # type: ignore[attr-defined]
+                                running = bool(launcher._any_server_running())
                             except Exception:
                                 pass
                     except Exception:
@@ -252,7 +252,7 @@ def create_footer(parent, **kwargs):
                             _t.sleep(0.2)
                             running2 = False
                             try:
-                                running2 = bool(launcher._any_server_running())  # type: ignore[attr-defined]
+                                running2 = bool(launcher._any_server_running())
                             except Exception:
                                 running2 = False
                             if not running2:
@@ -408,7 +408,7 @@ def create_footer(parent, **kwargs):
             win = _tooltip_window.get("win")
             if win and win.winfo_exists():
                 _update_tooltip()
-        _apply_status_color = _apply_status_color_wrapper  # type: ignore
+        _apply_status_color = _apply_status_color_wrapper
 
         # Kick off initial check shortly after layout stabilizes
         try:
@@ -714,19 +714,7 @@ def create_footer(parent, **kwargs):
     return footer_frame
 
 
-# Legacy function for backward compatibility
-def add_footer_label(parent, config: Optional[FooterConfig] = None, **kwargs):
-    """
-    Legacy function for backward compatibility.
-    This function is deprecated - use create_footer() instead.
-    """
-    return create_footer(parent, **kwargs)
+# Removed deprecated add_footer_label (use create_footer instead) to reduce LoC
 
 
-# Legacy function for backward compatibility
-def add_footer_label_legacy(parent, text: str = "© 2025 Vunf1"):
-    """
-    Legacy function for backward compatibility.
-    This function is deprecated - use create_footer() instead.
-    """
-    return create_footer(parent, copyright_text=text)
+# Removed deprecated add_footer_label_legacy to reduce LoC

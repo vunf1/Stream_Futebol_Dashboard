@@ -354,7 +354,7 @@ class AppConfig:
             return default
     
     @classmethod
-    def initialize_config(cls):
+    def initialize_config(cls) -> None:
         """Initialize configuration values that depend on environment variables."""
         try:
             cls.DEBUG_MODE = cls.get_optional_env("DEBUG_MODE", "False").lower() == "true"

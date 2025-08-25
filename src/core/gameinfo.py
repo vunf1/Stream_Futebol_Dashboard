@@ -3,7 +3,7 @@ import re
 import json
 import time
 import threading
-from typing import Any, Dict
+from typing import Any, Dict, Iterator
 from contextlib import contextmanager
 
 from ..config import AppConfig
@@ -30,12 +30,12 @@ DEFAULT_FIELD_STATE: Dict[str, Any] = AppConfig.DEFAULT_FIELD_STATE
 ALLOWED_KEYS = set(DEFAULT_FIELD_STATE.keys())
 
 # Legacy write buffer (kept for backward compatibility)
-_write_buffer = {}
+_write_buffer: Dict[tuple[str, str, str], Any] = {}
 _write_buffer_lock = threading.Lock()
 _write_timer = None
 _write_timer_lock = threading.Lock()
 
-def _schedule_write():
+def _schedule_write() -> None:
     """Schedule a delayed write to batch multiple operations"""
     global _write_timer
     
@@ -43,14 +43,14 @@ def _schedule_write():
         if _write_timer:
             _write_timer.cancel()
         
-        def delayed_write():
+        def delayed_write() -> None:
             _flush_write_buffer()
         
         # Reduced delay for more responsive writes with multiple timers
         _write_timer = threading.Timer(0.05, delayed_write)  # 50ms delay
         _write_timer.start()
 
-def _flush_write_buffer():
+def _flush_write_buffer() -> None:
     """Flush all pending writes to disk using new caching system"""
     global _write_buffer
     
@@ -59,7 +59,7 @@ def _flush_write_buffer():
             return
         
         # Group writes by file path
-        files_to_write = {}
+        files_to_write: Dict[str, Dict[str, Dict[str, Any]]] = {}
         for (path, field_key, key), value in _write_buffer.items():
             if path not in files_to_write:
                 files_to_write[path] = {}
@@ -116,12 +116,12 @@ class GameInfoStore:
         self.debug = debug
         self._ensure_file()
 
-    def _log(self, *parts):
+    def _log(self, *parts: Any) -> None:
         if self.debug:
             log.debug("gameinfo_debug", extra={"field": self.field_key, "msg": " ".join(str(p) for p in parts)})
     # ----- disk helpers -----
     
-    def _ensure_file(self):
+    def _ensure_file(self) -> None:
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
         if not os.path.exists(self.path):
             with open(self.path, "w", encoding="utf-8") as f:
@@ -150,11 +150,11 @@ class GameInfoStore:
         log.debug("gameinfo_loaded", extra={"path": self.path, "field": self.field_key, "keys": list(blk.keys())})
         return self._data
 
-    def _ensure_loaded(self):
+    def _ensure_loaded(self) -> None:
         if not self._loaded:
             self._load_from_disk()
 
-    def _atomic_write(self, data: Dict[str, Any]):
+    def _atomic_write(self, data: Dict[str, Any]) -> None:
         # Use sync write to ensure immediate persistence and prevent blocking
         write_json_sync(self.path, data)
         log.debug("gameinfo_write_sync", extra={"path": self.path})
@@ -222,7 +222,7 @@ class GameInfoStore:
         return read_json_cached(self.path, {})
     
     @contextmanager
-    def _file_lock(self, timeout=2.0, poll=0.02):
+    def _file_lock(self, timeout: float = 2.0, poll: float = 0.02) -> Iterator[None]:
         lock = self.path + ".lock"
         start = time.time()
         while True:
@@ -250,7 +250,7 @@ class GameInfoStore:
         if not patch:
             return False
 
-        with self._file_lock(): # type: ignore
+        with self._file_lock():
             data = self._read_disk_raw()
             blk = data.get(self.field_key)
             if not isinstance(blk, dict):

@@ -81,7 +81,7 @@ class ConfigManager:
             "server_health_check_enabled": True,
         }
     
-    def _load_config(self):
+    def _load_config(self) -> None:
         """Load configuration from file"""
         if self.config_file.exists():
             try:
@@ -94,7 +94,7 @@ class ConfigManager:
                 # Log but continue with defaults
                 get_logger(__name__).warning("config_load_failed", exc_info=True)
     
-    def save_config(self):
+    def save_config(self) -> None:
         """Save current configuration to file"""
         try:
             with open(self.config_file, 'w', encoding='utf-8') as f:
@@ -106,7 +106,7 @@ class ConfigManager:
         """Get configuration value"""
         return self.config.get(key, default)
     
-    def set(self, key: str, value: Any):
+    def set(self, key: str, value: Any) -> None:
         """Set configuration value (enforces allow/forbid rules)"""
         if self._is_forbidden_key(key):
             self._log.warning("config_update_forbidden_key", extra={"key": key})
@@ -121,7 +121,7 @@ class ConfigManager:
         else:
             self.config[key] = value
     
-    def update(self, updates: Dict[str, Any]):
+    def update(self, updates: Dict[str, Any]) -> None:
         """Update multiple configuration values (enforces allow/forbid rules)"""
         safe = self._sanitize_updates(updates)
         if not safe:
@@ -182,7 +182,7 @@ class ConfigManager:
         ]
         return {key: self.config[key] for key in performance_keys}
     
-    def optimize_for_performance(self):
+    def optimize_for_performance(self) -> None:
         """Apply aggressive performance optimizations"""
         self.update({
             'write_buffer_delay': 0.05,      # 50ms delay
@@ -194,7 +194,7 @@ class ConfigManager:
             'notification_poll_interval': 50 # 50ms polling
         })
     
-    def optimize_for_memory(self):
+    def optimize_for_memory(self) -> None:
         """Apply memory optimization settings"""
         self.update({
             'icon_cache_size': 25,           # Smaller icon cache
@@ -203,7 +203,7 @@ class ConfigManager:
             'performance_history_size': 500  # Smaller history
         })
     
-    def reset_to_defaults(self):
+    def reset_to_defaults(self) -> None:
         """Reset configuration to default values"""
         self.config = self._load_default_config()
 
@@ -214,15 +214,15 @@ def get_config(key: str, default: Any = None) -> Any:
     """Get configuration value"""
     return _config_manager.get(key, default)
 
-def set_config(key: str, value: Any):
+def set_config(key: str, value: Any) -> None:
     """Set configuration value"""
     _config_manager.set(key, value)
 
-def update_config(updates: Dict[str, Any]):
+def update_config(updates: Dict[str, Any]) -> None:
     """Update multiple configuration values"""
     _config_manager.update(updates)
 
-def save_config():
+def save_config() -> None:
     """Save configuration to file"""
     _config_manager.save_config()
 
@@ -230,10 +230,10 @@ def get_performance_settings() -> Dict[str, Any]:
     """Get all performance-related settings"""
     return _config_manager.get_performance_settings()
 
-def optimize_for_performance():
+def optimize_for_performance() -> None:
     """Apply aggressive performance optimizations"""
     _config_manager.optimize_for_performance()
 
-def optimize_for_memory():
+def optimize_for_memory() -> None:
     """Apply memory optimization settings"""
     _config_manager.optimize_for_memory()

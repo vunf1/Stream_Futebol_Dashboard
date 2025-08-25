@@ -16,24 +16,27 @@ log = get_logger(__name__)
 class ConfigEditor:
     """Configuration editor interface."""
     
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[ctk.CTkBaseClass] = None) -> None:
         self.parent = parent
         self.config_file = Path("performance_config.json")
         self.current_config = self._load_current_config()
-        self.setting_widgets = {}  # Initialize setting_widgets
+        self.setting_widgets: Dict[str, Dict[str, Any]] = {}
         
     def _load_current_config(self) -> Dict[str, Any]:
         """Load current configuration from file."""
         if self.config_file.exists():
             try:
                 with open(self.config_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+                    loaded = json.load(f)
+                    if isinstance(loaded, dict):
+                        return loaded
+                    return {}
             except Exception as e:
                 log.warning("config_editor_load_failed", extra={"error": str(e), "path": str(self.config_file)})
                 return {}
         return {}
     
-    def _save_config(self, config: Dict[str, Any]):
+    def _save_config(self, config: Dict[str, Any]) -> None:
         """Save configuration to file."""
         try:
             with open(self.config_file, 'w', encoding='utf-8') as f:
@@ -42,7 +45,7 @@ class ConfigEditor:
         except Exception as e:
             log.error("config_editor_save_failed", extra={"error": str(e), "path": str(self.config_file)})
     
-    def show_config_dialog(self):
+    def show_config_dialog(self) -> None:
         """Show configuration editing dialog."""
         if not self.parent:
             self.parent = ctk.CTk()
@@ -118,7 +121,7 @@ class ConfigEditor:
         
         # Store widgets for later access (already populated by builders)
         
-    def _create_section_header(self, parent, text: str):
+    def _create_section_header(self, parent: Any, text: str) -> None:
         """Create a section header."""
         header = ctk.CTkLabel(
             parent,
@@ -128,7 +131,7 @@ class ConfigEditor:
         )
         header.pack(pady=(20, 10), anchor="w")
         
-    def _create_setting(self, parent, key: str, label: str, min_val: float, max_val: float, step: float):
+    def _create_setting(self, parent: Any, key: str, label: str, min_val: float, max_val: float, step: float) -> None:
         """Create a setting control."""
         frame = ctk.CTkFrame(parent)
         frame.pack(fill="x", padx=5, pady=2)
@@ -167,7 +170,7 @@ class ConfigEditor:
         # Update value label when slider changes
         slider.configure(command=lambda v: self._update_setting_value(key, v / 100))
     
-    def _create_toggle(self, parent, key: str, label: str):
+    def _create_toggle(self, parent: Any, key: str, label: str) -> None:
         """Create a boolean toggle control."""
         frame = ctk.CTkFrame(parent)
         frame.pack(fill="x", padx=5, pady=2)
@@ -178,7 +181,7 @@ class ConfigEditor:
         current_value = bool(self.current_config.get(key, getattr(AppConfig, key, False)))
         var = ctk.BooleanVar(value=current_value)
 
-        def on_toggle():
+        def on_toggle() -> None:
             self.setting_widgets[key]['current_value'] = var.get()
 
         switch = ctk.CTkSwitch(frame, text="", variable=var, command=on_toggle)
@@ -190,13 +193,13 @@ class ConfigEditor:
             'switch_var': var,
         }
         
-    def _update_setting_value(self, key: str, value: float):
+    def _update_setting_value(self, key: str, value: float) -> None:
         """Update setting value and display."""
         if key in self.setting_widgets:
             self.setting_widgets[key]['current_value'] = value
             self.setting_widgets[key]['value_label'].configure(text=f"{value:.2f}")
     
-    def _save_current_config(self):
+    def _save_current_config(self) -> None:
         """Save current configuration values."""
         config = {}
         for key, widgets in self.setting_widgets.items():
@@ -205,7 +208,7 @@ class ConfigEditor:
         self._save_config(config)
         self.current_config = config
         
-    def _reset_to_defaults(self):
+    def _reset_to_defaults(self) -> None:
         """Reset configuration to default values."""
         # Remove config file to reset to defaults
         if self.config_file.exists():
@@ -223,12 +226,12 @@ class ConfigEditor:
         
         log.info("config_editor_reset_to_defaults")
     
-    def _close_dialog(self):
+    def _close_dialog(self) -> None:
         """Close the configuration dialog."""
         if self.parent:
             self.parent.destroy()
 
-def show_config_editor(parent=None):
+def show_config_editor(parent: Optional[ctk.CTkBaseClass] = None) -> ConfigEditor:
     """Show the configuration editor dialog."""
     editor = ConfigEditor(parent)
     editor.show_config_dialog()

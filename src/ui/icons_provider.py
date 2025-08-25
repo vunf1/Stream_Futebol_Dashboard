@@ -21,7 +21,7 @@ from src.core.path_finder import get_path_finder
 from src.config.settings import AppConfig
 
 # Global icon cache for better performance (LRU bound applied externally)
-_global_icon_cache = {}
+_global_icon_cache: Dict[str, CTkImage] = {}
 _icon_cache_lock = threading.Lock()
 
 def _icons_dir() -> Path:
@@ -71,7 +71,7 @@ def get_icon(name: str, size: int = 24) -> CTkImage:
         icon = CTkImage(light_image=pil_img, dark_image=pil_img, size=(size, size))
     else:
         photo: Any = PhotoImage(file=str(path))
-        icon = CTkImage(light_image=photo, dark_image=photo, size=(size, size))  # type: ignore
+        icon = CTkImage(light_image=photo, dark_image=photo, size=(size, size))
     
     # Cache the icon (with LRU bound)
     with _icon_cache_lock:

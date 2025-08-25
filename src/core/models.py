@@ -70,7 +70,7 @@ class LicenseRecord:
     last_updated: Optional[datetime] = None
     metadata: Optional[Dict[str, Any]] = None
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Set default values after initialization."""
         if self.user is None:
             object.__setattr__(self, 'user', "")

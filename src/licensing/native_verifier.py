@@ -23,6 +23,7 @@ Notes:
 from __future__ import annotations
 
 from typing import Optional, Callable, Any, Dict
+import importlib
 
 _native_verify: Optional[Callable[[str, str, str, str, str], bool]] = None
 
@@ -31,11 +32,12 @@ try:
     from ._license_verifier import verify_signature as _verify  # type: ignore
     _native_verify = _verify
 except Exception:
-    # Try a generic module name if shipped externally
+    # Try a generic module name if shipped externally, using importlib
     try:
-        import license_verifier as _lv  # type: ignore
-        if hasattr(_lv, "verify_signature") and callable(_lv.verify_signature):
-            _native_verify = _lv.verify_signature  # type: ignore
+        _lv = importlib.import_module("license_verifier")
+        verify = getattr(_lv, "verify_signature", None)
+        if callable(verify):
+            _native_verify = verify
     except Exception:
         _native_verify = None
 

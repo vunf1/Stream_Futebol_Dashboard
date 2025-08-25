@@ -14,7 +14,7 @@ from src.ui.footer_label import create_footer
 from src.utils.window_utils import create_main_window, apply_drag_and_drop
 from src.notification import init_notification_queue, server_main
 from src.core.path_finder import get_path_finder
-from src.core.logger import get_logger
+from src.core.logger import get_logger, mark_telemetry
 
 # Global variable to track instance positions for cascade effect
 _instance_positions = {}
@@ -27,6 +27,9 @@ class ScoreApp:
         self.root.iconbitmap(get_icon_path("field"))
         self.root.title(f"{instance_number} Campo")
         
+        # Telemetry: constructor start
+        self._t_construct = mark_telemetry("startup_construct_begin", instance=instance_number)
+
         # Configure window properties using window utilities
         window_config = AppConfig.get_window_config()
         self.root.geometry(f"{window_config['width']}x{window_config['height']}")
@@ -66,6 +69,12 @@ class ScoreApp:
         
         # Check license BEFORE initializing any components
         self._check_license_first()
+        # Telemetry: constructor end
+        t_end = mark_telemetry("startup_construct_end", instance=instance_number)
+        try:
+            log.info("startup_construct_ms", extra={"ms": round((t_end - self._t_construct) * 1000, 1)})
+        except Exception:
+            pass
 
     def __del__(self):
         """Cleanup when the ScoreApp instance is destroyed."""
@@ -152,10 +161,7 @@ class ScoreApp:
                 _instance_positions[instance_number] = (new_x, new_y)
                 self.root.geometry(f"{width}x{height}+{new_x}+{new_y}")
 
-    def _adjust_for_overlap(self, instance_number: int, x: int, y: int, width: int, height: int):
-        """Adjust window position if it overlaps with existing windows"""
-        # This method is kept for compatibility but simplified
-        pass
+    # Removed unused _adjust_for_overlap to reduce LoC and maintenance burden
 
     def _on_closing(self):
         """Handle window closing event"""
@@ -232,6 +238,12 @@ class ScoreApp:
     def _animate_spinner(self):
         """Animate the loading spinner dots"""
         self.spinner_active = True
+        # Idle CPU telemetry: sample process CPU periodically while spinner is active
+        try:
+            import psutil  # type: ignore
+            self._ps_proc = getattr(self, "_ps_proc", psutil.Process())
+        except Exception:
+            self._ps_proc = None
         spinner_states = ["● ○ ○", "○ ● ○", "○ ○ ●", "● ● ●"]
         current_state = 0
         
@@ -250,6 +262,13 @@ class ScoreApp:
                         current_state = (current_state + 1) % len(spinner_states)
                         # Continue animation
                         animation_config = AppConfig.get_animation_config()
+                        # Sample CPU approx once per second for idle telemetry
+                        if self._ps_proc and current_state == 0:
+                            try:
+                                cpu = self._ps_proc.cpu_percent(interval=None)
+                                log.debug("idle_cpu_sample", extra={"cpu_percent": cpu})
+                            except Exception:
+                                pass
                         self.root.after(animation_config['spinner_interval'], update_spinner)
                 except:
                     # Widget was destroyed, stop animation
@@ -404,6 +423,8 @@ class ScoreApp:
             # Add footer with license status and server status dot
             create_footer(self.ui_container, show_server_status_dot=True)
             
+            # Telemetry: UI ready path begin
+            self._t_ui_ready_begin = mark_telemetry("startup_ui_ready_begin", instance=self.instance_number)
             self._update_loading_message("Finalizing...")
             animation_config = AppConfig.get_animation_config()
             self.root.after(animation_config['completion_delay'], self._complete_fast_loading)
@@ -429,6 +450,15 @@ class ScoreApp:
             # Keep the configured opacity for transparency
             self.root.attributes("-alpha", self.opacity)
             
+            # Telemetry: first UI shown
+            t_shown = mark_telemetry("startup_first_ui_shown", instance=self.instance_number)
+            try:
+                log.info("startup_time_to_ui_ms", extra={
+                    "ms": round((t_shown - getattr(self, "_t_construct", t_shown)) * 1000, 1)
+                })
+            except Exception:
+                pass
+
             # Ensure the server is running shortly after the UI becomes visible
             try:
                 self.root.after(200, self._ensure_server_autostart)
